@@ -1,0 +1,15 @@
+{
+  "name": "bunker-online",
+  "version": "1.0.0",
+  "description": "Настольная психологическая игра Бункер: Убежище-101",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["game", "bunker", "boardgame", "sse"],
+  "author": "",
+  "license": "ISC"
+}

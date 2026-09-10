@@ -1,0 +1,10 @@
+# Local binaries (Windows portable Node)
+bin/
+
+# Temporary and log files
+*.log
+tunnel_info.json
+
+# OS files
+.DS_Store
+Thumbs.db

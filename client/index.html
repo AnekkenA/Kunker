@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>БУНКЕР — Настольная игра на выживание</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="theme-dark">
+  <div id="app">
+    <!-- TOP HEADER -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo">
+          <span class="logo-icon">☣️</span>
+          <span class="logo-text">БУНКЕР</span>
+        </div>
+        <button id="btn-invite" class="btn btn-sm btn-outline hidden" title="Показать ссылку и QR-код для подключения">
+          📱 Пригласить игроков
+        </button>
+      </div>
+      <div class="header-right">
+        <div id="user-profile" class="user-profile hidden">
+          <span id="user-role-badge" class="role-badge">Игрок</span>
+          <span id="user-display-name" class="user-name">...</span>
+        </div>
+        <button id="btn-sound-toggle" class="btn-icon" title="Звуки">🔊</button>
+      </div>
+    </header>
+
+    <!-- NOTIFICATION TOASTS -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- MAIN VIEW CONTAINER -->
+    <main class="main-content">
+
+      <!-- SCREEN 1: SINGLE CLEAN AUTH (ENTER NAME) -->
+      <section id="screen-auth" class="screen active">
+        <div class="auth-card">
+          <div class="auth-header">
+            <h1 class="glitch-title">УБЕЖИЩЕ-101</h1>
+            <p class="auth-subtitle">Введите ваше имя, чтобы войти в бункер</p>
+          </div>
+
+          <div class="form-group">
+            <label for="input-player-name">Ваш позывной (Имя):</label>
+            <input type="text" id="input-player-name" class="form-input" placeholder="Например: Сталкер_77" maxlength="20" autofocus>
+          </div>
+
+          <div class="form-group" id="group-auth-password">
+            <label for="input-player-password">Пароль бункера (если задан):</label>
+            <input type="password" id="input-player-password" class="form-input" placeholder="Введите пароль (если требуется)">
+          </div>
+
+          <button id="btn-join-game" class="btn btn-success btn-lg btn-block">ВОЙТИ В БУНКЕР</button>
+        </div>
+      </section>
+
+      <!-- SCREEN 2: LOBBY -->
+      <section id="screen-lobby" class="screen">
+        <div class="lobby-grid">
+          <!-- LEFT / TOP: PLAYERS IN LOBBY -->
+          <div class="lobby-panel players-panel">
+            <div class="panel-header">
+              <h2>👥 Выжившие в шлюзе (<span id="lobby-player-count">0</span>)</h2>
+              <button id="btn-lobby-invite" class="btn btn-sm btn-primary">📱 Ссылка для подключения</button>
+            </div>
+
+            <div id="lobby-players-list" class="lobby-players-list">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- RIGHT / BOTTOM: GAME SETTINGS (MASTER CONTROLS) -->
+          <div class="lobby-panel settings-panel">
+            <div class="panel-header">
+              <h2 id="settings-panel-title">⚙️ Параметры убежища</h2>
+            </div>
+
+            <!-- MODE SELECTOR -->
+            <div class="setting-group">
+              <label class="setting-title">Режим игры:</label>
+              <div class="mode-selector">
+                <label class="mode-card">
+                  <input type="radio" name="game-mode" value="preset" checked>
+                  <div class="mode-card-content">
+                    <span class="mode-icon">📚</span>
+                    <span class="mode-name">Готовые наборы</span>
+                    <span class="mode-desc">Игра по готовым темам</span>
+                  </div>
+                </label>
+
+                <label class="mode-card">
+                  <input type="radio" name="game-mode" value="ugc">
+                  <div class="mode-card-content">
+                    <span class="mode-icon">✍️</span>
+                    <span class="mode-name">С нуля (Игроки)</span>
+                    <span class="mode-desc">Каждый пишет по 5 карт на категорию</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- PRESET DECKS SELECTOR (FOR MODE 1) -->
+            <div id="preset-decks-group" class="setting-group">
+              <label class="setting-title">Тематические наборы карт:</label>
+              <div id="decks-checkbox-list" class="decks-list">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+
+            <!-- BUNKER CAPACITY -->
+            <div class="setting-group">
+              <div class="capacity-header">
+                <label class="setting-title" for="input-bunker-capacity">Вместимость бункера (кол-во мест):</label>
+                <span id="capacity-value" class="capacity-badge">3</span>
+              </div>
+              <input type="range" id="input-bunker-capacity" min="1" max="20" value="3" class="range-slider">
+              <small class="form-hint">Столько человек смогут спастись в финале</small>
+            </div>
+
+            <!-- MASTER START ACTION -->
+            <div class="lobby-actions">
+              <button id="btn-start-game" class="btn btn-success btn-lg btn-block">🚀 НАЧАТЬ ИГРУ</button>
+              <button id="btn-open-deck-editor" class="btn btn-outline btn-block">🛠️ Конструктор наборов карт</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 3: UGC CREATION (MODE 2) -->
+      <section id="screen-ugc" class="screen">
+        <div class="ugc-container">
+          <div class="ugc-header">
+            <h2>✍️ Мастерская карт: Создание набора</h2>
+            <p>Напишите по 5 вариантов для каждой категории. После завершения сервер перемешает все варианты игроков и раздаст вам случайные роли!</p>
+            <div class="ugc-quick-bar">
+              <button id="btn-ugc-autofill" class="btn btn-sm btn-outline">🎲 Случайное автозаполнение</button>
+              <span id="ugc-status-badge" class="badge">Заполните поля</span>
+            </div>
+          </div>
+
+          <div class="ugc-categories-accordion" id="ugc-categories-container">
+            <!-- Rendered by JS -->
+          </div>
+
+          <div class="ugc-footer">
+            <button id="btn-ugc-submit" class="btn btn-primary btn-lg">ГОТОВО! ОТПРАВИТЬ КАРТЫ</button>
+            
+            <div id="ugc-master-panel" class="ugc-master-panel hidden">
+              <hr>
+              <h3>Панель Мастера игры:</h3>
+              <div id="ugc-players-ready-list" class="ugc-players-ready-list"></div>
+              <div class="form-group inline-flex">
+                <input type="text" id="input-ugc-theme-name" class="form-input" placeholder="Название набора (для сохранения в библиотеку)">
+                <button id="btn-ugc-start-game" class="btn btn-success">ЗАПУСТИТЬ ИГРУ</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 4: GAME BOARD (MAIN TABLE & 3D CARDS) -->
+      <section id="screen-game" class="screen">
+        <div class="game-container">
+          
+          <!-- TOP WORLD CARDS (CATASTROPHE & CONDITIONS) -->
+          <div class="world-cards-bar">
+            <!-- DISASTER CARD -->
+            <div class="world-card disaster-card">
+              <div class="world-card-header">
+                <span class="world-card-icon">🌋</span>
+                <span class="world-card-type">ГЛОБАЛЬНАЯ КАТАСТРОФА</span>
+              </div>
+              <div class="world-card-body">
+                <h3 id="disaster-title" class="world-title">Загрузка...</h3>
+                <p id="disaster-goal" class="world-text">...</p>
+              </div>
+            </div>
+
+            <!-- BUNKER CONDITIONS CARD -->
+            <div class="world-card condition-card">
+              <div class="world-card-header">
+                <span class="world-card-icon">🛡️</span>
+                <span class="world-card-type">УСЛОВИЯ И УГРОЗЫ БУНКЕРА</span>
+              </div>
+              <div class="world-card-body">
+                <h3 id="condition-title" class="world-title">Загрузка...</h3>
+                <p id="condition-desc" class="world-text">...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- MASTER ACTION TOOLBAR -->
+          <div class="game-toolbar">
+            <div class="toolbar-stats">
+              <span class="stat-item">Вместимость бункера: <strong id="stat-bunker-cap">0</strong></span>
+              <span class="stat-item">В игре: <strong id="stat-active-count" class="text-green">0</strong></span>
+              <span class="stat-item">Изгнано: <strong id="stat-exiled-count" class="text-red">0</strong></span>
+            </div>
+
+            <div class="toolbar-actions">
+              <button id="btn-toggle-logs" class="btn btn-sm btn-outline">📜 Журнал событий</button>
+              <div id="master-game-controls" class="master-controls hidden">
+                <button id="btn-open-master-actions" class="btn btn-sm btn-primary">⚡ Спец-действия Мастера</button>
+                <button id="btn-finish-game" class="btn btn-sm btn-warning">🏁 Подвести итоги</button>
+                <button id="btn-reset-lobby" class="btn btn-sm btn-danger">🔄 В лобби</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- THE MAIN BUNKER TABLE (ROWS = PLAYERS, COLS = 9 CARDS) -->
+          <div class="table-scroll-wrapper">
+            <table class="bunker-table" id="bunker-game-table">
+              <thead>
+                <tr>
+                  <th class="col-player">Выживший</th>
+                  <th class="col-card">💼 Профессия</th>
+                  <th class="col-card">❤️ Здоровье</th>
+                  <th class="col-card">🧬 Биология</th>
+                  <th class="col-card">🎨 Хобби</th>
+                  <th class="col-card">🧠 Черты</th>
+                  <th class="col-card">📜 Доп. сведения</th>
+                  <th class="col-card">🎒 Малый инв.</th>
+                  <th class="col-card">📦 Крупный инв.</th>
+                  <th class="col-card">⚡ Спец-карта</th>
+                  <th class="col-actions">Мастер</th>
+                </tr>
+              </thead>
+              <tbody id="bunker-table-body">
+                <!-- Dynamically rendered rows & 3D cards via JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- SIDE / BOTTOM LOGS DRAWER -->
+          <div id="logs-drawer" class="logs-drawer">
+            <div class="logs-header">
+              <h3>📜 Журнал событий бункера</h3>
+              <button id="btn-close-logs" class="btn-icon">✕</button>
+            </div>
+            <div id="logs-list" class="logs-list"></div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- SCREEN 5: DECK EDITOR (CONSTRUCTOR) -->
+      <section id="screen-editor" class="screen">
+        <div class="editor-container">
+          <div class="editor-header">
+            <h2>🛠️ Конструктор наборов карт</h2>
+            <button id="btn-editor-back" class="btn btn-outline">← Назад в лобби</button>
+          </div>
+
+          <div class="editor-body">
+            <div class="editor-sidebar">
+              <h3>Темы в папке decks/</h3>
+              <div id="editor-decks-list" class="editor-decks-list"></div>
+              <button id="btn-editor-new" class="btn btn-primary btn-block">+ Создать новую тему</button>
+            </div>
+
+            <div class="editor-main" id="editor-form-area">
+              <div class="form-group">
+                <label>ID набора (англ. буквы):</label>
+                <input type="text" id="edit-deck-id" class="form-input" placeholder="cyberpunk">
+              </div>
+              <div class="form-group">
+                <label>Название набора:</label>
+                <input type="text" id="edit-deck-name" class="form-input" placeholder="Киберпанк и Роботы">
+              </div>
+              <div class="form-group">
+                <label>Описание набора:</label>
+                <textarea id="edit-deck-desc" class="form-input" rows="2"></textarea>
+              </div>
+
+              <!-- CATEGORIES CONSTRUCTOR -->
+              <div class="editor-categories" id="editor-categories-inputs">
+                <!-- Injected via JS -->
+              </div>
+
+              <div class="editor-actions">
+                <button id="btn-editor-save" class="btn btn-success btn-lg">💾 СОХРАНИТЬ НАБОР КАРТ</button>
+                <button id="btn-editor-delete" class="btn btn-danger">Удалить тему</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- INVITE MODAL WITH QR CODE & NETWORK LINKS -->
+    <div id="invite-modal" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>📱 Подключение других игроков</h3>
+          <button id="btn-close-invite-modal" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="qr-section">
+            <div id="invite-qrcode" class="qrcode-wrapper"></div>
+            <p class="qr-hint">📷 <strong>Наведите камеру смартфона</strong> на QR-код для мгновенного входа!</p>
+          </div>
+
+          <div class="invite-links-box">
+            <!-- 1. Local Wi-Fi / Hotspot link -->
+            <div class="link-group" id="group-local-link">
+              <label>🏠 <strong>Ссылка для Wi-Fi / Точки доступа с телефона:</strong></label>
+              <div class="input-with-copy">
+                <input type="text" id="input-local-link" class="form-input" readonly>
+                <button class="btn btn-primary btn-sm" onclick="App.copyInputLink('input-local-link')">📋 Скопировать</button>
+              </div>
+            </div>
+
+            <!-- 2. Radmin VPN link -->
+            <div class="link-group" id="group-radmin-link">
+              <label>🛡️ <strong>Ссылка для Radmin VPN (сеть 26.X.X.X):</strong></label>
+              <div class="input-with-copy">
+                <input type="text" id="input-radmin-link" class="form-input" readonly>
+                <button class="btn btn-outline btn-sm" onclick="App.copyInputLink('input-radmin-link')">📋 Скопировать</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MASTER SPECIAL ACTIONS MODAL -->
+    <div id="master-actions-modal" class="modal-backdrop hidden">
+      <div class="modal-card" style="max-width: 580px;">
+        <div class="modal-header">
+          <h3>⚡ Панель Мастера: Спец-действия</h3>
+          <button id="btn-close-master-actions-modal" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+            Применяйте механики по указанию карт или правилам игры:
+          </p>
+
+          <div class="auth-tabs" style="margin-bottom: 16px;">
+            <button class="tab-btn active" data-tab="tab-ma-replace">🎲 Замена</button>
+            <button class="tab-btn" data-tab="tab-ma-swap">🔄 Обмен</button>
+            <button class="tab-btn" data-tab="tab-ma-shuffle">🔀 Перемешать</button>
+            <button class="tab-btn" data-tab="tab-ma-steal">🦹 Украсть</button>
+          </div>
+
+          <!-- TAB 1: REPLACE FROM DECK -->
+          <div id="tab-ma-replace" class="tab-content active">
+            <div class="form-group">
+              <label>У кого заменить карту:</label>
+              <select id="select-ma-replace-player" class="form-input"></select>
+            </div>
+            <div class="form-group">
+              <label>Какую категорию заменить на новую из колоды:</label>
+              <select id="select-ma-replace-cat" class="form-input">
+                <option value="profession">💼 Профессия</option>
+                <option value="health">❤️ Здоровье</option>
+                <option value="biology">🧬 Биология</option>
+                <option value="hobby">🎨 Хобби</option>
+                <option value="traits">🧠 Черты характера</option>
+                <option value="facts">📜 Доп. сведения</option>
+                <option value="small_inventory">🎒 Малый инвентарь</option>
+                <option value="large_inventory">📦 Крупный инвентарь</option>
+                <option value="special_cards">⚡ Спец-карта</option>
+              </select>
+            </div>
+            <button id="btn-ma-apply-replace" class="btn btn-primary btn-block">🎲 ВЫТЯНУТЬ НОВУЮ КАРТУ ИЗ КОЛОДЫ</button>
+          </div>
+
+          <!-- TAB 2: SWAP WITH PLAYER -->
+          <div id="tab-ma-swap" class="tab-content">
+            <div class="form-group">
+              <label>Первый игрок:</label>
+              <select id="select-ma-swap-p1" class="form-input"></select>
+            </div>
+            <div class="form-group">
+              <label>Второй игрок:</label>
+              <select id="select-ma-swap-p2" class="form-input"></select>
+            </div>
+            <div class="form-group">
+              <label>Какую категорию карт поменять местами:</label>
+              <select id="select-ma-swap-cat" class="form-input">
+                <option value="profession">💼 Профессия</option>
+                <option value="health">❤️ Здоровье</option>
+                <option value="biology">🧬 Биология</option>
+                <option value="hobby">🎨 Хобби</option>
+                <option value="traits">🧠 Черты характера</option>
+                <option value="facts">📜 Доп. сведения</option>
+                <option value="small_inventory">🎒 Малый инвентарь</option>
+                <option value="large_inventory">📦 Крупный инвентарь</option>
+                <option value="special_cards">⚡ Спец-карта</option>
+              </select>
+            </div>
+            <button id="btn-ma-apply-swap" class="btn btn-warning btn-block">🔄 ПОМЕНЯТЬ КАРТЫ МЕЖДУ ИГРОКАМИ</button>
+          </div>
+
+          <!-- TAB 3: SHUFFLE REVEALED -->
+          <div id="tab-ma-shuffle" class="tab-content">
+            <p class="form-hint" style="margin-bottom: 12px;">
+              ℹ️ Сервер соберёт карты выбранной категории у всех игроков, у кого они <strong>уже открыты</strong>, перемешает их и раздаст им же обратно!
+            </p>
+            <div class="form-group">
+              <label>Какую категорию открытых карт перемешать:</label>
+              <select id="select-ma-shuffle-cat" class="form-input">
+                <option value="profession">💼 Профессия</option>
+                <option value="health">❤️ Здоровье</option>
+                <option value="biology">🧬 Биология</option>
+                <option value="hobby">🎨 Хобби</option>
+                <option value="traits">🧠 Черты характера</option>
+                <option value="facts">📜 Доп. сведения</option>
+                <option value="small_inventory">🎒 Малый инвентарь</option>
+                <option value="large_inventory">📦 Крупный инвентарь</option>
+                <option value="special_cards">⚡ Спец-карта</option>
+              </select>
+            </div>
+            <button id="btn-ma-apply-shuffle" class="btn btn-primary btn-block">🔀 ПЕРЕМЕШАТЬ ВСЕ ОТКРЫТЫЕ КАРТЫ</button>
+          </div>
+
+          <!-- TAB 4: STEAL CARD -->
+          <div id="tab-ma-steal" class="tab-content">
+            <div class="form-group">
+              <label>У кого украсть карту (Жертва):</label>
+              <select id="select-ma-steal-from" class="form-input"></select>
+            </div>
+            <div class="form-group">
+              <label>Кому передать украденную карту (Вор):</label>
+              <select id="select-ma-steal-to" class="form-input"></select>
+            </div>
+            <div class="form-group">
+              <label>Какую категорию карты украсть:</label>
+              <select id="select-ma-steal-cat" class="form-input">
+                <option value="profession">💼 Профессия</option>
+                <option value="health">❤️ Здоровье</option>
+                <option value="biology">🧬 Биология</option>
+                <option value="hobby">🎨 Хобби</option>
+                <option value="traits">🧠 Черты характера</option>
+                <option value="facts">📜 Доп. сведения</option>
+                <option value="small_inventory">🎒 Малый инвентарь</option>
+                <option value="large_inventory">📦 Крупный инвентарь</option>
+                <option value="special_cards">⚡ Спец-карта</option>
+              </select>
+            </div>
+            <button id="btn-ma-apply-steal" class="btn btn-danger btn-block">🦹 СОВЕРШИТЬ КРАЖУ КАРТЫ</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- FINAL RESULTS MODAL (ЭКРАН ИТОГОВ) -->
+    <div id="results-modal" class="modal-backdrop hidden">
+      <div class="results-modal-card">
+        <h2 style="font-family: var(--font-display); font-size: 22px; color: var(--accent-cyan); margin-bottom: 4px;">
+          🏆 ИТОГИ ВЫЖИВАНИЯ БУНКЕРА
+        </h2>
+        <div id="results-disaster-title" style="font-size: 13px; color: var(--text-dim); margin-bottom: 12px;"></div>
+
+        <div id="results-verdict-box" class="results-badge-verdict">
+          <!-- Injected via JS -->
+        </div>
+
+        <div class="results-survivors-grid">
+          <div class="survivors-column">
+            <h4 style="color: var(--accent-green);">🛡️ ВОШЛИ В БУНКЕР:</h4>
+            <div id="results-survivors-list"></div>
+          </div>
+          <div class="survivors-column">
+            <h4 style="color: var(--accent-red);">💀 ИЗГНАНЫ НА ПОВЕРХНОСТЬ:</h4>
+            <div id="results-exiled-list"></div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: center; margin-top: 20px;">
+          <button id="btn-results-to-lobby" class="btn btn-success btn-lg">🔄 ВЕРНУТЬСЯ В ЛОББИ</button>
+          <button id="btn-results-close" class="btn btn-outline btn-lg">Продолжить просмотр стола</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="js/qrcode.min.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/lobby.js"></script>
+  <script src="js/ugc_creator.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/deck_editor.js"></script>
+</body>
+</html>
