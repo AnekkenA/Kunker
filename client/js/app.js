@@ -136,9 +136,15 @@ const App = {
   },
 
   showScreen(screenId) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.screen').forEach(s => {
+      s.classList.remove('active');
+      s.style.setProperty('display', 'none', 'important');
+    });
     const target = document.getElementById(screenId);
-    if (target) target.classList.add('active');
+    if (target) {
+      target.classList.add('active');
+      target.style.setProperty('display', 'flex', 'important');
+    }
   },
 
   bindGlobalEvents() {
@@ -309,6 +315,20 @@ const App = {
         this.playSound('click');
       });
     }
+
+    // Header Claim Host Button
+    const btnClaimHeader = document.getElementById('btn-claim-host-header');
+    if (btnClaimHeader) {
+      btnClaimHeader.addEventListener('click', async () => {
+        try {
+          await this.sendAction('claim_host');
+          this.playSound('start');
+          this.showToast('👑 Вы теперь Мастер игры!');
+        } catch (e) {
+          this.showToast(`Ошибка: ${e.message}`);
+        }
+      });
+    }
   },
 
   connectEvents() {
@@ -393,12 +413,15 @@ const App = {
     }
 
     const roleBadge = document.getElementById('user-role-badge');
+    const btnClaimHeader = document.getElementById('btn-claim-host-header');
     if (state.isHost) {
       roleBadge.textContent = '👑 Мастер';
       roleBadge.classList.add('master');
+      if (btnClaimHeader) btnClaimHeader.classList.add('hidden');
     } else {
       roleBadge.textContent = 'Игрок';
       roleBadge.classList.remove('master');
+      if (btnClaimHeader) btnClaimHeader.classList.remove('hidden');
     }
 
     // Status transition sound

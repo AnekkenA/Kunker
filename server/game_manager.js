@@ -369,6 +369,16 @@ class SingleGame {
     return { player, playerId, isHost };
   }
 
+  setHost(targetPlayerId) {
+    const target = this.players.get(targetPlayerId);
+    if (!target) throw new Error('Игрок не найден.');
+    this.players.forEach(p => { p.isHost = false; });
+    target.isHost = true;
+    this.hostId = targetPlayerId;
+    this.addLog(`👑 ${target.name} теперь является Мастером игры.`);
+    return true;
+  }
+
   removePlayer(playerId) {
     const p = this.players.get(playerId);
     if (p) {

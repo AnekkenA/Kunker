@@ -274,10 +274,27 @@ const Lobby = {
       }
     }
 
+    const headerTitle = document.querySelector('.settings-panel .panel-header h2');
     if (!isMaster) {
-      document.querySelector('.settings-panel .panel-header h2').textContent = '⚙️ Ожидание запуска игры Мастером...';
+      if (headerTitle) {
+        headerTitle.innerHTML = '⚙️ Ожидание Мастера... <button type="button" class="btn btn-xs btn-outline" id="btn-claim-host-lobby" style="font-size: 11px; margin-left: 8px; color: var(--accent-amber); border-color: var(--accent-amber); vertical-align: middle;">👑 Стать Мастером</button>';
+        const btnClaim = document.getElementById('btn-claim-host-lobby');
+        if (btnClaim) {
+          btnClaim.addEventListener('click', async () => {
+            try {
+              await App.sendAction('claim_host');
+              App.playSound('start');
+              App.showToast('👑 Вы теперь Мастер игры!');
+            } catch (e) {
+              App.showToast(`Ошибка: ${e.message}`);
+            }
+          });
+        }
+      }
     } else {
-      document.querySelector('.settings-panel .panel-header h2').textContent = '⚙️ Параметры убежища (Панель Мастера)';
+      if (headerTitle) {
+        headerTitle.textContent = '⚙️ Параметры убежища (Панель Мастера)';
+      }
     }
   }
 };

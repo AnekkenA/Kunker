@@ -197,6 +197,23 @@ const UgcCreator = {
 
     const btnStartBottom = document.getElementById('btn-ugc-start-game-bottom');
     if (btnStartBottom) btnStartBottom.addEventListener('click', handleMasterStart);
+
+    // 4. Claim Master Buttons
+    const handleClaimMaster = async () => {
+      try {
+        await App.sendAction('claim_host');
+        App.playSound('start');
+        App.showToast('👑 Вы назначены Мастером игры! Теперь вам доступна панель управления и запуск игры.');
+      } catch (e) {
+        App.showToast(`Ошибка: ${e.message}`);
+      }
+    };
+
+    const btnClaimMaster = document.getElementById('btn-ugc-claim-master');
+    if (btnClaimMaster) btnClaimMaster.addEventListener('click', handleClaimMaster);
+
+    const btnClaimBottom = document.getElementById('btn-ugc-claim-bottom');
+    if (btnClaimBottom) btnClaimBottom.addEventListener('click', handleClaimMaster);
   },
 
   updateSubmitButtonUI(isReady) {
@@ -361,10 +378,13 @@ const UgcCreator = {
       </span>
     `).join('');
 
+    const playerBottomClaim = document.getElementById('ugc-player-bottom-claim');
+
     if (state.isHost) {
       if (masterTopBar) masterTopBar.classList.remove('hidden');
       if (playerTopBar) playerTopBar.classList.add('hidden');
       if (masterBottomLaunch) masterBottomLaunch.classList.remove('hidden');
+      if (playerBottomClaim) playerBottomClaim.classList.add('hidden');
 
       const hostStatusText = document.getElementById('ugc-host-status-text');
       if (hostStatusText) {
@@ -377,6 +397,7 @@ const UgcCreator = {
       if (masterTopBar) masterTopBar.classList.add('hidden');
       if (playerTopBar) playerTopBar.classList.remove('hidden');
       if (masterBottomLaunch) masterBottomLaunch.classList.add('hidden');
+      if (playerBottomClaim) playerBottomClaim.classList.remove('hidden');
 
       const playerChipsBar = document.getElementById('ugc-player-chips-bar');
       if (playerChipsBar) playerChipsBar.innerHTML = playerChipsHtml;

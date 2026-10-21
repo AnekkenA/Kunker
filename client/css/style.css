@@ -299,13 +299,22 @@ body {
 }
 
 .screen {
-  display: none;
+  display: none !important;
   flex: 1;
   animation: fadeIn 0.3s ease-out;
 }
 
+.screen:not(.active),
+#screen-game:not(.active),
+#screen-ugc:not(.active),
+#screen-lobby:not(.active),
+#screen-auth:not(.active),
+#screen-editor:not(.active) {
+  display: none !important;
+}
+
 .screen.active {
-  display: flex;
+  display: flex !important;
   flex-direction: column;
 }
 

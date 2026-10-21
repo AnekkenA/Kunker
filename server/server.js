@@ -237,12 +237,23 @@ const server = http.createServer(async (req, res) => {
             targetGame.revealExiledPlayerCards(payload.targetPlayerId, playerId);
             break;
 
+          case 'claim_host':
+            targetGame.setHost(playerId);
+            break;
+
+          case 'transfer_host':
+            if (targetGame.hostId !== playerId) {
+              throw new Error('Только текущий Мастер может передавать права.');
+            }
+            targetGame.setHost(payload.targetPlayerId);
+            break;
+
           case 'start_ugc_phase':
             targetGame.mode = 'ugc';
             if (payload && payload.bunkerCapacity) {
               targetGame.bunkerCapacity = parseInt(payload.bunkerCapacity, 10) || 1;
             }
-            targetGame.startUgcPhase(playerId, { threatMode: payload ? payload.threatMode : 'threshold' });
+            targetGame.startUgcPhase(playerId, payload || {});
             break;
 
           case 'submit_ugc':
@@ -386,11 +397,10 @@ const server = http.createServer(async (req, res) => {
       'Access-Control-Allow-Origin': '*'
     };
 
-    if (ext === '.css' || ext === '.js' || ext === '.svg' || ext === '.png' || ext === '.ico') {
-      headers['Cache-Control'] = 'public, max-age=86400';
-    } else {
-      headers['Cache-Control'] = 'no-cache';
-    }
+    // Disable caching completely for realtime multiplayer web app
+    headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+    headers['Pragma'] = 'no-cache';
+    headers['Expires'] = '0';
 
     if (acceptEncoding.includes('gzip') && (contentType.includes('text') || contentType.includes('javascript') || contentType.includes('json') || contentType.includes('svg'))) {
       headers['Content-Encoding'] = 'gzip';

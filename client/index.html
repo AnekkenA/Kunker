@@ -3,9 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>БУНКЕР — Настольная игра на выживание</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=4.0">
 </head>
 <body class="theme-dark">
   <div id="app">
@@ -24,6 +27,7 @@
         <div id="user-profile" class="user-profile hidden">
           <span id="user-role-badge" class="role-badge">Игрок</span>
           <span id="user-display-name" class="user-name">...</span>
+          <button type="button" id="btn-claim-host-header" class="btn btn-xs btn-outline hidden" title="Стать Мастером бункера" style="font-size: 11px; padding: 2px 7px; border-color: var(--accent-amber); color: var(--accent-amber); margin-left: 6px;">👑 Взять Мастера</button>
         </div>
         <button id="btn-sound-toggle" class="btn-icon" title="Звуки">🔊</button>
       </div>
@@ -255,6 +259,9 @@
                 <span class="badge" style="background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); border: 1px solid var(--accent-cyan);">✍️ Режим «С нуля»</span>
                 <span style="font-size: 13px; color: var(--text-dim); margin-left: 8px;">Заполните свои карты. Мастер запустит бункер, когда участники закончат.</span>
               </div>
+              <div class="ugc-bar-actions">
+                <button type="button" id="btn-ugc-claim-master" class="btn btn-sm btn-outline" style="border-color: var(--accent-amber); color: var(--accent-amber);" title="Стать Мастером и получить кнопку запуска игры">👑 Я Мастер (управлять игрой)</button>
+              </div>
             </div>
             <div id="ugc-player-chips-bar" class="ugc-chips-bar"></div>
           </div>
@@ -308,7 +315,31 @@
                   💡 Полезные отсеки, оборудование или припасы убежища, облегчающие выживание.
                 </div>
                 <div class="ugc-world-inputs-grid" id="ugc-bunker-inputs">
-                  <!-- 5 pairs rendered by JS -->
+                  <div class="ugc-world-card-pair">
+                    <span class="ugc-card-pair-badge">Отсек 1:</span>
+                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="title" data-index="0" placeholder="Название отсека (например: Автономный медблок)">
+                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="desc" data-index="0" placeholder="Описание бонуса (например: Запас лекарств и операционная)">
+                  </div>
+                  <div class="ugc-world-card-pair">
+                    <span class="ugc-card-pair-badge">Отсек 2:</span>
+                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="title" data-index="1" placeholder="Название отсека (например: Оранжерея гидропоники)">
+                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="desc" data-index="1" placeholder="Описание бонуса (например: Свежие овощи и зелень)">
+                  </div>
+                  <div class="ugc-world-card-pair">
+                    <span class="ugc-card-pair-badge">Отсек 3:</span>
+                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="title" data-index="2" placeholder="Название отсека (например: Геотермальный генератор)">
+                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="desc" data-index="2" placeholder="Описание бонуса (например: Неисчерпаемое электричество)">
+                  </div>
+                  <div class="ugc-world-card-pair">
+                    <span class="ugc-card-pair-badge">Отсек 4:</span>
+                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="title" data-index="3" placeholder="Название отсека (например: Скважина чистой воды)">
+                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="desc" data-index="3" placeholder="Описание бонуса (например: Неограниченная питьевая вода)">
+                  </div>
+                  <div class="ugc-world-card-pair">
+                    <span class="ugc-card-pair-badge">Отсек 5:</span>
+                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="title" data-index="4" placeholder="Название отсека (например: 3D-мастерская деталей)">
+                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="desc" data-index="4" placeholder="Описание бонуса (например: Ремонт и производство любых инструментов)">
+                  </div>
                 </div>
               </div>
 
@@ -322,7 +353,31 @@
                   💡 Опасности, поломки систем или внешние угрозы, с которыми предстоит справиться выжившим.
                 </div>
                 <div class="ugc-world-inputs-grid" id="ugc-threats-inputs">
-                  <!-- 5 pairs rendered by JS -->
+                  <div class="ugc-world-card-pair">
+                    <span class="ugc-card-pair-badge">Угроза 1:</span>
+                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="title" data-index="0" placeholder="Название опасности (например: Утечка ядовитого фреона)">
+                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="desc" data-index="0" placeholder="Описание угрозы (например: Риск удушья, требуется химзащита)">
+                  </div>
+                  <div class="ugc-world-card-pair">
+                    <span class="ugc-card-pair-badge">Угроза 2:</span>
+                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="title" data-index="1" placeholder="Название опасности (например: Короткое замыкание в щитовой)">
+                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="desc" data-index="1" placeholder="Описание угрозы (например: Риск пожара в кабельных каналах)">
+                  </div>
+                  <div class="ugc-world-card-pair">
+                    <span class="ugc-card-pair-badge">Угроза 3:</span>
+                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="title" data-index="2" placeholder="Название опасности (например: Вспышка неизвестной лихорадки)">
+                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="desc" data-index="2" placeholder="Описание угрозы (например: Эпидемия в замкнутом отсеке)">
+                  </div>
+                  <div class="ugc-world-card-pair">
+                    <span class="ugc-card-pair-badge">Угроза 4:</span>
+                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="title" data-index="3" placeholder="Название опасности (например: Паника и психоз взаперти)">
+                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="desc" data-index="3" placeholder="Описание угрозы (например: Угроза бунта выживших)">
+                  </div>
+                  <div class="ugc-world-card-pair">
+                    <span class="ugc-card-pair-badge">Угроза 5:</span>
+                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="title" data-index="4" placeholder="Название опасности (например: Поломка глубинного насоса)">
+                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="desc" data-index="4" placeholder="Описание угрозы (например: Обезвоживание, срочно нужен ремонт)">
+                  </div>
                 </div>
               </div>
 
@@ -341,6 +396,9 @@
               <button id="btn-ugc-submit" class="btn btn-primary btn-lg btn-block" style="max-width: 500px;">💾 СОХРАНИТЬ И ОТПРАВИТЬ СВОИ КАРТЫ</button>
               <div id="ugc-master-bottom-launch" class="hidden" style="width: 100%; max-width: 500px;">
                 <button type="button" id="btn-ugc-start-game-bottom" class="btn btn-success btn-lg btn-block">🚀 ЗАПУСТИТЬ ИГРУ (МАСТЕР)</button>
+              </div>
+              <div id="ugc-player-bottom-claim" class="hidden" style="width: 100%; max-width: 500px;">
+                <button type="button" id="btn-ugc-claim-bottom" class="btn btn-outline btn-block" style="border-color: var(--accent-amber); color: var(--accent-amber);">👑 Взять роль Мастера бункера</button>
               </div>
             </div>
           </div>
@@ -1001,12 +1059,12 @@
   </div>
 
   <!-- SCRIPTS -->
-  <script src="js/qrcode.min.js"></script>
-  <script src="js/tag_helper.js"></script>
-  <script src="js/app.js"></script>
-  <script src="js/lobby.js"></script>
-  <script src="js/ugc_creator.js"></script>
-  <script src="js/game.js"></script>
-  <script src="js/deck_editor.js"></script>
+  <script src="js/qrcode.min.js?v=4.0"></script>
+  <script src="js/tag_helper.js?v=4.0"></script>
+  <script src="js/app.js?v=4.0"></script>
+  <script src="js/lobby.js?v=4.0"></script>
+  <script src="js/ugc_creator.js?v=4.0"></script>
+  <script src="js/game.js?v=4.0"></script>
+  <script src="js/deck_editor.js?v=4.0"></script>
 </body>
 </html>
