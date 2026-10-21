@@ -1904,62 +1904,87 @@ body {
     min-width: 0;
   }
 
-  /* Rotated 90 deg counter-clockwise slim survivor column */
+  /* Rotated 90 deg counter-clockwise slim survivor column on mobile */
   .col-player {
-    width: 44px !important;
-    min-width: 44px !important;
-    max-width: 44px !important;
-    padding: 8px 2px !important;
+    width: 48px !important;
+    min-width: 48px !important;
+    max-width: 48px !important;
+    padding: 6px 2px !important;
     text-align: center;
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    font-size: 11px;
-    letter-spacing: 1px;
+    vertical-align: middle;
+    overflow: visible;
+  }
+
+  .col-player span, .col-player div, .col-player-title {
+    display: inline-block;
+    transform: rotate(-90deg);
     white-space: nowrap;
+    font-size: 11px;
+    letter-spacing: 0.5px;
   }
 
   .player-cell {
-    width: 44px !important;
-    min-width: 44px !important;
-    max-width: 44px !important;
-    padding: 8px 2px !important;
+    width: 48px !important;
+    min-width: 48px !important;
+    max-width: 48px !important;
+    padding: 0 !important;
     text-align: center;
+    vertical-align: middle;
+    position: sticky;
+    left: 0;
+    overflow: visible;
   }
 
   .player-info-card {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    height: 100%;
-    min-height: var(--card-h);
+    gap: 4px;
+    width: 140px;
+    height: 44px;
+    margin-left: -46px;
+    transform: rotate(-90deg);
+    transform-origin: center center;
+    white-space: nowrap;
   }
 
   .player-row-name {
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
-    white-space: nowrap;
-    font-size: 11px;
-    max-height: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
     display: flex;
+    flex-direction: row;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .player-row-name span {
+    font-size: 11px;
+    display: inline-block;
   }
 
   .player-row-name strong {
-    max-width: 95px;
+    max-width: 80px;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
   }
 
-  .exile-stamp, .player-cell .role-badge {
+  .player-cell .role-badge {
     font-size: 9px;
-    padding: 2px 3px;
-    writing-mode: vertical-rl;
-    transform: rotate(180deg);
+    padding: 1px 4px;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  .exile-stamp {
+    font-size: 8px;
+    padding: 1px 3px;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: middle;
   }
 
   .lobby-grid {

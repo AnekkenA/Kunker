@@ -148,6 +148,17 @@ const GameBoard = {
           return;
         }
 
+        if (App.state && App.state.excessPlayers > 1) {
+          App.showToast(`⚠️ В бункере слишком много лишних (${App.state.excessPlayers} чел.). Допускается максимум +1 перенаселение!`);
+          return;
+        }
+
+        if (App.state && App.state.excessPlayers === 1) {
+          if (!confirm('⚠️ ВНИМАНИЕ: В бункере перенаселение (+1 лишний человек)!\n\nКоманда пожертвует комфортом и психологическим здоровьем (штраф -20% к выживанию).\n\nПерейти к анкете выживания?')) {
+            return;
+          }
+        }
+
         if (App.state && !App.state.cardsRevealedOk) {
           const minRev = App.state.minRegularRevealed || 0;
           const reqRev = App.state.requiredRevealed || 7;
@@ -176,13 +187,38 @@ const GameBoard = {
         const defense = document.querySelector('input[name="eval-defense"]:checked')?.value || '3';
         const psychology = document.querySelector('input[name="eval-psychology"]:checked')?.value || '3';
 
+        const disasterCondition = document.querySelector('input[name="eval-disaster-condition"]:checked')?.value || 'ok';
+
+        const bunkerStatuses = [];
+        (App.state && App.state.revealedBunkerCards || []).forEach((_, idx) => {
+          const val = document.querySelector(`input[name="eval-bunker-${idx}"]:checked`)?.value || 'ok';
+          bunkerStatuses.push(val);
+        });
+
+        const threatStatuses = [];
+        (App.state && App.state.revealedThreatCards || []).forEach((_, idx) => {
+          const val = document.querySelector(`input[name="eval-threat-${idx}"]:checked`)?.value || 'resolved';
+          threatStatuses.push(val);
+        });
+
         try {
           await App.sendAction('submit_evaluation', {
-            evaluation: { supplies, medicine, specialists, defense, psychology }
+            evaluation: {
+              supplies,
+              medicine,
+              specialists,
+              defense,
+              psychology,
+              disasterCondition,
+              bunkerStatuses,
+              threatStatuses
+            }
           });
           document.getElementById('modal-evaluation').classList.add('hidden');
           App.playSound('start');
-        } catch (e) {}
+        } catch (e) {
+          App.showToast(`Ошибка: ${e.message}`);
+        }
       });
     }
 
@@ -424,9 +460,21 @@ const GameBoard = {
       if (bunkerCards.length === 0) {
         bunkerListEl.innerHTML = '<div class="eval-empty-note text-dim">На столе пока нет открытых карт бункера.</div>';
       } else {
-        bunkerListEl.innerHTML = bunkerCards.map(c => `
+        bunkerListEl.innerHTML = bunkerCards.map((c, idx) => `
           <div class="eval-ref-item bunker">
-            <div class="eval-ref-item-title">🛡️ ${c.title || 'Карта бункера'}</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap: wrap; gap: 6px;">
+              <strong class="eval-ref-item-title">🛡️ ${c.title || 'Отсек бункера'}</strong>
+              <div style="display: flex; gap: 8px; font-size: 11px;">
+                <label style="cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                  <input type="radio" name="eval-bunker-${idx}" value="ok" checked>
+                  <span style="color: var(--accent-green); font-weight: 600;">✅ Все хорошо</span>
+                </label>
+                <label style="cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                  <input type="radio" name="eval-bunker-${idx}" value="failed">
+                  <span style="color: var(--accent-red); font-weight: 600;">⚠️ Сломано</span>
+                </label>
+              </div>
+            </div>
             <div class="eval-ref-item-desc">${c.description || ''}</div>
           </div>
         `).join('');
@@ -442,9 +490,21 @@ const GameBoard = {
       if (threatCards.length === 0) {
         threatListEl.innerHTML = '<div class="eval-empty-note text-dim">На столе пока нет открытых карт угроз.</div>';
       } else {
-        threatListEl.innerHTML = threatCards.map(c => `
+        threatListEl.innerHTML = threatCards.map((c, idx) => `
           <div class="eval-ref-item threat">
-            <div class="eval-ref-item-title">⚠️ ${c.title || 'Угроза бункеру'}</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap: wrap; gap: 6px;">
+              <strong class="eval-ref-item-title">⚠️ ${c.title || 'Угроза'}</strong>
+              <div style="display: flex; gap: 8px; font-size: 11px;">
+                <label style="cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                  <input type="radio" name="eval-threat-${idx}" value="resolved" checked>
+                  <span style="color: var(--accent-green); font-weight: 600;">✅ Все хорошо (устранена)</span>
+                </label>
+                <label style="cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                  <input type="radio" name="eval-threat-${idx}" value="active">
+                  <span style="color: var(--accent-red); font-weight: 600;">💀 Угроза осталась</span>
+                </label>
+              </div>
+            </div>
             <div class="eval-ref-item-desc">${c.description || ''}</div>
           </div>
         `).join('');
@@ -597,12 +657,21 @@ const GameBoard = {
     const excessCountEl = document.getElementById('stat-excess-count');
     const btnFinishEl = document.getElementById('btn-finish-game');
 
-    if (state.excessPlayers > 0) {
+    if (state.excessPlayers > 1) {
       if (excessWarn) excessWarn.classList.remove('hidden');
       if (excessCountEl) excessCountEl.textContent = state.excessPlayers;
       if (btnFinishEl) {
         btnFinishEl.classList.add('btn-disabled-lock');
-        btnFinishEl.title = `В бункере перенаселение: лишних ${state.excessPlayers} чел.! Сначала проведите изгнание.`;
+        btnFinishEl.title = `В бункере слишком много лишних (${state.excessPlayers} чел.)! Максимум перенаселения: +1 чел. Проведите изгнание.`;
+      }
+    } else if (state.excessPlayers === 1) {
+      if (excessWarn) {
+        excessWarn.classList.remove('hidden');
+        if (excessCountEl) excessCountEl.textContent = 1;
+      }
+      if (btnFinishEl) {
+        btnFinishEl.classList.remove('btn-disabled-lock');
+        btnFinishEl.title = 'Подвести итоги (перенаселение +1 чел., штраф к психике -20%)';
       }
     } else {
       if (excessWarn) excessWarn.classList.add('hidden');
@@ -797,22 +866,94 @@ const GameBoard = {
 
   pendingSpecialAction: null,
 
+  detectSpecialAction(text) {
+    if (!text) return 'custom';
+    const t = text.toLowerCase();
+    if (t.includes('+1') || t.includes('увеличит') || t.includes('увеличива') || t.includes('расширение убежищ') || (t.includes('вместимост') && t.includes('+'))) {
+      return 'bunker_cap_plus';
+    }
+    if (t.includes('-1') || (t.includes('вместимост') && (t.includes('-') || t.includes('уменьш')))) {
+      return 'bunker_cap_minus';
+    }
+    if (t.includes('иммунитет') || t.includes('второе дыхание') || t.includes('отмените свое изгнание')) {
+      return 'exile_immunity';
+    }
+    if (t.includes('ликвидаци') || t.includes('сброс угроз') || t.includes('предотвращен') || t.includes('огнезащита бункера')) {
+      return 'discard_threat';
+    }
+    if (t.includes('помилован') || t.includes('верните') || t.includes('возвращен') || t.includes('воскреш')) {
+      return 'resurrect_exiled';
+    }
+    if (t.includes('обмен') || t.includes('поменяться картой') || t.includes('равноценный обмен')) {
+      return 'exchange_card';
+    }
+    if (t.includes('замените') || t.includes('сбросьте свою') || t.includes('второй шанс') || t.includes('перераспредел')) {
+      return 'reroll_card';
+    }
+    return 'custom';
+  },
+
   handleCardClick(playerId, categoryKey, actionType, isSpecial) {
     if (!isSpecial) {
       this.toggleCard(playerId, categoryKey);
       return;
     }
 
-    // Special card action handler
-    if (!actionType || actionType === 'custom') {
-      if (confirm('Разыграть спец-карту и открыть ее для всех участников?')) {
+    const state = App.state || {};
+    const myPlayer = (state.players || []).find(p => p.id === playerId);
+    const card = myPlayer ? myPlayer.cards[categoryKey] : null;
+    const cardText = card ? (card.cleanText || card.text) : '';
+
+    const effectiveAction = (actionType && actionType !== 'custom')
+      ? actionType
+      : (card?.action || this.detectSpecialAction(cardText));
+
+    // Fast direct confirmation for capacity changes and immunity
+    if (effectiveAction === 'bunker_cap_plus') {
+      if (confirm(`Разыграть спец-карту «${cardText || 'Расширение убежища'}»?\n\nВместимость бункера немедленно увеличится на +1 место для всех!`)) {
+        App.sendAction('play_special_action', { actionType: 'bunker_cap_plus' })
+          .then(() => {
+            App.playSound('start');
+            App.showToast('⚡ Вместимость бункера увеличена на +1!');
+          })
+          .catch(err => App.showToast(`Ошибка: ${err.message}`));
+      }
+      return;
+    }
+
+    if (effectiveAction === 'bunker_cap_minus') {
+      if (confirm(`Разыграть спец-карту «${cardText}»?\n\nВместимость бункера уменьшится на -1 место!`)) {
+        App.sendAction('play_special_action', { actionType: 'bunker_cap_minus' })
+          .then(() => {
+            App.playSound('flip');
+            App.showToast('⚡ Вместимость бункера уменьшена на -1!');
+          })
+          .catch(err => App.showToast(`Ошибка: ${err.message}`));
+      }
+      return;
+    }
+
+    if (effectiveAction === 'exile_immunity') {
+      if (confirm(`Разыграть спец-карту «${cardText}»?\n\nВы получите иммунитет к изгнанию на следующее голосование!`)) {
+        App.sendAction('play_special_action', { actionType: 'exile_immunity' })
+          .then(() => {
+            App.playSound('flip');
+            App.showToast('🛡️ Получен иммунитет к изгнанию!');
+          })
+          .catch(err => App.showToast(`Ошибка: ${err.message}`));
+      }
+      return;
+    }
+
+    if (!effectiveAction || effectiveAction === 'custom') {
+      if (confirm(`Разыграть спец-карту «${cardText}» и открыть ее для всех участников?`)) {
         this.toggleCard(playerId, categoryKey);
       }
       return;
     }
 
     // Interactive action handler
-    this.openSpecialActionModal(playerId, categoryKey, actionType);
+    this.openSpecialActionModal(playerId, categoryKey, effectiveAction);
   },
 
   openSpecialActionModal(playerId, categoryKey, actionType) {
@@ -882,24 +1023,6 @@ const GameBoard = {
             </div>
           `;
         }
-        break;
-
-      case 'spy_card':
-        controls.innerHTML = `
-          <div class="form-group">
-            <label>Выберите игрока для шпионажа:</label>
-            <select id="select-special-target" class="form-input">
-              ${otherPlayers.map(p => `<option value="${p.id}">${p.name} ${p.isExiled ? '(Изгнан)' : ''}</option>`).join('')}
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Какую скрытую категорию изучить тайно:</label>
-            <select id="select-special-cat" class="form-input">
-              ${categories.map(c => `<option value="${c.key}">${c.icon} ${c.name}</option>`).join('')}
-            </select>
-          </div>
-          <p style="font-size: 11px; color: var(--text-dim);">* Значение карты увидите только вы в секретном окне!</p>
-        `;
         break;
 
       case 'force_reveal_other':
@@ -986,14 +1109,9 @@ const GameBoard = {
 
     try {
       App.playSound('flip');
-      const res = await App.sendAction('play_special_action', { actionType, params });
+      await App.sendAction('play_special_action', { actionType, params });
       document.getElementById('modal-special-action').classList.add('hidden');
-
-      if (res && res.spyResult) {
-        alert(`🔍 СЕКРЕТНЫЕ ДАННЫЕ ШПИОНАЖА:\n\nИгрок: ${res.spyResult.targetPlayerName}\nХарактеристика: [${res.spyResult.categoryName}]\nЗначение: "${res.spyResult.cardText}"\n\n(Эта информация видна только вам!)`);
-      } else {
-        App.showToast('⚡ Спец-карта успешно разыграна!');
-      }
+      App.showToast('⚡ Спец-карта успешно разыграна!');
     } catch (e) {
       App.showToast(`Ошибка: ${e.message}`);
     }
@@ -1037,12 +1155,25 @@ const GameBoard = {
     document.getElementById('results-disaster-title').textContent = `Катастрофа: ${results.disaster || 'Глобальный катаклизм'}`;
 
     const verdictBox = document.getElementById('results-verdict-box');
+    const isSuccess = results.isSuccess;
+
+    const outcomeBadge = isSuccess
+      ? `<div style="font-size: 24px; font-weight: 900; color: var(--accent-green); background: rgba(16,185,129,0.15); border: 2px solid var(--accent-green); padding: 8px 18px; border-radius: 8px; margin: 8px auto 10px auto; display: inline-block; letter-spacing: 0.5px;">✅ УСПЕШНО (БУНКЕР ВЫЖИЛ)</div>`
+      : `<div style="font-size: 24px; font-weight: 900; color: var(--accent-red); background: rgba(239,68,68,0.15); border: 2px solid var(--accent-red); padding: 8px 18px; border-radius: 8px; margin: 8px auto 10px auto; display: inline-block; letter-spacing: 0.5px;">❌ ПРОВАЛ (БУНКЕР ПОГИБ)</div>`;
+
+    const rollInfo = (results.diceRoll !== undefined)
+      ? `<div style="font-size: 13px; color: var(--text-dim); margin-bottom: 8px;">🎲 Бросок судьбы: <strong>${results.diceRoll}</strong> из 100 (для выживания требовалось ≤ ${results.percentage}%)</div>`
+      : '';
+
     verdictBox.innerHTML = `
-      <div style="font-size: 26px; font-weight: 900; margin-bottom: 4px;">${results.percentage}%</div>
-      <div style="font-size: 16px; font-weight: 700;">${results.verdict}</div>
-      <p style="font-size: 13px; font-weight: normal; margin-top: 8px; line-height: 1.5; color: var(--text-main);">${results.epilogue || ''}</p>
+      <div style="font-size: 32px; font-weight: 900; margin-bottom: 2px;">${results.percentage}%</div>
+      <div style="font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px;">Шанс выживания</div>
+      ${outcomeBadge}
+      ${rollInfo}
+      <div style="font-size: 15px; font-weight: 700; margin-top: 6px;">${results.verdict}</div>
+      <p style="font-size: 13px; font-weight: normal; margin-top: 10px; line-height: 1.6; color: var(--text-main); text-align: left; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 6px; white-space: pre-line;">${results.epilogue || ''}</p>
     `;
-    verdictBox.className = `results-badge-verdict ${results.isSuccess ? 'success' : 'danger'}`;
+    verdictBox.className = `results-badge-verdict ${isSuccess ? 'success' : 'danger'}`;
 
     if (results.teamResources && typeof TagHelper !== 'undefined') {
       const defs = TagHelper.PARAM_DEFINITIONS;

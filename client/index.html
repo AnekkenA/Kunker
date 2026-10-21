@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0">
   <title>БУНКЕР — Настольная игра на выживание</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <link rel="stylesheet" href="css/style.css?v=4.0">
+  <link rel="stylesheet" href="css/style.css?v=4.2">
 </head>
 <body class="theme-dark">
   <div id="app">
@@ -490,7 +490,7 @@
             <table class="bunker-table" id="bunker-game-table">
               <thead>
                 <tr id="bunker-table-header-row">
-                  <th class="col-player">Выживший</th>
+                  <th class="col-player"><span class="col-player-title">Выживший</span></th>
                   <th class="col-card">💼 Профессия</th>
                   <th class="col-card">❤️ Здоровье</th>
                   <th class="col-card">🧬 Биология</th>
@@ -918,6 +918,19 @@
                 <div class="eval-ref-card-header">🌋 Катастрофа</div>
                 <div class="eval-ref-card-title" id="eval-ref-disaster-title">Загрузка...</div>
                 <div class="eval-ref-card-body" id="eval-ref-disaster-goal">...</div>
+                <div class="eval-toggle-group" style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
+                  <div style="font-size: 11px; font-weight: 700; margin-bottom: 5px; color: var(--accent-amber);">Условия выживания при катастрофе:</div>
+                  <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                    <label style="cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 5px;">
+                      <input type="radio" name="eval-disaster-condition" value="ok" checked>
+                      <span style="color: var(--accent-green); font-weight: 600;">✅ Все хорошо (соблюдены)</span>
+                    </label>
+                    <label style="cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 5px;">
+                      <input type="radio" name="eval-disaster-condition" value="failed">
+                      <span style="color: var(--accent-red); font-weight: 600;">❌ Не соблюдены (штраф -30%)</span>
+                    </label>
+                  </div>
+                </div>
               </div>
 
               <!-- CAPACITY & SURVIVORS -->
@@ -1059,12 +1072,12 @@
   </div>
 
   <!-- SCRIPTS -->
-  <script src="js/qrcode.min.js?v=4.0"></script>
-  <script src="js/tag_helper.js?v=4.0"></script>
-  <script src="js/app.js?v=4.0"></script>
-  <script src="js/lobby.js?v=4.0"></script>
-  <script src="js/ugc_creator.js?v=4.0"></script>
-  <script src="js/game.js?v=4.0"></script>
-  <script src="js/deck_editor.js?v=4.0"></script>
+  <script src="js/qrcode.min.js?v=4.2"></script>
+  <script src="js/tag_helper.js?v=4.2"></script>
+  <script src="js/app.js?v=4.2"></script>
+  <script src="js/lobby.js?v=4.2"></script>
+  <script src="js/ugc_creator.js?v=4.2"></script>
+  <script src="js/game.js?v=4.2"></script>
+  <script src="js/deck_editor.js?v=4.2"></script>
 </body>
 </html>

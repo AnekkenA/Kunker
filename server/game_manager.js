@@ -86,6 +86,33 @@ function getRandomItem(array, fallback = '—') {
   return array[Math.floor(Math.random() * array.length)];
 }
 
+function detectSpecialAction(text) {
+  if (!text) return 'custom';
+  const t = text.toLowerCase();
+  if (t.includes('+1') || t.includes('увеличит') || t.includes('увеличива') || t.includes('расширение убежищ') || (t.includes('вместимост') && t.includes('+'))) {
+    return 'bunker_cap_plus';
+  }
+  if (t.includes('-1') || (t.includes('вместимост') && (t.includes('-') || t.includes('уменьш')))) {
+    return 'bunker_cap_minus';
+  }
+  if (t.includes('иммунитет') || t.includes('второе дыхание') || t.includes('отмените свое изгнание')) {
+    return 'exile_immunity';
+  }
+  if (t.includes('ликвидаци') || t.includes('сброс угроз') || t.includes('предотвращен') || t.includes('огнезащита бункера')) {
+    return 'discard_threat';
+  }
+  if (t.includes('помилован') || t.includes('верните') || t.includes('возвращен') || t.includes('воскреш')) {
+    return 'resurrect_exiled';
+  }
+  if (t.includes('обмен') || t.includes('поменяться картой') || t.includes('равноценный обмен')) {
+    return 'exchange_card';
+  }
+  if (t.includes('замените') || t.includes('сбросьте свою') || t.includes('второй шанс') || t.includes('перераспредел')) {
+    return 'reroll_card';
+  }
+  return 'custom';
+}
+
 class SingleGame {
   constructor(roomId = 'BUNKER-101') {
     this.roomId = (roomId || 'BUNKER-101').trim().toUpperCase();
@@ -211,7 +238,11 @@ class SingleGame {
 
     let result = { success: true };
 
-    switch (actionType) {
+    const resolvedAction = (actionType && actionType !== 'custom')
+      ? actionType
+      : (specialCard.action || detectSpecialAction(specialCard.text));
+
+    switch (resolvedAction) {
       case 'bunker_cap_plus': {
         this.bunkerCapacity += 1;
         this.addLog(`⚡ ${player.name} сыграл спец-карту «${cardTitle}»: Вместимость бункера УВЕЛИЧЕНА на +1 (теперь мест: ${this.bunkerCapacity})!`);
@@ -243,22 +274,6 @@ class SingleGame {
         } else {
           this.addLog(`⚡ ${player.name} сыграл спец-карту «${cardTitle}» (на столе не было активных угроз).`);
         }
-        break;
-      }
-
-      case 'spy_card': {
-        const targetPlayer = this.players.get(params.targetPlayerId);
-        if (!targetPlayer) throw new Error('Целевой игрок не найден.');
-        const catKey = params.categoryKey || 'profession';
-        const targetCard = targetPlayer.cards[catKey];
-        const catObj = this.categories.find(c => c.key === catKey);
-        const catName = catObj ? catObj.name : catKey;
-        this.addLog(`⚡ ${player.name} применил шпионаж против игрока ${targetPlayer.name} и тайно изучил его [${catName}].`);
-        result.privateSpyResult = {
-          targetPlayerName: targetPlayer.name,
-          categoryName: catName,
-          cardText: targetCard ? (targetCard.cleanText || targetCard.text) : 'Пусто'
-        };
         break;
       }
 
@@ -1210,87 +1225,140 @@ class SingleGame {
     const survivorsCount = survivors.length;
     const capacity = this.bunkerCapacity;
 
-    // Calculation formula
-    const totalEvalPoints = evalScores.supplies + evalScores.medicine + evalScores.specialists + evalScores.defense + evalScores.psychology; // 5 to 25
+    const disasterOk = (evaluation.disasterCondition !== 'failed');
+    const bunkerStatuses = Array.isArray(evaluation.bunkerStatuses) ? evaluation.bunkerStatuses : [];
+    const threatStatuses = Array.isArray(evaluation.threatStatuses) ? evaluation.threatStatuses : [];
+
+    // Base score from Master's 5 questions (5 to 25 points -> 20% to 100%)
+    const totalEvalPoints = evalScores.supplies + evalScores.medicine + evalScores.specialists + evalScores.defense + evalScores.psychology;
     let percentage = Math.round((totalEvalPoints / 25) * 100);
 
+    // 1. Team Resources Bonus: up to +15%
+    const teamRes = this.calculateTeamResources(false);
+    const resourceBonus = Math.min(15, Math.round(
+      (teamRes.fire * 1.5) +
+      (teamRes.medicine * 2) +
+      (teamRes.food * 2) +
+      (teamRes.engineering * 2) +
+      (teamRes.psycho * 1.5) +
+      (teamRes.defense * 1.5) +
+      (teamRes.science * 1.5)
+    ));
+    percentage += resourceBonus;
+
+    // 2. Disaster Conditions (penalty 2-3x higher than other threats: -30%)
+    let disasterImpactText = '';
+    if (!disasterOk) {
+      percentage -= 30;
+      disasterImpactText = '❌ Условия катастрофы НЕ СОБЛЮДЕНЫ (тяжелый штраф: -30%)';
+    } else {
+      percentage += 5;
+      disasterImpactText = '✅ Условия катастрофы соблюдены (+5%)';
+    }
+
+    // 3. Bunker compartments bonuses / penalties
+    let workingBunkers = 0;
+    let failedBunkers = 0;
+    bunkerStatuses.forEach(st => {
+      if (st === 'ok') {
+        workingBunkers++;
+        percentage += 4;
+      } else {
+        failedBunkers++;
+        percentage -= 3;
+      }
+    });
+
+    // 4. Threats bonuses / penalties
+    let activeThreats = 0;
+    let resolvedThreats = 0;
+    threatStatuses.forEach(st => {
+      if (st === 'active') {
+        activeThreats++;
+        percentage -= 12; // -12% per unresolved active threat
+      } else {
+        resolvedThreats++;
+        percentage += 2;
+      }
+    });
+
+    // 5. Overpopulation penalty
+    let overpopPenalty = 0;
+    const excess = Math.max(0, survivorsCount - capacity);
+    if (excess > 0) {
+      overpopPenalty = excess * 20;
+      percentage -= overpopPenalty;
+    }
+
+    // Clamp percentage
+    if (survivorsCount === 0) {
+      percentage = 0;
+    } else {
+      percentage = Math.max(1, Math.min(99, percentage));
+    }
+
+    // 6. RANDOMIZER (Бросок кубика судьбы от 1 до 100)
+    // 1 to percentage => УСПЕХ, percentage+1 to 100 => ПРОВАЛ
+    const diceRoll = Math.floor(Math.random() * 100) + 1;
+    const isSuccess = (survivorsCount > 0) && (diceRoll <= percentage);
+    const outcomeText = isSuccess ? 'УСПЕШНО' : 'ПРОВАЛ';
+
     let verdict = '';
-    let isSuccess = false;
     let epilogue = '';
 
     if (survivorsCount === 0) {
-      percentage = 0;
-      isSuccess = false;
       verdict = '💀 ВСЕ ИЗГНАНЫ. БУНКЕР ПУСТ.';
       epilogue = 'Все кандидаты были изгнаны на поверхность. В убежище никто не вошел. Замкнутые системы отключились одна за другой, и человечество в этом регионе прекратило свое существование.';
-    } else if (survivorsCount > capacity) {
-      const excess = survivorsCount - capacity;
-      const teamRes = this.calculateTeamResources(false);
-      const resourceBonus = Math.min(20, Math.round(
-        (teamRes.fire * 1.5) +
-        (teamRes.medicine * 2) +
-        (teamRes.food * 2) +
-        (teamRes.engineering * 2) +
-        (teamRes.psycho * 1.5) +
-        (teamRes.defense * 1.5) +
-        (teamRes.science * 1.5)
-      ));
-
-      percentage = Math.max(5, percentage + resourceBonus - (excess * 20));
-      isSuccess = percentage >= 50;
-      verdict = `⚠️ ПЕРЕНАСЕЛЕНИЕ БУНКЕРА! (${survivorsCount} чел. на ${capacity} мест, Шанс: ${percentage}%)`;
-      epilogue = `В бункер попытались набиться ${survivorsCount} человек, хотя спальных капсул и ресурсов было рассчитано всего на ${capacity}. ` +
-        `Спустя 3 месяца системы регенерации кислорода и фильтры вышли из строя от предельной нагрузки (штраф перенаселения -${excess * 20}%). ` +
-        (isSuccess
-          ? `Однако благодаря совокупным навыкам и запасам команды выжившим удалось преодолеть кризис и стабилизировать системы убежища!`
-          : `Началась ожесточенная борьба за пайки и воду. Бункер не выдержал внутреннего хаоса.`);
-
-      const resLine = `\n\n📊 Совокупные ресурсы команды:\n` +
-        `🧯 Пожаротушение: ${teamRes.fire} | 💊 Медицина: ${teamRes.medicine} | 🍞 Провизия: ${teamRes.food} | ⚙️ Инженерия: ${teamRes.engineering} | 🧠 Психика: ${teamRes.psycho} | 🛡️ Защита: ${teamRes.defense} | 🔬 Наука: ${teamRes.science}` +
-        (resourceBonus > 0 ? ` (+${resourceBonus}% к шансу выживания за полезные предметы и навыки)` : '') +
-        ` | ⚠️ Штраф за перенаселение: -${excess * 20}%`;
-      epilogue += resLine;
-    } else {
-      // Normal or under capacity
-      const teamRes = this.calculateTeamResources(false);
-      const resourceBonus = Math.min(20, Math.round(
-        (teamRes.fire * 1.5) +
-        (teamRes.medicine * 2) +
-        (teamRes.food * 2) +
-        (teamRes.engineering * 2) +
-        (teamRes.psycho * 1.5) +
-        (teamRes.defense * 1.5) +
-        (teamRes.science * 1.5)
-      ));
-
-      percentage = Math.min(100, Math.max(5, percentage + resourceBonus));
-
-      if (percentage >= 70) {
-        isSuccess = true;
-        verdict = `🎉 БУНКЕР УСПЕШНО ВЫЖИЛ! (Шанс выживания: ${percentage}%)`;
-        epilogue = `Благодаря слаженным действиям команды и грамотному распределению ресурсов, ${survivorsCount} выживших преодолели все угрозы. ` +
-          `Запасов и медикаментов хватило на весь срок изоляции. Спустя годы шлюз распахнулся, и спасшиеся начали возрождать новый мир.`;
-      } else if (percentage >= 40) {
-        isSuccess = true;
-        verdict = `⚖️ ТЯЖЕЛАЯ БОРЬБА ЗА ВЫЖИВАНИЕ (Шанс выживания: ${percentage}%)`;
-        epilogue = `Группе из ${survivorsCount} человек удалось пережить катастрофу, однако изоляция далась дорогой ценой. ` +
-          `Дефицит припасов и нехватка нужных специалистов едва не привели к гибели колонии. Только строжайшая дисциплина спасла убежище.`;
-      } else {
-        isSuccess = false;
-        verdict = `💀 КАТАСТРОФА В БУНКЕРЕ (Шанс выживания: ${percentage}%)`;
-        epilogue = `Несмотря на то, что бункер закрылся, критическая нехватка ресурсов, болезни и нерешенные внешние угрозы оказались фатальными. ` +
-          `Системы жизнеобеспечения угасли задолго до открытия спасательного шлюза.`;
+    } else if (isSuccess) {
+      verdict = `🎉 УСПЕШНО: БУНКЕР ВЫЖИЛ! (Шанс: ${percentage}%, Кубик: ${diceRoll} ➔ ВЫЖИВАНИЕ)`;
+      epilogue = `Кубик судьбы выпал на ${diceRoll} (требовалось ≤ ${percentage}% для победы). Выжившие преодолели суровые испытания и смогли наладить устойчивый быт в бункере! `;
+      if (excess > 0) {
+        epilogue += `Команда пожертвовала комфортом и психическим здоровьем из-за перенаселения (+${excess} чел., штраф -${overpopPenalty}%), но выдержка людей помогла преодолеть кризис. `;
       }
-
-      const resLine = `\n\n📊 Совокупные ресурсы команды:\n` +
-        `🧯 Пожаротушение: ${teamRes.fire} | 💊 Медицина: ${teamRes.medicine} | 🍞 Провизия: ${teamRes.food} | ⚙️ Инженерия: ${teamRes.engineering} | 🧠 Психика: ${teamRes.psycho} | 🛡️ Защита: ${teamRes.defense} | 🔬 Наука: ${teamRes.science}` +
-        (resourceBonus > 0 ? ` (+${resourceBonus}% к шансу выживания за полезные предметы и навыки)` : '');
-      epilogue += resLine;
+      if (!disasterOk) {
+        epilogue += `Несмотря на нарушение условий катастрофы, обитателям чудом удалось избежать фатальной аварии! `;
+      }
+      if (activeThreats > 0) {
+        epilogue += `Часть угроз осталась неликвидированной (${activeThreats} активных), но команда сумела локализовать ущерб. `;
+      }
+      epilogue += `Спустя годы гермодверь убежища распахнулась, и спасшиеся начали возрождать новый мир.`;
+    } else {
+      verdict = `💀 ПРОВАЛ: БУНКЕР ПОГИБ! (Шанс: ${percentage}%, Кубик: ${diceRoll} ➔ ПОРАЖЕНИЕ)`;
+      epilogue = `Кубик судьбы выпал на ${diceRoll} (при шансе ${percentage}% требовалось ≤ ${percentage}). `;
+      if (!disasterOk) {
+        epilogue += `Несоблюдение условий глобальной катастрофы нанесло сокрушительный удар по обитателям бункера. `;
+      }
+      if (excess > 0) {
+        epilogue += `Перенаселение (+${excess} чел.) вызвало острый дефицит кислорода и нервный срыв у команды. `;
+      }
+      if (activeThreats > 0) {
+        epilogue += `Неликвидированные угрозы (${activeThreats} активных) привели к фатальной аварии систем жизнеобеспечения. `;
+      }
+      epilogue += `Внутренние системы бункера не выдержали нагрузки, и убежище угасло задолго до открытия спасательного шлюза.`;
     }
+
+    const bunkerDetailLine = (bunkerStatuses.length > 0)
+      ? `• Отсеки бункера: ${workingBunkers} раб. (+${workingBunkers * 4}%), ${failedBunkers} поврежд. (-${failedBunkers * 3}%)\n`
+      : '';
+    const threatsDetailLine = (threatStatuses.length > 0)
+      ? `• Угрозы бункеру: ${resolvedThreats} устранено (+${resolvedThreats * 2}%), ${activeThreats} активных (-${activeThreats * 12}%)\n`
+      : '';
+
+    const resLine = `\n\n📌 Факторы расчета выживаемости:\n` +
+      `• Оценка анкеты Мастера: ${totalEvalPoints} из 25 б.\n` +
+      `• ${disasterImpactText}\n` +
+      bunkerDetailLine +
+      threatsDetailLine +
+      (excess > 0 ? `• ⚠️ Перенаселение (+${excess} чел.): штраф -${overpopPenalty}%\n` : '') +
+      `• 📊 Бонус полезных ресурсов команды: +${resourceBonus}%\n` +
+      `🎲 Бросок кубика судьбы: ${diceRoll} из 100 (при шансе ${percentage}%) ➔ ${outcomeText}!`;
+    epilogue += resLine;
 
     this.results = {
       isSuccess,
       percentage,
+      diceRoll,
+      outcomeText,
       verdict,
       epilogue,
       survivors,

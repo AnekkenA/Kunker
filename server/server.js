@@ -227,9 +227,6 @@ const server = http.createServer(async (req, res) => {
           case 'play_special_action': {
             const resData = targetGame.playSpecialCardAction(playerId, payload.actionType, payload.params);
             targetGame.broadcast();
-            if (resData && resData.privateSpyResult) {
-              return sendJson(res, 200, { success: true, spyResult: resData.privateSpyResult });
-            }
             return sendJson(res, 200, { success: true });
           }
 

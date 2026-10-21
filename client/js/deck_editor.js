@@ -25,7 +25,6 @@ const DeckEditor = {
     { value: 'bunker_cap_minus', label: '➖ Вместимость бункера -1' },
     { value: 'exile_immunity', label: '🛡️ Право Вето / Иммунитет к изгнанию' },
     { value: 'discard_threat', label: '🧯 Ликвидация активной угрозы' },
-    { value: 'spy_card', label: '👁️ Шпионаж (тайно изучить карту соперника)' },
     { value: 'force_reveal_other', label: '📢 Разоблачение (вскрыть карту соперника)' },
     { value: 'exchange_card', label: '🔀 Обмен картами с другим игроком' },
     { value: 'reroll_card', label: '🎲 Второй шанс (замена своей карты)' },
