@@ -433,26 +433,36 @@ const App = {
     if (state.status === 'lobby') {
       this.showScreen('screen-lobby');
       if (typeof Lobby !== 'undefined') Lobby.render(state);
-      const resModal = document.getElementById('results-modal');
-      if (resModal) resModal.classList.add('hidden');
+      const btnBackToResults = document.getElementById('btn-back-to-results');
+      if (btnBackToResults) btnBackToResults.classList.add('hidden');
     } else if (state.status === 'ugc_building') {
       this.showScreen('screen-ugc');
       if (typeof UgcCreator !== 'undefined') UgcCreator.render(state);
-      const resModal = document.getElementById('results-modal');
-      if (resModal) resModal.classList.add('hidden');
+      const btnBackToResults = document.getElementById('btn-back-to-results');
+      if (btnBackToResults) btnBackToResults.classList.add('hidden');
     } else if (state.status === 'playing') {
       this.showScreen('screen-game');
       if (typeof GameBoard !== 'undefined') GameBoard.render(state);
-      const resModal = document.getElementById('results-modal');
-      if (resModal) resModal.classList.add('hidden');
+      const btnBackToResults = document.getElementById('btn-back-to-results');
+      if (btnBackToResults) btnBackToResults.classList.add('hidden');
     } else if (state.status === 'finished') {
-      this.showScreen('screen-game');
+      const currentActive = document.querySelector('.screen.active');
+      const isViewingTable = currentActive && currentActive.id === 'screen-game';
+      const justFinished = prevState && prevState.status !== 'finished';
+
+      if (justFinished || !isViewingTable) {
+        this.showScreen('screen-results');
+      }
+
       if (typeof GameBoard !== 'undefined') {
         GameBoard.render(state);
         if (state.results) {
-          GameBoard.showResultsModal(state.results);
+          GameBoard.showResultsPage(state.results);
         }
       }
+
+      const btnBackToResults = document.getElementById('btn-back-to-results');
+      if (btnBackToResults) btnBackToResults.classList.remove('hidden');
     }
 
     // Activity logs

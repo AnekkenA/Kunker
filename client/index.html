@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0">
   <title>БУНКЕР — Настольная игра на выживание</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <link rel="stylesheet" href="css/style.css?v=4.2">
+  <link rel="stylesheet" href="css/style.css?v=4.3">
 </head>
 <body class="theme-dark">
   <div id="app">
@@ -474,6 +474,7 @@
             </div>
 
             <div class="toolbar-actions">
+              <button id="btn-back-to-results" class="btn btn-sm btn-success hidden" title="Вернуться на экран с итогами выживания">🏆 К итогам выживания</button>
               <button id="btn-toggle-logs" class="btn btn-sm btn-outline">📜 Журнал</button>
               <div id="master-game-controls" class="master-controls hidden">
                 <button id="btn-open-reveal-modal" class="btn btn-sm btn-primary">👁️ Открыть чужую карту</button>
@@ -650,6 +651,43 @@
               </div>
             </div>
 
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 6: FINAL RESULTS PAGE (INDEPENDENT CLEAN FULL SCREEN WITH SMOOTH NATIVE SCROLL) -->
+      <section id="screen-results" class="screen">
+        <div class="results-page-container">
+          <div class="results-page-card">
+            <div class="results-page-header">
+              <span class="results-trophy-icon">🏆</span>
+              <h1 class="results-page-title">ИТОГИ ВЫЖИВАНИЯ БУНКЕРА</h1>
+              <div id="results-disaster-title" class="results-disaster-subtitle"></div>
+            </div>
+
+            <div id="results-verdict-box" class="results-badge-verdict">
+              <!-- Injected via JS -->
+            </div>
+
+            <div class="results-survivors-grid">
+              <div class="survivors-column">
+                <h4 style="color: var(--accent-green); display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
+                  <span>🛡️</span> <span>ВОШЛИ В БУНКЕР:</span>
+                </h4>
+                <div id="results-survivors-list"></div>
+              </div>
+              <div class="survivors-column">
+                <h4 style="color: var(--accent-red); display: flex; align-items: center; gap: 6px; margin-bottom: 12px;">
+                  <span>💀</span> <span>ИЗГНАНЫ НА ПОВЕРХНОСТЬ:</span>
+                </h4>
+                <div id="results-exiled-list"></div>
+              </div>
+            </div>
+
+            <div class="results-page-actions">
+              <button id="btn-results-to-lobby" class="btn btn-success btn-lg">🔄 ВЕРНУТЬ ВСЕХ В ЛОББИ</button>
+              <button id="btn-results-to-table" class="btn btn-outline btn-lg">👁️ ПОСМОТРЕТЬ ИГРОВОЙ СТОЛ</button>
+            </div>
           </div>
         </div>
       </section>
@@ -1039,45 +1077,15 @@
       </div>
     </div>
 
-    <!-- FINAL RESULTS MODAL (ЭКРАН ИТОГОВ) -->
-    <div id="results-modal" class="modal-backdrop hidden">
-      <div class="results-modal-card">
-        <h2 style="font-family: var(--font-display); font-size: 22px; color: var(--accent-cyan); margin-bottom: 4px;">
-          🏆 ИТОГИ ВЫЖИВАНИЯ БУНКЕРА
-        </h2>
-        <div id="results-disaster-title" style="font-size: 13px; color: var(--text-dim); margin-bottom: 12px;"></div>
-
-        <div id="results-verdict-box" class="results-badge-verdict">
-          <!-- Injected via JS -->
-        </div>
-
-        <div class="results-survivors-grid">
-          <div class="survivors-column">
-            <h4 style="color: var(--accent-green);">🛡️ ВОШЛИ В БУНКЕР:</h4>
-            <div id="results-survivors-list"></div>
-          </div>
-          <div class="survivors-column">
-            <h4 style="color: var(--accent-red);">💀 ИЗГНАНЫ НА ПОВЕРХНОСТЬ:</h4>
-            <div id="results-exiled-list"></div>
-          </div>
-        </div>
-
-        <div style="display: flex; gap: 12px; justify-content: center; margin-top: 20px;">
-          <button id="btn-results-to-lobby" class="btn btn-success btn-lg">🔄 ВЕРНУТЬСЯ В ЛОББИ</button>
-          <button id="btn-results-close" class="btn btn-outline btn-lg">Продолжить просмотр стола</button>
-        </div>
-      </div>
-    </div>
-
   </div>
 
   <!-- SCRIPTS -->
-  <script src="js/qrcode.min.js?v=4.2"></script>
-  <script src="js/tag_helper.js?v=4.2"></script>
-  <script src="js/app.js?v=4.2"></script>
-  <script src="js/lobby.js?v=4.2"></script>
-  <script src="js/ugc_creator.js?v=4.2"></script>
-  <script src="js/game.js?v=4.2"></script>
-  <script src="js/deck_editor.js?v=4.2"></script>
+  <script src="js/qrcode.min.js?v=4.3"></script>
+  <script src="js/tag_helper.js?v=4.3"></script>
+  <script src="js/app.js?v=4.3"></script>
+  <script src="js/lobby.js?v=4.3"></script>
+  <script src="js/ugc_creator.js?v=4.3"></script>
+  <script src="js/game.js?v=4.3"></script>
+  <script src="js/deck_editor.js?v=4.3"></script>
 </body>
 </html>

@@ -233,23 +233,34 @@ const GameBoard = {
       });
     }
 
-    // Results Modal Return to Lobby
+    // Results Page Actions
     const btnResultsLobby = document.getElementById('btn-results-to-lobby');
     if (btnResultsLobby) {
       btnResultsLobby.addEventListener('click', async () => {
         if (App.isHost) {
-          await App.sendAction('reset_lobby');
+          if (confirm('Сбросить игру и вернуть всех участников в лобби?')) {
+            await App.sendAction('reset_lobby');
+            App.playSound('click');
+          }
         } else {
-          document.getElementById('results-modal').classList.add('hidden');
-          App.showToast('Ожидание возврата в лобби Мастером...');
+          App.showToast('Ожидание решения Мастера о возврате в лобби...');
         }
       });
     }
 
-    const btnResultsClose = document.getElementById('btn-results-close');
-    if (btnResultsClose) {
-      btnResultsClose.addEventListener('click', () => {
-        document.getElementById('results-modal').classList.add('hidden');
+    const btnResultsToTable = document.getElementById('btn-results-to-table');
+    if (btnResultsToTable) {
+      btnResultsToTable.addEventListener('click', () => {
+        App.showScreen('screen-game');
+        App.playSound('click');
+      });
+    }
+
+    const btnBackToResults = document.getElementById('btn-back-to-results');
+    if (btnBackToResults) {
+      btnBackToResults.addEventListener('click', () => {
+        App.showScreen('screen-results');
+        App.playSound('click');
       });
     }
 
@@ -1147,77 +1158,95 @@ const GameBoard = {
     }
   },
 
-  // --- SHOW FINAL RESULTS MODAL ---
+  // --- SHOW FINAL RESULTS PAGE ---
   showResultsModal(results) {
-    const modal = document.getElementById('results-modal');
-    modal.classList.remove('hidden');
+    this.showResultsPage(results);
+  },
 
-    document.getElementById('results-disaster-title').textContent = `Катастрофа: ${results.disaster || 'Глобальный катаклизм'}`;
+  showResultsPage(results) {
+    if (!results) return;
+
+    const disasterTitle = document.getElementById('results-disaster-title');
+    if (disasterTitle) {
+      disasterTitle.textContent = `Катастрофа: ${results.disaster || 'Глобальный катаклизм'}`;
+    }
 
     const verdictBox = document.getElementById('results-verdict-box');
-    const isSuccess = results.isSuccess;
+    if (verdictBox) {
+      const isSuccess = Boolean(results.isSuccess);
 
-    const outcomeBadge = isSuccess
-      ? `<div style="font-size: 24px; font-weight: 900; color: var(--accent-green); background: rgba(16,185,129,0.15); border: 2px solid var(--accent-green); padding: 8px 18px; border-radius: 8px; margin: 8px auto 10px auto; display: inline-block; letter-spacing: 0.5px;">✅ УСПЕШНО (БУНКЕР ВЫЖИЛ)</div>`
-      : `<div style="font-size: 24px; font-weight: 900; color: var(--accent-red); background: rgba(239,68,68,0.15); border: 2px solid var(--accent-red); padding: 8px 18px; border-radius: 8px; margin: 8px auto 10px auto; display: inline-block; letter-spacing: 0.5px;">❌ ПРОВАЛ (БУНКЕР ПОГИБ)</div>`;
+      const outcomeBadge = isSuccess
+        ? `<div class="results-badge-pill success">✅ УСПЕШНО (БУНКЕР ВЫЖИЛ)</div>`
+        : `<div class="results-badge-pill danger">❌ ПРОВАЛ (БУНКЕР ПОГИБ)</div>`;
 
-    const rollInfo = (results.diceRoll !== undefined)
-      ? `<div style="font-size: 13px; color: var(--text-dim); margin-bottom: 8px;">🎲 Бросок судьбы: <strong>${results.diceRoll}</strong> из 100 (для выживания требовалось ≤ ${results.percentage}%)</div>`
-      : '';
+      const rollInfo = (results.diceRoll !== undefined)
+        ? `<div class="results-roll-info">🎲 Бросок кубика судьбы: <strong>${results.diceRoll}</strong> из 100 (для выживания требовалось ≤ ${results.percentage}%)</div>`
+        : '';
 
-    verdictBox.innerHTML = `
-      <div style="font-size: 32px; font-weight: 900; margin-bottom: 2px;">${results.percentage}%</div>
-      <div style="font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px;">Шанс выживания</div>
-      ${outcomeBadge}
-      ${rollInfo}
-      <div style="font-size: 15px; font-weight: 700; margin-top: 6px;">${results.verdict}</div>
-      <p style="font-size: 13px; font-weight: normal; margin-top: 10px; line-height: 1.6; color: var(--text-main); text-align: left; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 6px; white-space: pre-line;">${results.epilogue || ''}</p>
-    `;
-    verdictBox.className = `results-badge-verdict ${isSuccess ? 'success' : 'danger'}`;
-
-    if (results.teamResources && typeof TagHelper !== 'undefined') {
-      const defs = TagHelper.PARAM_DEFINITIONS;
-      const chipsHtml = Object.entries(defs).map(([key, def]) => {
-        const val = results.teamResources[key] || 0;
-        return `
-          <span class="card-tag-chip" style="color: ${def.color}; background: ${def.bg}; border: 1px solid ${def.color}40; font-size: 12px; padding: 3px 8px;">
-            ${def.icon} ${def.name}: <strong>+${val}</strong>
-          </span>
-        `;
-      }).join('');
-
-      verdictBox.innerHTML += `
-        <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
-          <div style="font-size: 12px; font-weight: 700; color: var(--accent-cyan); margin-bottom: 6px;">📊 Совокупные ресурсы команды:</div>
-          <div style="display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;">${chipsHtml}</div>
-        </div>
+      verdictBox.innerHTML = `
+        <div class="results-percentage">${results.percentage}%</div>
+        <div class="results-chance-label">Итоговый шанс выживания</div>
+        ${outcomeBadge}
+        ${rollInfo}
+        <div class="results-verdict-text">${results.verdict || ''}</div>
+        ${results.epilogue ? `<div class="results-epilogue-box">${results.epilogue}</div>` : ''}
       `;
+      verdictBox.className = `results-badge-verdict ${isSuccess ? 'success' : 'danger'}`;
+
+      if (results.teamResources && typeof TagHelper !== 'undefined') {
+        const defs = TagHelper.PARAM_DEFINITIONS;
+        const chipsHtml = Object.entries(defs).map(([key, def]) => {
+          const val = results.teamResources[key] || 0;
+          return `
+            <span class="card-tag-chip" style="color: ${def.color}; background: ${def.bg}; border: 1px solid ${def.color}40; font-size: 12px; padding: 4px 10px; border-radius: 6px;">
+              ${def.icon} ${def.name}: <strong>+${val}</strong>
+            </span>
+          `;
+        }).join('');
+
+        verdictBox.innerHTML += `
+          <div class="results-resources-section">
+            <div class="results-resources-title">📊 Совокупные ресурсы спасшихся в бункере:</div>
+            <div class="results-resources-chips">${chipsHtml}</div>
+          </div>
+        `;
+      }
     }
 
     const survList = document.getElementById('results-survivors-list');
-    survList.innerHTML = (results.survivors && results.survivors.length > 0) ? results.survivors.map(s => `
-      <div class="survivor-item">
-        <strong>🛡️ ${s.name}</strong>
-        <small>${s.profession} | ${s.health}</small>
-        ${s.traits ? `<small style="color: var(--text-dim); display: block;">Черта: ${s.traits}</small>` : ''}
-      </div>
-    `).join('') : '<div style="color: var(--text-dim); font-size: 12px;">Никто не спасся в бункере</div>';
+    if (survList) {
+      survList.innerHTML = (results.survivors && results.survivors.length > 0) ? results.survivors.map(s => `
+        <div class="survivor-item survivor-item-saved">
+          <div class="survivor-header">
+            <strong>🛡️ ${s.name}</strong>
+          </div>
+          <small class="survivor-prof">${s.profession || ''} | ${s.health || ''}</small>
+          ${s.traits ? `<small class="survivor-trait">Черта: ${s.traits}</small>` : ''}
+        </div>
+      `).join('') : '<div style="color: var(--text-dim); font-size: 13px; padding: 12px; text-align: center;">Никто не спасся в бункере</div>';
+    }
 
     const exiledList = document.getElementById('results-exiled-list');
-    exiledList.innerHTML = (results.exiled && results.exiled.length > 0) ? results.exiled.map(e => `
-      <div class="survivor-item" style="border-left: 2px solid var(--accent-red);">
-        <strong style="color: var(--accent-red);">💀 ${e.name} (ИЗГНАН)</strong>
-        <small>${e.profession}</small>
-      </div>
-    `).join('') : '<div style="color: var(--text-dim); font-size: 12px;">Никто не был изгнан</div>';
+    if (exiledList) {
+      exiledList.innerHTML = (results.exiled && results.exiled.length > 0) ? results.exiled.map(e => `
+        <div class="survivor-item survivor-item-exiled">
+          <div class="survivor-header">
+            <strong style="color: var(--accent-red);">💀 ${e.name} (ИЗГНАН)</strong>
+          </div>
+          <small class="survivor-prof">${e.profession || ''}</small>
+        </div>
+      `).join('') : '<div style="color: var(--text-dim); font-size: 13px; padding: 12px; text-align: center;">Никто не был изгнан</div>';
+    }
 
     const btnLobby = document.getElementById('btn-results-to-lobby');
-    if (!App.isHost) {
-      btnLobby.textContent = 'Ожидание решения Мастера...';
-      btnLobby.disabled = true;
-    } else {
-      btnLobby.textContent = '🔄 ВЕРНУТЬ ВСЕХ В ЛОББИ';
-      btnLobby.disabled = false;
+    if (btnLobby) {
+      if (!App.isHost) {
+        btnLobby.textContent = '⏳ Ожидание решения Мастера...';
+        btnLobby.disabled = true;
+      } else {
+        btnLobby.textContent = '🔄 ВЕРНУТЬ ВСЕХ В ЛОББИ';
+        btnLobby.disabled = false;
+      }
     }
   }
 };
