@@ -22,6 +22,9 @@ function broadcast() {
   }
 }
 
+// Hook broadcast into game manager for timer auto-updates
+game.setBroadcast(broadcast);
+
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -151,7 +154,7 @@ const server = http.createServer(async (req, res) => {
               game.bunkerCapacity = parseInt(payload.bunkerCapacity, 10) || 1;
             }
             game.mode = 'preset';
-            game.startPresetGame(playerId);
+            game.startPresetGame(playerId, { threatMode: payload ? payload.threatMode : 'threshold' });
             break;
 
           case 'start_ugc_phase':
@@ -159,7 +162,7 @@ const server = http.createServer(async (req, res) => {
             if (payload && payload.bunkerCapacity) {
               game.bunkerCapacity = parseInt(payload.bunkerCapacity, 10) || 1;
             }
-            game.startUgcPhase(playerId);
+            game.startUgcPhase(playerId, { threatMode: payload ? payload.threatMode : 'threshold' });
             break;
 
           case 'submit_ugc':
@@ -174,12 +177,28 @@ const server = http.createServer(async (req, res) => {
             game.replacePlayerCard(payload.targetPlayerId || playerId, payload.categoryKey, playerId);
             break;
 
+          case 'reveal_other_card':
+            game.revealOtherPlayerCard(payload.targetPlayerId, payload.categoryKey, playerId);
+            break;
+
+          case 'shuffle_selected_cards':
+            game.shuffleSelectedCards(payload.categoryKey, payload.playerIds, playerId);
+            break;
+
+          case 'draw_world_card':
+            game.drawWorldCard();
+            break;
+
+          case 'submit_evaluation':
+            game.submitSurvivalEvaluation(payload.evaluation, playerId);
+            break;
+
           case 'swap_cards':
             game.swapPlayerCards(payload.player1Id, payload.player2Id, payload.categoryKey, playerId);
             break;
 
           case 'shuffle_revealed_cards':
-            game.shuffleRevealedCards(payload.categoryKey, playerId);
+            game.shuffleSelectedCards(payload.categoryKey, Array.from(game.players.keys()), playerId);
             break;
 
           case 'steal_card':
@@ -187,7 +206,12 @@ const server = http.createServer(async (req, res) => {
             break;
 
           case 'finish_game':
-            game.finishGame(playerId);
+            // Opens questionnaire or direct finish
+            if (payload && payload.evaluation) {
+              game.submitSurvivalEvaluation(payload.evaluation, playerId);
+            } else {
+              game.finishGame(playerId);
+            }
             break;
 
           case 'reset_lobby':

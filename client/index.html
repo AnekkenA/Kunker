@@ -112,6 +112,29 @@
               </div>
             </div>
 
+            <!-- THREAT OPENING MODE -->
+            <div class="setting-group">
+              <label class="setting-title">Режим открытия карт Бункера и Угроз:</label>
+              <div class="mode-selector-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; display: grid;">
+                <label class="mode-card">
+                  <input type="radio" name="threat-mode" value="threshold" checked>
+                  <div class="mode-card-content" style="padding: 10px;">
+                    <span class="mode-icon">📊</span>
+                    <span class="mode-name">По открытию карт</span>
+                    <span class="mode-desc">Открытие на 10, 15, 20... картах</span>
+                  </div>
+                </label>
+                <label class="mode-card">
+                  <input type="radio" name="threat-mode" value="timer">
+                  <div class="mode-card-content" style="padding: 10px;">
+                    <span class="mode-icon">⏱️</span>
+                    <span class="mode-name">Хардкор по таймеру</span>
+                    <span class="mode-desc">Новая угроза/бункер каждые 2 минуты!</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
             <!-- BUNKER CAPACITY -->
             <div class="setting-group">
               <div class="capacity-header">
@@ -167,7 +190,7 @@
       <section id="screen-game" class="screen">
         <div class="game-container">
           
-          <!-- TOP WORLD CARDS (CATASTROPHE & CONDITIONS) -->
+          <!-- TOP WORLD CARDS (CATASTROPHE, BUNKER & THREATS) -->
           <div class="world-cards-bar">
             <!-- DISASTER CARD -->
             <div class="world-card disaster-card">
@@ -185,28 +208,50 @@
             <div class="world-card condition-card">
               <div class="world-card-header">
                 <span class="world-card-icon">🛡️</span>
-                <span class="world-card-type">УСЛОВИЯ И УГРОЗЫ БУНКЕРА</span>
+                <span class="world-card-type">БУНКЕР (<span id="bunker-cards-count">0</span>)</span>
               </div>
-              <div class="world-card-body">
-                <h3 id="condition-title" class="world-title">Загрузка...</h3>
-                <p id="condition-desc" class="world-text">...</p>
+              <div class="world-card-body" id="bunker-cards-container">
+                <div class="world-card-empty">Карты бункера пока закрыты</div>
               </div>
+            </div>
+
+            <!-- THREAT CARDS -->
+            <div class="world-card threat-card">
+              <div class="world-card-header">
+                <span class="world-card-icon">⚠️</span>
+                <span class="world-card-type">УГРОЗЫ (<span id="threats-cards-count">0</span>)</span>
+              </div>
+              <div class="world-card-body" id="threats-cards-container">
+                <div class="world-card-empty">Активных угроз пока нет</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- THREAT / BUNKER PROGRESS BANNER -->
+          <div class="threat-progress-bar">
+            <div class="threat-progress-info">
+              <span id="threat-mode-status">📊 Открыто карт: <strong>0</strong>. Следующая карта на: <strong>10</strong></span>
+            </div>
+            <div id="master-draw-card-box" class="master-draw-box hidden">
+              <button id="btn-draw-world-card" class="btn btn-sm btn-outline">➕ Открыть карту мира</button>
             </div>
           </div>
 
           <!-- MASTER ACTION TOOLBAR -->
           <div class="game-toolbar">
             <div class="toolbar-stats">
-              <span class="stat-item">Вместимость бункера: <strong id="stat-bunker-cap">0</strong></span>
+              <span class="stat-item">Вместимость: <strong id="stat-bunker-cap">0</strong></span>
               <span class="stat-item">В игре: <strong id="stat-active-count" class="text-green">0</strong></span>
               <span class="stat-item">Изгнано: <strong id="stat-exiled-count" class="text-red">0</strong></span>
             </div>
 
             <div class="toolbar-actions">
-              <button id="btn-toggle-logs" class="btn btn-sm btn-outline">📜 Журнал событий</button>
+              <button id="btn-toggle-logs" class="btn btn-sm btn-outline">📜 Журнал</button>
               <div id="master-game-controls" class="master-controls hidden">
-                <button id="btn-open-master-actions" class="btn btn-sm btn-primary">⚡ Спец-действия Мастера</button>
-                <button id="btn-finish-game" class="btn btn-sm btn-warning">🏁 Подвести итоги</button>
+                <button id="btn-open-reveal-modal" class="btn btn-sm btn-primary">👁️ Открыть чужую карту</button>
+                <button id="btn-open-shuffle-modal" class="btn btn-sm btn-outline">🔀 Перемешать выбранные</button>
+                <button id="btn-open-replace-modal" class="btn btn-sm btn-warning">🎲 Заменить на случайную</button>
+                <button id="btn-finish-game" class="btn btn-sm btn-success">🏁 Подвести итоги</button>
                 <button id="btn-reset-lobby" class="btn btn-sm btn-danger">🔄 В лобби</button>
               </div>
             </div>
@@ -329,124 +374,194 @@
       </div>
     </div>
 
-    <!-- MASTER SPECIAL ACTIONS MODAL -->
-    <div id="master-actions-modal" class="modal-backdrop hidden">
-      <div class="modal-card" style="max-width: 580px;">
+    <!-- 1. MODAL: REVEAL OTHER PLAYER CARD (МАСТЕР) -->
+    <div id="modal-reveal-other" class="modal-backdrop hidden">
+      <div class="modal-card" style="max-width: 480px;">
         <div class="modal-header">
-          <h3>⚡ Панель Мастера: Спец-действия</h3>
-          <button id="btn-close-master-actions-modal" class="btn-icon">✕</button>
+          <h3>👁️ Открыть карту игрока</h3>
+          <button id="btn-close-reveal-modal" class="btn-icon">✕</button>
         </div>
         <div class="modal-body">
           <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
-            Применяйте механики по указанию карт или правилам игры:
+            Мастер может принудительно вскрыть закрытую карту любого участника:
+          </p>
+          <div class="form-group">
+            <label>Выберите игрока:</label>
+            <select id="select-reveal-player" class="form-input"></select>
+          </div>
+          <div class="form-group">
+            <label>Какую карту вскрыть для всех:</label>
+            <select id="select-reveal-cat" class="form-input">
+              <option value="profession">💼 Профессия</option>
+              <option value="health">❤️ Здоровье</option>
+              <option value="biology">🧬 Биология</option>
+              <option value="hobby">🎨 Хобби</option>
+              <option value="traits">🧠 Черты характера</option>
+              <option value="facts">📜 Доп. сведения</option>
+              <option value="small_inventory">🎒 Малый инвентарь</option>
+              <option value="large_inventory">📦 Крупный инвентарь</option>
+              <option value="special_cards">⚡ Спец-карта</option>
+            </select>
+          </div>
+          <button id="btn-apply-reveal-other" class="btn btn-primary btn-block">👁️ ВСКРЫТЬ КАРТУ ДЛЯ ВСЕХ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. MODAL: SHUFFLE SELECTED CARDS (МАСТЕР) -->
+    <div id="modal-shuffle-selected" class="modal-backdrop hidden">
+      <div class="modal-card" style="max-width: 500px;">
+        <div class="modal-header">
+          <h3>🔀 Перемешать выбранные карты</h3>
+          <button id="btn-close-shuffle-modal" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+            Выберите категорию и игроков. Сервер заберет карты у выбранных игроков, перемешает их и раздаст им обратно!
+          </p>
+          <div class="form-group">
+            <label>Категория для перемешивания:</label>
+            <select id="select-shuffle-cat" class="form-input">
+              <option value="profession">💼 Профессия</option>
+              <option value="health">❤️ Здоровье</option>
+              <option value="biology">🧬 Биология</option>
+              <option value="hobby">🎨 Хобби</option>
+              <option value="traits">🧠 Черты характера</option>
+              <option value="facts">📜 Доп. сведения</option>
+              <option value="small_inventory">🎒 Малый инвентарь</option>
+              <option value="large_inventory">📦 Крупный инвентарь</option>
+              <option value="special_cards">⚡ Спец-карта</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>У каких игроков перемешать карты (отметьте галочками):</label>
+            <div id="shuffle-players-list" class="checkbox-players-list" style="max-height: 180px; overflow-y: auto; background: var(--bg-surface); padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+              <!-- Checkboxes injected by JS -->
+            </div>
+          </div>
+          <button id="btn-apply-shuffle-selected" class="btn btn-primary btn-block">🔀 ПЕРЕМЕШАТЬ КАРТЫ МЕЖДУ ВЫБРАННЫМИ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. MODAL: REPLACE CARD (МАСТЕР) -->
+    <div id="modal-replace-card" class="modal-backdrop hidden">
+      <div class="modal-card" style="max-width: 480px;">
+        <div class="modal-header">
+          <h3>🎲 Заменить карту на случайную</h3>
+          <button id="btn-close-replace-modal" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+            Старая карта вернется обратно в колоду, а игрок получит случайную свободную карту из этой же категории (которой сейчас нет ни у кого на руках).
+          </p>
+          <div class="form-group">
+            <label>У кого заменить карту:</label>
+            <select id="select-replace-player" class="form-input"></select>
+          </div>
+          <div class="form-group">
+            <label>Какую категорию заменить:</label>
+            <select id="select-replace-cat" class="form-input">
+              <option value="profession">💼 Профессия</option>
+              <option value="health">❤️ Здоровье</option>
+              <option value="biology">🧬 Биология</option>
+              <option value="hobby">🎨 Хобби</option>
+              <option value="traits">🧠 Черты характера</option>
+              <option value="facts">📜 Доп. сведения</option>
+              <option value="small_inventory">🎒 Малый инвентарь</option>
+              <option value="large_inventory">📦 Крупный инвентарь</option>
+              <option value="special_cards">⚡ Спец-карта</option>
+            </select>
+          </div>
+          <div class="warning-alert-box" style="background: rgba(245, 158, 11, 0.15); border: 1px solid var(--accent-amber); padding: 10px; border-radius: var(--radius-sm); margin-bottom: 16px; font-size: 12px; color: var(--text-main);">
+            ⚠️ <strong>Подтверждение:</strong> При замене карта игрока уйдет в колоду, а из нее вернется случайная не занятая карта.
+          </div>
+          <button id="btn-apply-replace-card" class="btn btn-warning btn-block">🎲 ПОДТВЕРДИТЬ И ЗАМЕНИТЬ КАРТУ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. MODAL: MASTER SURVIVAL EVALUATION (АНКЕТА ОЦЕНКИ ВЫЖИВАЕМОСТИ) -->
+    <div id="modal-evaluation" class="modal-backdrop hidden">
+      <div class="modal-card" style="max-width: 650px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header">
+          <h3>📋 Оценка выживаемости бункера (Анкета Мастера)</h3>
+          <button id="btn-close-eval-modal" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+            Мастер игры отвечает на вопросы, оценивая состав выживших, их профессии, здоровье, инвентарь и угрозы бункера:
           </p>
 
-          <div class="auth-tabs" style="margin-bottom: 16px;">
-            <button class="tab-btn active" data-tab="tab-ma-replace">🎲 Замена</button>
-            <button class="tab-btn" data-tab="tab-ma-swap">🔄 Обмен</button>
-            <button class="tab-btn" data-tab="tab-ma-shuffle">🔀 Перемешать</button>
-            <button class="tab-btn" data-tab="tab-ma-steal">🦹 Украсть</button>
+          <!-- QUESTION 1: SUPPLIES -->
+          <div class="eval-question-block">
+            <label class="eval-q-title">1. На сколько вам хватает припасов и чистой воды?</label>
+            <div class="eval-options-grid">
+              <label class="eval-opt"><input type="radio" name="eval-supplies" value="1"> <span>1 — Припасов нет (голод и жажда)</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-supplies" value="2"> <span>2 — Не хватает на всех (острый дефицит)</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-supplies" value="3" checked> <span>3 — Хватает, если строго экономить</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-supplies" value="4"> <span>4 — В достатке на весь срок изоляции</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-supplies" value="5"> <span>5 — Больше, чем нужно (полные склады)</span></label>
+            </div>
           </div>
 
-          <!-- TAB 1: REPLACE FROM DECK -->
-          <div id="tab-ma-replace" class="tab-content active">
-            <div class="form-group">
-              <label>У кого заменить карту:</label>
-              <select id="select-ma-replace-player" class="form-input"></select>
+          <!-- QUESTION 2: MEDICINE -->
+          <div class="eval-question-block">
+            <label class="eval-q-title">2. Медицинское обеспечение и здоровье выживших:</label>
+            <div class="eval-options-grid">
+              <label class="eval-opt"><input type="radio" name="eval-medicine" value="1"> <span>1 — Тяжелые больные, лекарств нет</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-medicine" value="2"> <span>2 — Медикаментов мало, уход затруднен</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-medicine" value="3" checked> <span>3 — Базовые аптечки есть, среднее здоровье</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-medicine" value="4"> <span>4 — Хорошее здоровье, есть врач/лекарства</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-medicine" value="5"> <span>5 — Полный медблок и идеальное здоровье</span></label>
             </div>
-            <div class="form-group">
-              <label>Какую категорию заменить на новую из колоды:</label>
-              <select id="select-ma-replace-cat" class="form-input">
-                <option value="profession">💼 Профессия</option>
-                <option value="health">❤️ Здоровье</option>
-                <option value="biology">🧬 Биология</option>
-                <option value="hobby">🎨 Хобби</option>
-                <option value="traits">🧠 Черты характера</option>
-                <option value="facts">📜 Доп. сведения</option>
-                <option value="small_inventory">🎒 Малый инвентарь</option>
-                <option value="large_inventory">📦 Крупный инвентарь</option>
-                <option value="special_cards">⚡ Спец-карта</option>
-              </select>
-            </div>
-            <button id="btn-ma-apply-replace" class="btn btn-primary btn-block">🎲 ВЫТЯНУТЬ НОВУЮ КАРТУ ИЗ КОЛОДЫ</button>
           </div>
 
-          <!-- TAB 2: SWAP WITH PLAYER -->
-          <div id="tab-ma-swap" class="tab-content">
-            <div class="form-group">
-              <label>Первый игрок:</label>
-              <select id="select-ma-swap-p1" class="form-input"></select>
+          <!-- QUESTION 3: SPECIALISTS -->
+          <div class="eval-question-block">
+            <label class="eval-q-title">3. Специалисты и навыки для восстановления мира:</label>
+            <div class="eval-options-grid">
+              <label class="eval-opt"><input type="radio" name="eval-specialists" value="1"> <span>1 — Нет нужных специалистов для катастрофы</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-specialists" value="2"> <span>2 — Навыки слабые, поддерживать бункер некому</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-specialists" value="3" checked> <span>3 — Есть базовые руки (механик/агроном/рабочий)</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-specialists" value="4"> <span>4 — Отличный баланс профессий под бункер</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-specialists" value="5"> <span>5 — Идеальный состав ученых, врачей и техников</span></label>
             </div>
-            <div class="form-group">
-              <label>Второй игрок:</label>
-              <select id="select-ma-swap-p2" class="form-input"></select>
-            </div>
-            <div class="form-group">
-              <label>Какую категорию карт поменять местами:</label>
-              <select id="select-ma-swap-cat" class="form-input">
-                <option value="profession">💼 Профессия</option>
-                <option value="health">❤️ Здоровье</option>
-                <option value="biology">🧬 Биология</option>
-                <option value="hobby">🎨 Хобби</option>
-                <option value="traits">🧠 Черты характера</option>
-                <option value="facts">📜 Доп. сведения</option>
-                <option value="small_inventory">🎒 Малый инвентарь</option>
-                <option value="large_inventory">📦 Крупный инвентарь</option>
-                <option value="special_cards">⚡ Спец-карта</option>
-              </select>
-            </div>
-            <button id="btn-ma-apply-swap" class="btn btn-warning btn-block">🔄 ПОМЕНЯТЬ КАРТЫ МЕЖДУ ИГРОКАМИ</button>
           </div>
 
-          <!-- TAB 3: SHUFFLE REVEALED -->
-          <div id="tab-ma-shuffle" class="tab-content">
-            <p class="form-hint" style="margin-bottom: 12px;">
-              ℹ️ Сервер соберёт карты выбранной категории у всех игроков, у кого они <strong>уже открыты</strong>, перемешает их и раздаст им же обратно!
-            </p>
-            <div class="form-group">
-              <label>Какую категорию открытых карт перемешать:</label>
-              <select id="select-ma-shuffle-cat" class="form-input">
-                <option value="profession">💼 Профессия</option>
-                <option value="health">❤️ Здоровье</option>
-                <option value="biology">🧬 Биология</option>
-                <option value="hobby">🎨 Хобби</option>
-                <option value="traits">🧠 Черты характера</option>
-                <option value="facts">📜 Доп. сведения</option>
-                <option value="small_inventory">🎒 Малый инвентарь</option>
-                <option value="large_inventory">📦 Крупный инвентарь</option>
-                <option value="special_cards">⚡ Спец-карта</option>
-              </select>
+          <!-- QUESTION 4: DEFENSE & THREATS -->
+          <div class="eval-question-block">
+            <label class="eval-q-title">4. Защита бункера и нейтрализация активных угроз:</label>
+            <div class="eval-options-grid">
+              <label class="eval-opt"><input type="radio" name="eval-defense" value="1"> <span>1 — Бункер беззащитен, угрозы смертельны</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-defense" value="2"> <span>2 — Защита слабая, высокий риск прорыва</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-defense" value="3" checked> <span>3 — Оборона достаточна при осторожности</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-defense" value="4"> <span>4 — Надежные укрепления, угрозы решены</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-defense" value="5"> <span>5 — Абсолютная неприступность и безопасность</span></label>
             </div>
-            <button id="btn-ma-apply-shuffle" class="btn btn-primary btn-block">🔀 ПЕРЕМЕШАТЬ ВСЕ ОТКРЫТЫЕ КАРТЫ</button>
           </div>
 
-          <!-- TAB 4: STEAL CARD -->
-          <div id="tab-ma-steal" class="tab-content">
-            <div class="form-group">
-              <label>У кого украсть карту (Жертва):</label>
-              <select id="select-ma-steal-from" class="form-input"></select>
+          <!-- QUESTION 5: PSYCHOLOGY -->
+          <div class="eval-question-block">
+            <label class="eval-q-title">5. Психологический климат и сплоченность команды:</label>
+            <div class="eval-options-grid">
+              <label class="eval-opt"><input type="radio" name="eval-psychology" value="1"> <span>1 — Ненависть, драки и безумие взаперти</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-psychology" value="2"> <span>2 — Атмосфера взаимного недоверия</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-psychology" value="3" checked> <span>3 — Споры бывают, но держат себя в руках</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-psychology" value="4"> <span>4 — Сплоченная команда с высоким боевым духом</span></label>
+              <label class="eval-opt"><input type="radio" name="eval-psychology" value="5"> <span>5 — Полное доверие, единство и взаимовыручка</span></label>
             </div>
-            <div class="form-group">
-              <label>Кому передать украденную карту (Вор):</label>
-              <select id="select-ma-steal-to" class="form-input"></select>
-            </div>
-            <div class="form-group">
-              <label>Какую категорию карты украсть:</label>
-              <select id="select-ma-steal-cat" class="form-input">
-                <option value="profession">💼 Профессия</option>
-                <option value="health">❤️ Здоровье</option>
-                <option value="biology">🧬 Биология</option>
-                <option value="hobby">🎨 Хобби</option>
-                <option value="traits">🧠 Черты характера</option>
-                <option value="facts">📜 Доп. сведения</option>
-                <option value="small_inventory">🎒 Малый инвентарь</option>
-                <option value="large_inventory">📦 Крупный инвентарь</option>
-                <option value="special_cards">⚡ Спец-карта</option>
-              </select>
-            </div>
-            <button id="btn-ma-apply-steal" class="btn btn-danger btn-block">🦹 СОВЕРШИТЬ КРАЖУ КАРТЫ</button>
           </div>
 
+          <div class="eval-bunker-info" style="background: var(--bg-surface); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin: 16px 0;">
+            <div style="font-size: 13px;">Вместимость бункера: <strong id="eval-bunker-cap">0</strong> мест.</div>
+            <div style="font-size: 13px; margin-top: 4px;">Спасшихся выживших (не изгнаны): <strong id="eval-survivors-count" class="text-green">0</strong> чел.</div>
+            <div style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">
+              * Если число выживших превышает вместимость, произойдет перенаселение с критическим штрафом к выживаемости!
+            </div>
+          </div>
+
+          <button id="btn-submit-final-evaluation" class="btn btn-success btn-lg btn-block">🏆 РАССЧИТАТЬ ВЫЖИВАНИЕ БУНКЕРА</button>
         </div>
       </div>
     </div>

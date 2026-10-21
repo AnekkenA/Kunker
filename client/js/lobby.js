@@ -60,6 +60,9 @@ const Lobby = {
       const mode = document.querySelector('input[name="game-mode"]:checked').value;
       const capacity = parseInt(slider.value, 10) || 3;
 
+      const threatModeRadio = document.querySelector('input[name="threat-mode"]:checked');
+      const threatMode = threatModeRadio ? threatModeRadio.value : 'threshold';
+
       if (mode === 'preset') {
         const checkedDecks = Array.from(document.querySelectorAll('input[name="selected-deck"]:checked')).map(cb => cb.value);
         if (checkedDecks.length === 0) {
@@ -69,12 +72,14 @@ const Lobby = {
 
         await App.sendAction('start_preset', {
           decks: checkedDecks,
-          bunkerCapacity: capacity
+          bunkerCapacity: capacity,
+          threatMode
         });
       } else {
         // UGC Mode
         await App.sendAction('start_ugc_phase', {
-          bunkerCapacity: capacity
+          bunkerCapacity: capacity,
+          threatMode
         });
       }
       App.playSound('start');

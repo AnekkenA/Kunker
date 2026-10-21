@@ -20,7 +20,7 @@ function getNetworkInfo() {
   if (fs.existsSync(tunnelPath)) {
     try {
       const data = JSON.parse(fs.readFileSync(tunnelPath, 'utf-8'));
-      publicUrl = data.publicUrl;
+      publicUrl = data.publicUrl || data.primaryUrl;
     } catch (e) {}
   }
 
@@ -79,10 +79,23 @@ function getRandomItem(array, fallback = '—') {
 
 class SingleGame {
   constructor() {
+    this.broadcastCallback = null;
     this.resetGame();
   }
 
+  setBroadcast(fn) {
+    this.broadcastCallback = fn;
+  }
+
+  notifyBroadcast() {
+    if (typeof this.broadcastCallback === 'function') {
+      this.broadcastCallback();
+    }
+  }
+
   resetGame() {
+    this.stopThreatTimer();
+
     this.password = '';
     this.hostId = null;
     this.status = 'lobby'; // 'lobby' | 'ugc_building' | 'playing' | 'finished'
@@ -90,15 +103,33 @@ class SingleGame {
     this.selectedDecks = ['classic'];
     this.bunkerCapacity = 3;
 
+    // Threat / Bunker opening settings
+    this.threatMode = 'threshold'; // 'threshold' | 'timer'
+    this.threatTimerSeconds = 120; // 2 minutes (120s)
+    this.threatTimerCountdown = 120;
+    this.threatTimerHandle = null;
+
+    // Threshold reveal milestones
+    this.totalRevealsCount = 0;
+    this.nextThreshold = 10;
+    this.thresholdMilestones = [10, 15, 20, 25, 30, 35, 40];
+
     // World Cards
     this.disaster = null;
-    this.condition = null;
+    this.bunkerDeck = [];
+    this.threatsDeck = [];
+    this.revealedBunkerCards = [];
+    this.revealedThreatCards = [];
+
+    // Card Category Decks & In-Play tracking (STRICT 1 COPY PER CARD)
+    this.categoryDecks = {};
+    this.inPlayCards = {};
+    CATEGORIES.forEach(cat => {
+      this.categoryDecks[cat.key] = [];
+      this.inPlayCards[cat.key] = new Set();
+    });
+
     this.results = null;
-
-    // Active Card Pools
-    this.activePools = {};
-
-    // Players: Map of id -> Player
     this.players = new Map();
     this.logs = [];
 
@@ -108,7 +139,7 @@ class SingleGame {
   addLog(text) {
     const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
     this.logs.unshift({ time, text });
-    if (this.logs.length > 50) this.logs.pop();
+    if (this.logs.length > 60) this.logs.pop();
   }
 
   checkPassword(enteredPassword) {
@@ -158,6 +189,16 @@ class SingleGame {
     const p = this.players.get(playerId);
     if (p) {
       this.addLog(`🚪 ${p.name} покинул бункер.`);
+
+      // Free player cards back to category decks if game was playing
+      CATEGORIES.forEach(cat => {
+        const card = p.cards[cat.key];
+        if (card && card.text) {
+          if (this.inPlayCards[cat.key]) this.inPlayCards[cat.key].delete(card.text);
+          if (this.categoryDecks[cat.key]) this.categoryDecks[cat.key].push(card.text);
+        }
+      });
+
       this.players.delete(playerId);
 
       if (p.isHost && this.players.size > 0) {
@@ -186,181 +227,235 @@ class SingleGame {
 
     player.isExiled = !player.isExiled;
     if (player.isExiled) {
-      this.addLog(`⚠️ Мастер ИСКЛЮЧИЛ игрока ${player.name} из бункера!`);
+      this.addLog(`🚫 Мастер ИСКЛЮЧИЛ игрока ${player.name} из бункера!`);
     } else {
       this.addLog(`♻️ Мастер ВЕРНУЛ игрока ${player.name} обратно в бункер.`);
     }
     return player;
   }
 
-  revealCard(playerId, categoryKey, requesterId) {
-    const player = this.players.get(playerId);
+  revealCard(targetPlayerId, categoryKey, requesterId) {
+    const player = this.players.get(targetPlayerId);
     if (!player) throw new Error('Игрок не найден.');
 
-    if (requesterId !== playerId && requesterId !== this.hostId) {
-      throw new Error('Вы можете открывать только свои карты.');
+    const isSelf = requesterId === targetPlayerId;
+    const isMaster = requesterId === this.hostId;
+
+    if (!isSelf && !isMaster) {
+      throw new Error('Вы можете открывать только свои карты. Чужие карты может вскрывать только Мастер игры.');
     }
 
     if (!player.cards[categoryKey]) {
       throw new Error('Некорректная категория карты.');
     }
 
-    player.cards[categoryKey].revealed = !player.cards[categoryKey].revealed;
+    const card = player.cards[categoryKey];
+    const wasRevealed = card.revealed;
+    card.revealed = !card.revealed;
+
     const catObj = CATEGORIES.find(c => c.key === categoryKey);
     const catName = catObj ? catObj.name : categoryKey;
 
-    if (player.cards[categoryKey].revealed) {
-      this.addLog(`🃏 ${player.name} открыл [${catName}]: "${player.cards[categoryKey].text}"`);
+    if (card.revealed) {
+      this.addLog(`🃏 ${isMaster && !isSelf ? `Мастер открыл карту [${catName}] игрока ${player.name}` : `${player.name} открыл [${catName}]`}: "${card.text}"`);
+
+      // If it was just revealed for the first time, increment reveal counter
+      if (!wasRevealed) {
+        this.totalRevealsCount++;
+
+        // Threshold mode check
+        if (this.threatMode === 'threshold' && this.totalRevealsCount >= this.nextThreshold) {
+          this.drawWorldCard();
+          // Advance threshold milestone
+          const nextIdx = this.thresholdMilestones.findIndex(m => m > this.totalRevealsCount);
+          if (nextIdx !== -1) {
+            this.nextThreshold = this.thresholdMilestones[nextIdx];
+          } else {
+            const step = Math.max(3, this.players.size);
+            this.nextThreshold += step;
+          }
+        }
+      }
     } else {
       this.addLog(`🔒 ${player.name} скрыл [${catName}].`);
     }
-    return player.cards[categoryKey];
+
+    return card;
   }
 
-  revealAllPlayerCards(playerId, requesterId) {
-    if (requesterId !== this.hostId && requesterId !== playerId) {
-      throw new Error('Нет прав на открытие всех карт.');
+  // --- MASTER ACTION: REVEAL ANY CARD ---
+  revealOtherPlayerCard(targetPlayerId, categoryKey, requesterId) {
+    if (requesterId !== this.hostId) {
+      throw new Error('Только Мастер игры может вскрывать чужие карты.');
     }
-    const player = this.players.get(playerId);
-    if (!player) throw new Error('Игрок не найден.');
-
-    CATEGORIES.forEach(cat => {
-      if (player.cards[cat.key]) {
-        player.cards[cat.key].revealed = true;
-      }
-    });
-    this.addLog(`📢 Все карты игрока ${player.name} были раскрыты!`);
+    return this.revealCard(targetPlayerId, categoryKey, requesterId);
   }
 
-  // --- MASTER SPECIAL ACTIONS (СПЕЦ-МЕХАНИКИ МАСТЕРА) ---
-
-  // 1. Замена карты из колоды
+  // --- MASTER ACTION: REPLACE CARD WITH RANDOM UNUSED FROM SAME CLASS (STRICT 1 COPY) ---
   replacePlayerCard(targetPlayerId, categoryKey, requesterId) {
     if (requesterId !== this.hostId) {
-      throw new Error('Только Мастер может применять спец-действия.');
+      throw new Error('Только Мастер игры может заменять карты.');
     }
+
     const player = this.players.get(targetPlayerId);
     if (!player) throw new Error('Игрок не найден.');
 
-    const catPool = this.activePools[categoryKey] || [];
-    let newCardText = 'Новая карта выжившего';
-    if (catPool.length > 0) {
-      newCardText = getRandomItem(catPool, newCardText);
-    } else {
-      const fallbackDeck = deckLoader.getDeck('classic') || {};
-      const list = fallbackDeck[categoryKey] || fallbackDeck[categoryKey + 's'] || ['—'];
-      newCardText = getRandomItem(list, newCardText);
+    const oldCard = player.cards[categoryKey];
+    const oldText = oldCard ? oldCard.text : '';
+    const wasRevealed = oldCard ? oldCard.revealed : false;
+
+    // Return old card to category deck
+    if (oldText && this.inPlayCards[categoryKey]) {
+      this.inPlayCards[categoryKey].delete(oldText);
+      if (!this.categoryDecks[categoryKey].includes(oldText)) {
+        this.categoryDecks[categoryKey].push(oldText);
+      }
     }
 
-    const wasRevealed = player.cards[categoryKey] ? player.cards[categoryKey].revealed : false;
+    // Filter available cards that are not held by ANY active player
+    let available = (this.categoryDecks[categoryKey] || []).filter(c => !this.inPlayCards[categoryKey].has(c) && c !== oldText);
+
+    if (available.length === 0) {
+      // Re-populate from all selected decks if deck was exhausted
+      const fallbackList = [];
+      this.selectedDecks.forEach(deckId => {
+        const d = deckLoader.getDeck(deckId);
+        if (d) {
+          const arr = d[categoryKey] || d[categoryKey + 's'] || [];
+          if (Array.isArray(arr)) fallbackList.push(...arr);
+        }
+      });
+      available = fallbackList.filter(c => !this.inPlayCards[categoryKey].has(c) && c !== oldText);
+    }
+
+    if (available.length === 0) {
+      throw new Error(`В колоде категории "${categoryKey}" больше нет свободных карт (все уникальные карты уже на руках у игроков)!`);
+    }
+
+    const newText = getRandomItem(available);
+
+    // Remove new card from deck and mark in play
+    this.categoryDecks[categoryKey] = (this.categoryDecks[categoryKey] || []).filter(c => c !== newText);
+    this.inPlayCards[categoryKey].add(newText);
 
     player.cards[categoryKey] = {
-      text: newCardText,
+      text: newText,
       revealed: wasRevealed
     };
 
     const catObj = CATEGORIES.find(c => c.key === categoryKey);
     const catName = catObj ? catObj.name : categoryKey;
 
-    this.addLog(`🎲 Мастер ЗАМЕНИЛ карту [${catName}] у игрока ${player.name}! ${wasRevealed ? `(Новая: "${newCardText}")` : '(Карта скрыта)'}`);
+    this.addLog(`🎲 Мастер ЗАМЕНИЛ карту [${catName}] у игрока ${player.name}! Старая карта вернулась в колоду, выдана случайная свободная.`);
     return player.cards[categoryKey];
   }
 
-  // 2. Обмен картами между двумя игроками
-  swapPlayerCards(player1Id, player2Id, categoryKey, requesterId) {
+  // --- MASTER ACTION: SHUFFLE SELECTED CARDS AMONG PLAYERS ---
+  shuffleSelectedCards(categoryKey, playerIds, requesterId) {
     if (requesterId !== this.hostId) {
-      throw new Error('Только Мастер может применять спец-действия.');
+      throw new Error('Только Мастер игры может перемешивать карты.');
     }
 
-    const p1 = this.players.get(player1Id);
-    const p2 = this.players.get(player2Id);
-
-    if (!p1 || !p2) throw new Error('Игроки для обмена не найдены.');
-    if (!p1.cards[categoryKey] || !p2.cards[categoryKey]) throw new Error('Категория не найдена.');
-
-    const temp = p1.cards[categoryKey];
-    p1.cards[categoryKey] = p2.cards[categoryKey];
-    p2.cards[categoryKey] = temp;
-
-    const catObj = CATEGORIES.find(c => c.key === categoryKey);
-    const catName = catObj ? catObj.name : categoryKey;
-
-    this.addLog(`🔄 Мастер ОБМЕНЯЛ карты [${catName}] между ${p1.name} и ${p2.name}!`);
-    return true;
-  }
-
-  // 3. Перемешать открытые карты выбранной категории
-  shuffleRevealedCards(categoryKey, requesterId) {
-    if (requesterId !== this.hostId) {
-      throw new Error('Только Мастер может применять спец-действия.');
+    if (!Array.isArray(playerIds) || playerIds.length < 2) {
+      throw new Error('Для перемешивания выберите как минимум двух игроков.');
     }
 
-    const eligiblePlayers = [];
-    this.players.forEach(p => {
-      const card = p.cards[categoryKey];
-      if (card && card.revealed && card.text && card.text !== '—' && !card.text.includes('(Украдено)')) {
-        eligiblePlayers.push(p);
+    const targetPlayers = [];
+    playerIds.forEach(id => {
+      const p = this.players.get(id);
+      if (p && p.cards[categoryKey] && p.cards[categoryKey].text) {
+        targetPlayers.push(p);
       }
     });
 
-    if (eligiblePlayers.length < 2) {
-      throw new Error(`Для перемешивания нужно хотя бы 2 игрока с ОТКРЫТОЙ картой в категории "${categoryKey}". Сейчас открыто: ${eligiblePlayers.length}.`);
+    if (targetPlayers.length < 2) {
+      throw new Error('Среди выбранных игроков нет достаточного количества карт для перемешивания.');
     }
 
-    const texts = eligiblePlayers.map(p => p.cards[categoryKey].text);
-    const shuffledTexts = shuffle(texts);
+    const collectedTexts = targetPlayers.map(p => p.cards[categoryKey].text);
+    const shuffledTexts = shuffle(collectedTexts);
 
-    eligiblePlayers.forEach((p, idx) => {
+    targetPlayers.forEach((p, idx) => {
       p.cards[categoryKey].text = shuffledTexts[idx];
     });
 
     const catObj = CATEGORIES.find(c => c.key === categoryKey);
     const catName = catObj ? catObj.name : categoryKey;
+    const names = targetPlayers.map(p => p.name).join(', ');
 
-    this.addLog(`🔀 Мастер ПЕРЕМЕШАЛ все открытые карты [${catName}] между ${eligiblePlayers.length} игроками (${eligiblePlayers.map(p => p.name).join(', ')})!`);
+    this.addLog(`🔀 Мастер ПЕРЕМЕШАЛ карты [${catName}] между игроками: ${names}!`);
     return true;
   }
 
-  // 4. Украсть карту у одного игрока в пользу другого
-  stealPlayerCard(fromPlayerId, toPlayerId, categoryKey, requesterId) {
-    if (requesterId !== this.hostId) {
-      throw new Error('Только Мастер может применять спец-действия.');
+  // --- WORLD CARDS: AUTO-DRAW THREAT OR BUNKER CARD (STRICT 1 COPY) ---
+  drawWorldCard() {
+    // Choose between bunker and threats: prioritize the one with fewer on table or randomly
+    let pickType = 'threat';
+    if (this.bunkerDeck.length > 0 && this.threatsDeck.length > 0) {
+      if (this.revealedThreatCards.length > this.revealedBunkerCards.length) {
+        pickType = 'bunker';
+      } else if (this.revealedBunkerCards.length > this.revealedThreatCards.length) {
+        pickType = 'threat';
+      } else {
+        pickType = Math.random() < 0.5 ? 'threat' : 'bunker';
+      }
+    } else if (this.bunkerDeck.length > 0) {
+      pickType = 'bunker';
+    } else if (this.threatsDeck.length > 0) {
+      pickType = 'threat';
+    } else {
+      this.addLog('ℹ️ Все доступные карты Бункера и Угроз уже открыты на столе!');
+      return null;
     }
 
-    const victim = this.players.get(fromPlayerId);
-    const thief = this.players.get(toPlayerId);
-
-    if (!victim || !thief) throw new Error('Игроки не найдены.');
-    if (fromPlayerId === toPlayerId) throw new Error('Нельзя украсть карту у самого себя.');
-
-    const stolenCard = victim.cards[categoryKey];
-    if (!stolenCard || !stolenCard.text || stolenCard.text === '—') {
-      throw new Error(`У игрока ${victim.name} нет карты в этой категории.`);
+    if (pickType === 'bunker') {
+      const card = this.bunkerDeck.shift();
+      if (card) {
+        this.revealedBunkerCards.push(card);
+        this.addLog(`🛡️ АВТОМАТИЧЕСКИ ОТКРЫТА КАРТА БУНКЕРА: "${card.title}"! ${card.description}`);
+        return { type: 'bunker', card };
+      }
+    } else {
+      const card = this.threatsDeck.shift();
+      if (card) {
+        this.revealedThreatCards.push(card);
+        this.addLog(`⚠️ ТРЕВОГА! АВТОМАТИЧЕСКИ ОТКРЫТА КАРТА УГРОЗЫ: "${card.title}"! ${card.description}`);
+        return { type: 'threat', card };
+      }
     }
 
-    const stolenText = stolenCard.text;
-    const wasRevealed = stolenCard.revealed;
-
-    // Thief receives the card
-    thief.cards[categoryKey] = {
-      text: `${stolenText} (Украдено у ${victim.name})`,
-      revealed: wasRevealed
-    };
-
-    // Victim loses the card
-    victim.cards[categoryKey] = {
-      text: '— (Украдено)',
-      revealed: true
-    };
-
-    const catObj = CATEGORIES.find(c => c.key === categoryKey);
-    const catName = catObj ? catObj.name : categoryKey;
-
-    this.addLog(`🦹 Спец-действие: Игрок ${thief.name} УКРАЛ карту [${catName}] у ${victim.name}!`);
-    return true;
+    return null;
   }
 
-  startPresetGame(requesterId) {
+  // --- TIMER MANAGEMENT (MODE 2: 2 MINUTES / HARDCORE) ---
+  startThreatTimer() {
+    this.stopThreatTimer();
+    this.threatTimerCountdown = this.threatTimerSeconds;
+
+    this.threatTimerHandle = setInterval(() => {
+      if (this.status !== 'playing') {
+        this.stopThreatTimer();
+        return;
+      }
+
+      this.threatTimerCountdown--;
+      if (this.threatTimerCountdown <= 0) {
+        this.threatTimerCountdown = this.threatTimerSeconds;
+        this.drawWorldCard();
+        this.notifyBroadcast();
+      }
+    }, 1000);
+  }
+
+  stopThreatTimer() {
+    if (this.threatTimerHandle) {
+      clearInterval(this.threatTimerHandle);
+      this.threatTimerHandle = null;
+    }
+  }
+
+  // --- START GAME (PRESET) ---
+  startPresetGame(requesterId, options = {}) {
     if (requesterId !== this.hostId) {
       throw new Error('Только Мастер игры может запустить игру.');
     }
@@ -368,9 +463,14 @@ class SingleGame {
       throw new Error('Для игры нужен хотя бы 1 игрок.');
     }
 
+    if (options.threatMode) {
+      this.threatMode = options.threatMode; // 'threshold' | 'timer'
+    }
+
     const pool = {
       disasters: [],
-      conditions: [],
+      bunker: [],
+      threats: [],
       profession: [],
       health: [],
       biology: [],
@@ -382,72 +482,132 @@ class SingleGame {
       special_cards: []
     };
 
+    // Gather from selected decks
     this.selectedDecks.forEach(deckId => {
       const deck = deckLoader.getDeck(deckId);
       if (deck) {
-        Object.keys(pool).forEach(k => {
-          const src = deck[k] || deck[k + 's'] || deck[k.replace(/s$/, '')] || [];
-          if (Array.isArray(src)) {
-            pool[k].push(...src);
-          }
+        if (deck.disasters) pool.disasters.push(...deck.disasters);
+
+        // Bunker and Threats
+        if (deck.bunker) pool.bunker.push(...deck.bunker);
+        if (deck.threats) pool.threats.push(...deck.threats);
+
+        // Legacy / fallback conditions partition
+        if (deck.conditions && Array.isArray(deck.conditions)) {
+          deck.conditions.forEach(c => {
+            const title = typeof c === 'string' ? c : (c.title || '');
+            const desc = typeof c === 'string' ? c : (c.description || '');
+            const item = { title, description: desc };
+            if (title.toLowerCase().includes('угроз')) {
+              if (!pool.threats.some(t => t.title === title)) pool.threats.push(item);
+            } else {
+              if (!pool.bunker.some(b => b.title === title)) pool.bunker.push(item);
+            }
+          });
+        }
+
+        // Player categories
+        CATEGORIES.forEach(cat => {
+          const list = deck[cat.key] || deck[cat.key + 's'] || [];
+          if (Array.isArray(list)) pool[cat.key].push(...list);
         });
       }
     });
 
-    if (pool.disasters.length === 0) {
-      const fallbackDeck = deckLoader.getDeck('classic') || {};
-      Object.keys(pool).forEach(k => {
-        pool[k] = fallbackDeck[k] || fallbackDeck[k + 's'] || ['Стандартная карта'];
-      });
-    }
+    // Fallbacks if empty
+    const classicDeck = deckLoader.getDeck('classic') || {};
+    if (pool.disasters.length === 0) pool.disasters = classicDeck.disasters || [{ title: 'Ядерная зима', goal: 'Выжить в изоляции' }];
+    if (pool.bunker.length === 0) pool.bunker = classicDeck.bunker || [{ title: 'Автономный бункер', description: 'Системы в норме' }];
+    if (pool.threats.length === 0) pool.threats = classicDeck.threats || [{ title: 'Износ фильтров воздуха', description: 'Нужна ручная очистка' }];
 
-    this.activePools = pool;
-
-    const disasterItem = getRandomItem(pool.disasters, {
-      title: 'Неизвестный глобальный катаклизм',
-      goal: 'Выжить в замкнутом бункере любой ценой.'
-    });
+    // 1. Disaster revealed immediately before players take turns
+    const disasterItem = getRandomItem(pool.disasters);
     this.disaster = {
       title: typeof disasterItem === 'string' ? disasterItem : disasterItem.title,
       goal: typeof disasterItem === 'string' ? 'Выжить и возродить цивилизацию.' : (disasterItem.goal || disasterItem.description || ''),
       revealed: true
     };
 
-    const conditionItem = getRandomItem(pool.conditions, {
-      title: 'Автономный бункер высшей категории',
-      description: 'Все системы жизнеобеспечения функционируют в штатном режиме.'
-    });
-    this.condition = {
-      title: typeof conditionItem === 'string' ? conditionItem : conditionItem.title,
-      description: typeof conditionItem === 'string' ? conditionItem : (conditionItem.description || conditionItem.goal || ''),
-      revealed: true
-    };
+    // 2. World Decks (Shuffled unique cards)
+    this.bunkerDeck = shuffle(pool.bunker);
+    this.threatsDeck = shuffle(pool.threats);
+    this.revealedBunkerCards = [];
+    this.revealedThreatCards = [];
 
+    // Draw initial Bunker card
+    if (this.bunkerDeck.length > 0) {
+      this.revealedBunkerCards.push(this.bunkerDeck.shift());
+    }
+
+    // 3. Player Cards (STRICT 1 COPY PER CARD)
     CATEGORIES.forEach(cat => {
-      const sourceList = pool[cat.key] || ['—'];
-      const shuffledCat = shuffle(sourceList.length > 0 ? sourceList : ['—']);
-      let index = 0;
+      let sourceList = pool[cat.key] || [];
+      if (sourceList.length === 0) {
+        sourceList = classicDeck[cat.key] || classicDeck[cat.key + 's'] || ['—'];
+      }
+
+      // De-duplicate master pool
+      const uniquePool = Array.from(new Set(sourceList));
+      const shuffled = shuffle(uniquePool);
+
+      this.categoryDecks[cat.key] = [...shuffled];
+      this.inPlayCards[cat.key] = new Set();
+
       this.players.forEach(player => {
         player.isExiled = false;
-        const text = shuffledCat[index % shuffledCat.length] || '—';
+        let cardText = this.categoryDecks[cat.key].shift() || '—';
+        if (typeof cardText !== 'string') cardText = cardText.title || cardText.name || JSON.stringify(cardText);
+
+        this.inPlayCards[cat.key].add(cardText);
         player.cards[cat.key] = {
-          text: typeof text === 'string' ? text : (text.name || text.title || JSON.stringify(text)),
+          text: cardText,
           revealed: false
         };
-        index++;
       });
     });
 
+    // 4. Threshold milestones calculation based on player count
+    const playerCount = Math.max(1, this.players.size);
+    // User requested formula: for 5 players -> 10, 15, 20, 25, 30
+    this.totalRevealsCount = 0;
+    this.thresholdMilestones = [
+      playerCount * 2,
+      playerCount * 3,
+      playerCount * 4,
+      playerCount * 5,
+      playerCount * 6,
+      playerCount * 7,
+      playerCount * 8
+    ];
+    this.nextThreshold = this.thresholdMilestones[0];
+
+    // 5. Timer mode if selected
+    if (this.threatMode === 'timer') {
+      this.startThreatTimer();
+    } else {
+      this.stopThreatTimer();
+    }
+
     this.results = null;
     this.status = 'playing';
+
     this.addLog(`🚀 Игра началась! Катастрофа: "${this.disaster.title}". Мест в бункере: ${this.bunkerCapacity}`);
+    if (this.threatMode === 'timer') {
+      this.addLog(`⏱️ Режим Угроз: Хардкор по таймеру (новая карта каждые 2 минуты)!`);
+    } else {
+      this.addLog(`📊 Режим Угроз: По открытию карт (следующая карта на ${this.nextThreshold} открытии)!`);
+    }
   }
 
-  startUgcPhase(requesterId) {
+  // --- START UGC PHASE ---
+  startUgcPhase(requesterId, options = {}) {
     if (requesterId !== this.hostId) {
       throw new Error('Только Мастер игры может запустить создание карт.');
     }
+    this.stopThreatTimer();
     this.status = 'ugc_building';
+    if (options.threatMode) this.threatMode = options.threatMode;
+
     this.players.forEach(p => {
       p.ugcReady = false;
       p.ugcSubmissions = {};
@@ -481,7 +641,8 @@ class SingleGame {
 
     const pool = {
       disasters: [],
-      conditions: [],
+      bunker: [],
+      threats: [],
       profession: [],
       health: [],
       biology: [],
@@ -514,59 +675,65 @@ class SingleGame {
       }
     });
 
-    this.activePools = pool;
-
     this.disaster = {
-      title: 'Абсолютный непредсказуемый катаклизм игроков',
+      title: 'Непредсказуемый катаклизм игроков',
       goal: 'Выжить в условиях, созданных самими игроками!',
       revealed: true
     };
-    this.condition = {
-      title: 'Убежище ручной сборки',
-      description: 'Условия и оборудование бункера соответствуют безумным картам игроков.',
-      revealed: true
-    };
 
-    if (saveAsThemeName) {
-      try {
-        const customDeck = {
-          id: 'custom_' + Date.now(),
-          name: saveAsThemeName.trim() || 'Колода игроков',
-          description: `Создана игроками в убежище`,
-          disasters: [this.disaster],
-          conditions: [this.condition],
-          ...pool
-        };
-        deckLoader.saveDeck(customDeck);
-        this.addLog(`💾 Набор карт сохранен в библиотеку как "${customDeck.name}".`);
-      } catch (e) {
-        console.error('Ошибка сохранения колоды:', e);
-      }
-    }
+    this.bunkerDeck = shuffle(classicDeck.bunker || [{ title: 'Убежище ручной сборки', description: 'Оборудование создано игроками' }]);
+    this.threatsDeck = shuffle(classicDeck.threats || [{ title: 'Нестабильные внешние генераторы', description: 'Требуется постоянный контроль' }]);
+    this.revealedBunkerCards = [this.bunkerDeck.shift()];
+    this.revealedThreatCards = [];
 
+    // Distribute unique cards
     CATEGORIES.forEach(cat => {
-      const shuffledCat = shuffle(pool[cat.key]);
-      let index = 0;
+      const uniquePool = Array.from(new Set(pool[cat.key]));
+      const shuffled = shuffle(uniquePool);
+
+      this.categoryDecks[cat.key] = [...shuffled];
+      this.inPlayCards[cat.key] = new Set();
+
       this.players.forEach(player => {
         player.isExiled = false;
-        const text = shuffledCat[index % shuffledCat.length] || '—';
+        const text = this.categoryDecks[cat.key].shift() || '—';
+        this.inPlayCards[cat.key].add(text);
         player.cards[cat.key] = {
           text,
           revealed: false
         };
-        index++;
       });
     });
+
+    const playerCount = Math.max(1, this.players.size);
+    this.totalRevealsCount = 0;
+    this.thresholdMilestones = [playerCount * 2, playerCount * 3, playerCount * 4, playerCount * 5];
+    this.nextThreshold = this.thresholdMilestones[0];
+
+    if (this.threatMode === 'timer') {
+      this.startThreatTimer();
+    }
 
     this.results = null;
     this.status = 'playing';
     this.addLog(`🚀 Игра началась в режиме "С нуля"! Мест в бункере: ${this.bunkerCapacity}`);
   }
 
-  finishGame(requesterId) {
+  // --- FINAL SURVIVAL ASSESSMENT (ОЦЕНКА ВЫЖИВАЕМОСТИ МАСТЕРОМ) ---
+  submitSurvivalEvaluation(evaluation, requesterId) {
     if (requesterId !== this.hostId) {
-      throw new Error('Только Мастер игры может подвести итоги.');
+      throw new Error('Только Мастер игры может подвести итоги выживания.');
     }
+
+    this.stopThreatTimer();
+
+    const evalScores = {
+      supplies: Math.max(1, Math.min(5, parseInt(evaluation.supplies, 10) || 3)),
+      medicine: Math.max(1, Math.min(5, parseInt(evaluation.medicine, 10) || 3)),
+      specialists: Math.max(1, Math.min(5, parseInt(evaluation.specialists, 10) || 3)),
+      defense: Math.max(1, Math.min(5, parseInt(evaluation.defense, 10) || 3)),
+      psychology: Math.max(1, Math.min(5, parseInt(evaluation.psychology, 10) || 3))
+    };
 
     const survivors = [];
     const exiled = [];
@@ -577,7 +744,12 @@ class SingleGame {
         name: p.name,
         profession: p.cards.profession ? p.cards.profession.text : '—',
         health: p.cards.health ? p.cards.health.text : '—',
-        biology: p.cards.biology ? p.cards.biology.text : '—'
+        biology: p.cards.biology ? p.cards.biology.text : '—',
+        traits: p.cards.traits ? p.cards.traits.text : '—',
+        inventory: [
+          p.cards.small_inventory ? p.cards.small_inventory.text : '',
+          p.cards.large_inventory ? p.cards.large_inventory.text : ''
+        ].filter(Boolean).join('; ')
       };
 
       if (p.isExiled) {
@@ -587,23 +759,62 @@ class SingleGame {
       }
     });
 
-    const isSuccess = survivors.length > 0 && survivors.length <= this.bunkerCapacity;
+    const survivorsCount = survivors.length;
+    const capacity = this.bunkerCapacity;
+
+    // Calculation formula
+    const totalEvalPoints = evalScores.supplies + evalScores.medicine + evalScores.specialists + evalScores.defense + evalScores.psychology; // 5 to 25
+    let percentage = Math.round((totalEvalPoints / 25) * 100);
+
     let verdict = '';
-    if (survivors.length === 0) {
-      verdict = '💀 Все выжившие были изгнаны. Бункер пуст, человечество угасло...';
-    } else if (survivors.length > this.bunkerCapacity) {
-      verdict = `⚠️ ПЕРЕНАСЕЛЕНИЕ! В бункере осталось ${survivors.length} чел., но мест было всего ${this.bunkerCapacity}. Ресурсов не хватило на всех!`;
+    let isSuccess = false;
+    let epilogue = '';
+
+    if (survivorsCount === 0) {
+      percentage = 0;
+      isSuccess = false;
+      verdict = '💀 ВСЕ ИЗГНАНЫ. БУНКЕР ПУСТ.';
+      epilogue = 'Все кандидаты были изгнаны на поверхность. В убежище никто не вошел. Замкнутые системы отключились одна за другой, и человечество в этом регионе прекратило свое существование.';
+    } else if (survivorsCount > capacity) {
+      const excess = survivorsCount - capacity;
+      percentage = Math.max(5, percentage - (excess * 22));
+      isSuccess = false;
+      verdict = `⚠️ ПЕРЕНАСЕЛЕНИЕ БУНКЕРА! (${survivorsCount} чел. на ${capacity} мест)`;
+      epilogue = `В бункер попытались набиться ${survivorsCount} человек, хотя спальных капсул и ресурсов было рассчитано всего на ${capacity}. ` +
+        `Спустя 3 месяца системы регенерации кислорода вышли из строя от предельной нагрузки. ` +
+        `Началась жестокая борьба за пайки и воду. Бункер не выдержал внутреннего хаоса.`;
     } else {
-      verdict = `🎉 УСПЕШНОЕ ВЫЖИВАНИЕ! В бункер вошли ${survivors.length} чел. из ${this.bunkerCapacity} доступных мест. Бункер выстоял!`;
+      // Normal or under capacity
+      if (percentage >= 70) {
+        isSuccess = true;
+        verdict = `🎉 БУНКЕР УСПЕШНО ВЫЖИЛ! (Шанс выживания: ${percentage}%)`;
+        epilogue = `Благодаря слаженным действиям команды и грамотному распределению ресурсов, ${survivorsCount} выживших преодолели все угрозы. ` +
+          `Запасов и медикаментов хватило на весь срок изоляции. Спустя годы шлюз распахнулся, и спасшиеся начали возрождать новый мир.`;
+      } else if (percentage >= 40) {
+        isSuccess = true;
+        verdict = `⚖️ ТЯЖЕЛАЯ БОРЬБА ЗА ВЫЖИВАНИЕ (Шанс выживания: ${percentage}%)`;
+        epilogue = `Группе из ${survivorsCount} человек удалось пережить катастрофу, однако изоляция далась дорогой ценой. ` +
+          `Дефицит припасов и нехватка нужных специалистов едва не привели к гибели колонии. Только строжайшая дисциплина спасла убежище.`;
+      } else {
+        isSuccess = false;
+        verdict = `💀 КАТАСТРОФА В БУНКЕРЕ (Шанс выживания: ${percentage}%)`;
+        epilogue = `Несмотря на то, что бункер закрылся, критическая нехватка ресурсов, болезни и нерешенные внешние угрозы оказались фатальными. ` +
+          `Системы жизнеобеспечения угасли задолго до открытия спасательного шлюза.`;
+      }
     }
 
     this.results = {
+      isSuccess,
+      percentage,
+      verdict,
+      epilogue,
       survivors,
       exiled,
-      bunkerCapacity: this.bunkerCapacity,
-      isSuccess,
-      verdict,
-      disaster: this.disaster ? this.disaster.title : 'Катастрофа'
+      bunkerCapacity: capacity,
+      evalScores,
+      disaster: this.disaster ? this.disaster.title : 'Глобальная катастрофа',
+      threatsCount: this.revealedThreatCards.length,
+      bunkerCardsCount: this.revealedBunkerCards.length
     };
 
     this.status = 'finished';
@@ -615,8 +826,13 @@ class SingleGame {
     if (requesterId !== this.hostId) {
       throw new Error('Только Мастер игры может сбросить игру в лобби.');
     }
+    this.stopThreatTimer();
     this.status = 'lobby';
     this.results = null;
+    this.revealedBunkerCards = [];
+    this.revealedThreatCards = [];
+    this.totalRevealsCount = 0;
+
     this.players.forEach(p => {
       p.isExiled = false;
       p.ugcReady = false;
@@ -628,11 +844,12 @@ class SingleGame {
   }
 
   toClientState(forPlayerId) {
+    const isMaster = forPlayerId === this.hostId;
+    const isFinished = this.status === 'finished';
+
     const playersList = [];
     this.players.forEach(p => {
       const isSelf = p.id === forPlayerId;
-      const isMaster = forPlayerId === this.hostId;
-      const isFinished = this.status === 'finished';
       const safeCards = {};
 
       CATEGORIES.forEach(cat => {
@@ -662,22 +879,30 @@ class SingleGame {
       });
     });
 
-    const isHost = forPlayerId === this.hostId;
-
     return {
       hasPassword: Boolean(this.password),
       status: this.status,
       mode: this.mode,
       selectedDecks: this.selectedDecks,
       bunkerCapacity: this.bunkerCapacity,
+
+      // Threat / Bunker mode & progress
+      threatMode: this.threatMode,
+      threatTimerCountdown: this.threatTimerCountdown,
+      totalRevealsCount: this.totalRevealsCount,
+      nextThreshold: this.nextThreshold,
+
+      // World Cards
       disaster: this.disaster,
-      condition: this.condition,
+      revealedBunkerCards: this.revealedBunkerCards,
+      revealedThreatCards: this.revealedThreatCards,
+
       results: this.results,
-      isHost,
+      isHost: isMaster,
       myId: forPlayerId,
       players: playersList,
       categories: CATEGORIES,
-      logs: this.logs.slice(0, 30),
+      logs: this.logs.slice(0, 35),
       network: getNetworkInfo()
     };
   }

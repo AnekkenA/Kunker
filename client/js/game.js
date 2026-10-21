@@ -1,165 +1,337 @@
-// --- MAIN GAME TABLE, 3D CARDS, MASTER SPECIAL ACTIONS & RESULTS ---
+// --- MAIN GAME TABLE, 3D CARDS, MASTER ACTIONS, THREATS & SURVIVAL EVALUATION ---
 const GameBoard = {
   init() {
     this.bindEvents();
   },
 
   bindEvents() {
-    // Master Finish Game
-    document.getElementById('btn-finish-game').addEventListener('click', async () => {
-      if (confirm('Подвести итоги игры? Список выживших и изгнанных будет зафиксирован.')) {
-        await App.sendAction('finish_game');
-        App.playSound('start');
-      }
-    });
+    // 1. OPEN REVEAL OTHER PLAYER CARD MODAL (МАСТЕР)
+    const btnOpenReveal = document.getElementById('btn-open-reveal-modal');
+    if (btnOpenReveal) {
+      btnOpenReveal.addEventListener('click', () => {
+        this.openRevealOtherModal();
+      });
+    }
 
-    // Master Reset to Lobby
-    document.getElementById('btn-reset-lobby').addEventListener('click', async () => {
-      if (confirm('Сбросить игру и вернуться в лобби? Текущие карты будут очищены.')) {
-        await App.sendAction('reset_lobby');
-        App.playSound('click');
-      }
-    });
+    const btnCloseReveal = document.getElementById('btn-close-reveal-modal');
+    if (btnCloseReveal) {
+      btnCloseReveal.addEventListener('click', () => {
+        document.getElementById('modal-reveal-other').classList.add('hidden');
+      });
+    }
+
+    const btnApplyReveal = document.getElementById('btn-apply-reveal-other');
+    if (btnApplyReveal) {
+      btnApplyReveal.addEventListener('click', async () => {
+        const targetPlayerId = document.getElementById('select-reveal-player').value;
+        const categoryKey = document.getElementById('select-reveal-cat').value;
+        if (!targetPlayerId || !categoryKey) return;
+
+        try {
+          await App.sendAction('reveal_other_card', { targetPlayerId, categoryKey });
+          document.getElementById('modal-reveal-other').classList.add('hidden');
+          App.playSound('flip');
+          App.showToast('👁️ Карта успешно вскрыта для всех!');
+        } catch (e) {}
+      });
+    }
+
+    // 2. OPEN SHUFFLE SELECTED MODAL (МАСТЕР)
+    const btnOpenShuffle = document.getElementById('btn-open-shuffle-modal');
+    if (btnOpenShuffle) {
+      btnOpenShuffle.addEventListener('click', () => {
+        this.openShuffleSelectedModal();
+      });
+    }
+
+    const btnCloseShuffle = document.getElementById('btn-close-shuffle-modal');
+    if (btnCloseShuffle) {
+      btnCloseShuffle.addEventListener('click', () => {
+        document.getElementById('modal-shuffle-selected').classList.add('hidden');
+      });
+    }
+
+    const btnApplyShuffle = document.getElementById('btn-apply-shuffle-selected');
+    if (btnApplyShuffle) {
+      btnApplyShuffle.addEventListener('click', async () => {
+        const categoryKey = document.getElementById('select-shuffle-cat').value;
+        const checkedBoxes = Array.from(document.querySelectorAll('#shuffle-players-list input[type="checkbox"]:checked'));
+        const playerIds = checkedBoxes.map(cb => cb.value);
+
+        if (playerIds.length < 2) {
+          App.showToast('⚠️ Выберите как минимум 2-х игроков для перемешивания!');
+          return;
+        }
+
+        try {
+          await App.sendAction('shuffle_selected_cards', { categoryKey, playerIds });
+          document.getElementById('modal-shuffle-selected').classList.add('hidden');
+          App.playSound('start');
+          App.showToast('🔀 Выбранные карты успешно перемешаны!');
+        } catch (e) {}
+      });
+    }
+
+    // 3. OPEN REPLACE CARD MODAL (МАСТЕР)
+    const btnOpenReplace = document.getElementById('btn-open-replace-modal');
+    if (btnOpenReplace) {
+      btnOpenReplace.addEventListener('click', () => {
+        this.openReplaceCardModal();
+      });
+    }
+
+    const btnCloseReplace = document.getElementById('btn-close-replace-modal');
+    if (btnCloseReplace) {
+      btnCloseReplace.addEventListener('click', () => {
+        document.getElementById('modal-replace-card').classList.add('hidden');
+      });
+    }
+
+    const btnApplyReplace = document.getElementById('btn-apply-replace-card');
+    if (btnApplyReplace) {
+      btnApplyReplace.addEventListener('click', async () => {
+        const targetPlayerId = document.getElementById('select-replace-player').value;
+        const categoryKey = document.getElementById('select-replace-cat').value;
+        if (!targetPlayerId || !categoryKey) return;
+
+        if (!confirm('Подтвердить замену? Старая карта игрока вернется в колоду, а игрок получит случайную свободную карту из этой категории.')) {
+          return;
+        }
+
+        try {
+          await App.sendAction('replace_card', { targetPlayerId, categoryKey });
+          document.getElementById('modal-replace-card').classList.add('hidden');
+          App.playSound('flip');
+          App.showToast('🎲 Карта успешно заменена на случайную из колоды!');
+        } catch (e) {}
+      });
+    }
+
+    // 4. MANUAL DRAW WORLD CARD BUTTON (МАСТЕР)
+    const btnDrawWorld = document.getElementById('btn-draw-world-card');
+    if (btnDrawWorld) {
+      btnDrawWorld.addEventListener('click', async () => {
+        try {
+          await App.sendAction('draw_world_card');
+          App.playSound('start');
+        } catch (e) {}
+      });
+    }
+
+    // 5. MASTER FINISH GAME -> OPENS SURVIVAL EVALUATION QUESTIONNAIRE
+    const btnFinish = document.getElementById('btn-finish-game');
+    if (btnFinish) {
+      btnFinish.addEventListener('click', () => {
+        if (!App.isHost) {
+          App.showToast('Только Мастер игры может подвести итоги.');
+          return;
+        }
+        this.openEvaluationModal();
+      });
+    }
+
+    const btnCloseEval = document.getElementById('btn-close-eval-modal');
+    if (btnCloseEval) {
+      btnCloseEval.addEventListener('click', () => {
+        document.getElementById('modal-evaluation').classList.add('hidden');
+      });
+    }
+
+    const btnSubmitEval = document.getElementById('btn-submit-final-evaluation');
+    if (btnSubmitEval) {
+      btnSubmitEval.addEventListener('click', async () => {
+        const supplies = document.querySelector('input[name="eval-supplies"]:checked')?.value || '3';
+        const medicine = document.querySelector('input[name="eval-medicine"]:checked')?.value || '3';
+        const specialists = document.querySelector('input[name="eval-specialists"]:checked')?.value || '3';
+        const defense = document.querySelector('input[name="eval-defense"]:checked')?.value || '3';
+        const psychology = document.querySelector('input[name="eval-psychology"]:checked')?.value || '3';
+
+        try {
+          await App.sendAction('submit_evaluation', {
+            evaluation: { supplies, medicine, specialists, defense, psychology }
+          });
+          document.getElementById('modal-evaluation').classList.add('hidden');
+          App.playSound('start');
+        } catch (e) {}
+      });
+    }
+
+    // 6. MASTER RESET TO LOBBY
+    const btnResetLobby = document.getElementById('btn-reset-lobby');
+    if (btnResetLobby) {
+      btnResetLobby.addEventListener('click', async () => {
+        if (confirm('Сбросить игру и вернуться в лобби? Все текущие карты будут очищены.')) {
+          await App.sendAction('reset_lobby');
+          App.playSound('click');
+        }
+      });
+    }
 
     // Results Modal Return to Lobby
-    document.getElementById('btn-results-to-lobby').addEventListener('click', async () => {
-      if (App.isHost) {
-        await App.sendAction('reset_lobby');
-      } else {
-        document.getElementById('results-modal').classList.add('hidden');
-        App.showToast('Ожидание возврата в лобби Мастером...');
-      }
-    });
-
-    document.getElementById('btn-results-close').addEventListener('click', () => {
-      document.getElementById('results-modal').classList.add('hidden');
-    });
-
-    // Master Actions Modal Open
-    document.getElementById('btn-open-master-actions').addEventListener('click', () => {
-      this.openMasterActionsModal();
-    });
-
-    // Master Actions Modal Close
-    document.getElementById('btn-close-master-actions-modal').addEventListener('click', () => {
-      document.getElementById('master-actions-modal').classList.add('hidden');
-    });
-
-    // Master Actions Tabs
-    document.querySelectorAll('#master-actions-modal .tab-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const tabId = e.target.getAttribute('data-tab');
-        document.querySelectorAll('#master-actions-modal .tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('#master-actions-modal .tab-content').forEach(c => c.classList.remove('active'));
-        e.target.classList.add('active');
-        const targetContent = document.getElementById(tabId);
-        if (targetContent) targetContent.classList.add('active');
+    const btnResultsLobby = document.getElementById('btn-results-to-lobby');
+    if (btnResultsLobby) {
+      btnResultsLobby.addEventListener('click', async () => {
+        if (App.isHost) {
+          await App.sendAction('reset_lobby');
+        } else {
+          document.getElementById('results-modal').classList.add('hidden');
+          App.showToast('Ожидание возврата в лобби Мастером...');
+        }
       });
-    });
+    }
 
-    // 1. Apply Replace Card (Master)
-    document.getElementById('btn-ma-apply-replace').addEventListener('click', async () => {
-      const targetPlayerId = document.getElementById('select-ma-replace-player').value;
-      const cat = document.getElementById('select-ma-replace-cat').value;
-      if (!targetPlayerId) return;
-
-      try {
-        await App.sendAction('replace_card', { targetPlayerId, categoryKey: cat });
-        document.getElementById('master-actions-modal').classList.add('hidden');
-        App.playSound('flip');
-        App.showToast('🎲 Карта успешно заменена из колоды!');
-      } catch (e) {}
-    });
-
-    // 2. Apply Swap Cards (Master)
-    document.getElementById('btn-ma-apply-swap').addEventListener('click', async () => {
-      const p1 = document.getElementById('select-ma-swap-p1').value;
-      const p2 = document.getElementById('select-ma-swap-p2').value;
-      const cat = document.getElementById('select-ma-swap-cat').value;
-
-      if (!p1 || !p2 || p1 === p2) {
-        App.showToast('⚠️ Выберите двух РАЗНЫХ игроков для обмена!');
-        return;
-      }
-
-      try {
-        await App.sendAction('swap_cards', { player1Id: p1, player2Id: p2, categoryKey: cat });
-        document.getElementById('master-actions-modal').classList.add('hidden');
-        App.playSound('flip');
-        App.showToast('🔄 Обмен картами успешно совершен!');
-      } catch (e) {}
-    });
-
-    // 3. Apply Shuffle Revealed Cards (Master)
-    document.getElementById('btn-ma-apply-shuffle').addEventListener('click', async () => {
-      const cat = document.getElementById('select-ma-shuffle-cat').value;
-
-      try {
-        await App.sendAction('shuffle_revealed_cards', { categoryKey: cat });
-        document.getElementById('master-actions-modal').classList.add('hidden');
-        App.playSound('start');
-        App.showToast('🔀 Открытые карты успешно перемешаны!');
-      } catch (e) {}
-    });
-
-    // 4. Apply Steal Card (Master)
-    document.getElementById('btn-ma-apply-steal').addEventListener('click', async () => {
-      const fromP = document.getElementById('select-ma-steal-from').value;
-      const toP = document.getElementById('select-ma-steal-to').value;
-      const cat = document.getElementById('select-ma-steal-cat').value;
-
-      if (!fromP || !toP || fromP === toP) {
-        App.showToast('⚠️ Выберите двух РАЗНЫХ игроков (Жертву и Вора)!');
-        return;
-      }
-
-      try {
-        await App.sendAction('steal_card', { fromPlayerId: fromP, toPlayerId: toP, categoryKey: cat });
-        document.getElementById('master-actions-modal').classList.add('hidden');
-        App.playSound('exile');
-        App.showToast('🦹 Карта успешно украдена и передана игроку!');
-      } catch (e) {}
-    });
+    const btnResultsClose = document.getElementById('btn-results-close');
+    if (btnResultsClose) {
+      btnResultsClose.addEventListener('click', () => {
+        document.getElementById('results-modal').classList.add('hidden');
+      });
+    }
   },
 
-  openMasterActionsModal() {
-    const modal = document.getElementById('master-actions-modal');
+  // --- MODAL OPENERS ---
+
+  openRevealOtherModal() {
+    const modal = document.getElementById('modal-reveal-other');
+    if (!modal) return;
     modal.classList.remove('hidden');
 
     const players = (App.state && App.state.players) || [];
-    const optionsHtml = players.map(p => `
+    const select = document.getElementById('select-reveal-player');
+    select.innerHTML = players.map(p => `
       <option value="${p.id}">${p.name} ${p.isExiled ? '(Изгнан)' : ''}</option>
     `).join('');
 
-    document.getElementById('select-ma-replace-player').innerHTML = optionsHtml;
-    document.getElementById('select-ma-swap-p1').innerHTML = optionsHtml;
-    document.getElementById('select-ma-swap-p2').innerHTML = optionsHtml;
-    document.getElementById('select-ma-steal-from').innerHTML = optionsHtml;
-    document.getElementById('select-ma-steal-to').innerHTML = optionsHtml;
+    App.playSound('click');
+  },
 
-    // Set defaults if multiple players
-    if (players.length > 1) {
-      document.getElementById('select-ma-swap-p2').selectedIndex = 1;
-      document.getElementById('select-ma-steal-to').selectedIndex = 1;
+  openShuffleSelectedModal() {
+    const modal = document.getElementById('modal-shuffle-selected');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    const players = (App.state && App.state.players) || [];
+    const list = document.getElementById('shuffle-players-list');
+    list.innerHTML = players.map(p => `
+      <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px; cursor: pointer; font-size: 13px;">
+        <input type="checkbox" value="${p.id}" checked>
+        <span>${p.isHost ? '👑' : '👤'} <strong>${p.name}</strong> ${p.isExiled ? '<span class="text-red">(Изгнан)</span>' : ''}</span>
+      </label>
+    `).join('');
+
+    App.playSound('click');
+  },
+
+  openReplaceCardModal() {
+    const modal = document.getElementById('modal-replace-card');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    const players = (App.state && App.state.players) || [];
+    const select = document.getElementById('select-replace-player');
+    select.innerHTML = players.map(p => `
+      <option value="${p.id}">${p.name} ${p.isExiled ? '(Изгнан)' : ''}</option>
+    `).join('');
+
+    App.playSound('click');
+  },
+
+  openEvaluationModal() {
+    const modal = document.getElementById('modal-evaluation');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+
+    const state = App.state || {};
+    const players = state.players || [];
+    let survivorsCount = 0;
+    players.forEach(p => {
+      if (!p.isExiled) survivorsCount++;
+    });
+
+    document.getElementById('eval-bunker-cap').textContent = state.bunkerCapacity || 3;
+    const survEl = document.getElementById('eval-survivors-count');
+    survEl.textContent = survivorsCount;
+
+    if (survivorsCount > (state.bunkerCapacity || 3)) {
+      survEl.className = 'text-red';
+    } else {
+      survEl.className = 'text-green';
     }
 
     App.playSound('click');
   },
 
+  // --- STATE RENDERER ---
+
   render(state) {
     const isMaster = state.isHost;
 
-    // 1. World Cards (Disaster & Conditions)
+    // 1. Catastrophe (Disaster)
     if (state.disaster) {
       document.getElementById('disaster-title').textContent = state.disaster.title;
       document.getElementById('disaster-goal').textContent = state.disaster.goal;
     }
-    if (state.condition) {
-      document.getElementById('condition-title').textContent = state.condition.title;
-      document.getElementById('condition-desc').textContent = state.condition.description;
+
+    // 2. Bunker Cards List
+    const bunkerContainer = document.getElementById('bunker-cards-container');
+    const bunkerCountEl = document.getElementById('bunker-cards-count');
+    const bunkerCards = state.revealedBunkerCards || [];
+    if (bunkerCountEl) bunkerCountEl.textContent = bunkerCards.length;
+
+    if (bunkerContainer) {
+      if (bunkerCards.length === 0) {
+        bunkerContainer.innerHTML = '<div class="world-card-empty">Карты бункера пока закрыты</div>';
+      } else {
+        bunkerContainer.innerHTML = bunkerCards.map((bc, idx) => `
+          <div class="world-item-chip bunker-chip">
+            <div class="chip-title">🛡️ ${bc.title || 'Условие бункера'}</div>
+            <div class="chip-desc">${bc.description || ''}</div>
+          </div>
+        `).join('');
+      }
     }
 
-    // 2. Stats
+    // 3. Threat Cards List
+    const threatsContainer = document.getElementById('threats-cards-container');
+    const threatsCountEl = document.getElementById('threats-cards-count');
+    const threatCards = state.revealedThreatCards || [];
+    if (threatsCountEl) threatsCountEl.textContent = threatCards.length;
+
+    if (threatsContainer) {
+      if (threatCards.length === 0) {
+        threatsContainer.innerHTML = '<div class="world-card-empty">Активных угроз пока нет</div>';
+      } else {
+        threatsContainer.innerHTML = threatCards.map((tc, idx) => `
+          <div class="world-item-chip threat-chip">
+            <div class="chip-title">⚠️ ${tc.title || 'Угроза бункера'}</div>
+            <div class="chip-desc">${tc.description || ''}</div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // 4. Threat Progress / Timer Banner
+    const statusBanner = document.getElementById('threat-mode-status');
+    if (statusBanner) {
+      if (state.threatMode === 'timer') {
+        const secs = state.threatTimerCountdown !== undefined ? state.threatTimerCountdown : 120;
+        const m = Math.floor(secs / 60);
+        const s = secs % 60;
+        const timeStr = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        statusBanner.innerHTML = `⏱️ ХАРДКОР: До следующей карты Угрозы/Бункера: <strong class="threat-timer-badge">${timeStr}</strong>`;
+      } else {
+        const current = state.totalRevealsCount || 0;
+        const target = state.nextThreshold || 10;
+        statusBanner.innerHTML = `📊 Режим по картам: Открыто карт: <strong>${current}</strong>. Следующая карта на: <strong>${target}</strong>`;
+      }
+    }
+
+    const masterDrawBox = document.getElementById('master-draw-card-box');
+    if (masterDrawBox) {
+      if (isMaster) masterDrawBox.classList.remove('hidden');
+      else masterDrawBox.classList.add('hidden');
+    }
+
+    // 5. Stats
     let activeCount = 0;
     let exiledCount = 0;
     state.players.forEach(p => {
@@ -171,7 +343,7 @@ const GameBoard = {
     document.getElementById('stat-active-count').textContent = activeCount;
     document.getElementById('stat-exiled-count').textContent = exiledCount;
 
-    // 3. Master Controls visibility
+    // 6. Master Controls visibility
     const masterControls = document.getElementById('master-game-controls');
     if (isMaster) {
       masterControls.classList.remove('hidden');
@@ -179,7 +351,7 @@ const GameBoard = {
       masterControls.classList.add('hidden');
     }
 
-    // 4. Render Table Rows
+    // 7. Render Table Rows
     const tbody = document.getElementById('bunker-table-body');
     const categories = state.categories || [];
 
@@ -191,19 +363,16 @@ const GameBoard = {
         const card = player.cards[cat.key] || { text: '', revealed: false, canReveal: false };
         return `
           <td>
-            ${this.renderCardHtml(player.id, cat, card, isSelf, isMaster)}
+            ${this.renderCardHtml(player.id, player.name, cat, card, isSelf, isMaster)}
           </td>
         `;
       }).join('');
 
-      // Master actions cell
+      // Master actions cell (Выгнать / Вернуть)
       const masterActionsHtml = isMaster ? `
         <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 4px;">
           <button class="btn btn-sm ${isExiled ? 'btn-success' : 'btn-danger'}" onclick="GameBoard.toggleExile('${player.id}')">
-            ${isExiled ? '♻️ Вернуть' : '🚫 Изгнать'}
-          </button>
-          <button class="btn btn-sm btn-outline" style="font-size: 10px;" onclick="GameBoard.revealAll('${player.id}')">
-            👁️ Вскрыть
+            ${isExiled ? '♻️ Вернуть' : '🚫 Выгнать'}
           </button>
         </div>
       ` : `
@@ -233,17 +402,22 @@ const GameBoard = {
         </tr>
       `;
     }).join('');
+
+    // 8. Trigger Results Modal if Game Finished
+    if (state.status === 'finished' && state.results) {
+      this.showResultsModal(state.results);
+    }
   },
 
-  renderCardHtml(playerId, category, card, isSelf, isMaster) {
+  // --- CARD 3D HTML GENERATOR ---
+  renderCardHtml(playerId, playerName, category, card, isSelf, isMaster) {
     const isRevealed = card.revealed;
     const hasText = Boolean(card.text);
-    const canFlip = isSelf || isMaster;
 
     // CASE 1: Card is Revealed to Everyone (Front face displayed)
     if (isRevealed) {
       return `
-        <div class="card-container" onclick="${canFlip ? `GameBoard.toggleCard('${playerId}', '${category.key}')` : ''}">
+        <div class="card-container" onclick="${isMaster ? `GameBoard.toggleCard('${playerId}', '${category.key}')` : ''}">
           <div class="bunker-card revealed">
             <div class="card-face card-back">
               <div class="card-back-icon">${category.icon}</div>
@@ -258,7 +432,7 @@ const GameBoard = {
               </div>
               <div class="card-content-text">${card.text}</div>
               <div class="card-footer">
-                <span style="font-size: 9px; color: var(--accent-cyan);">👁️ Открыта</span>
+                <span style="font-size: 9px; color: var(--accent-cyan);">👁️ Открыта для всех</span>
               </div>
             </div>
           </div>
@@ -266,10 +440,10 @@ const GameBoard = {
       `;
     }
 
-    // CASE 2: Card is Hidden, but Viewer is the Owner (Owner sees content on special card-back)
+    // CASE 2: Card is Hidden, Viewer is the Owner (Sees content privately + button to reveal)
     if (isSelf && hasText) {
       return `
-        <div class="card-container" onclick="GameBoard.toggleCard('${playerId}', '${category.key}')">
+        <div class="card-container">
           <div class="bunker-card">
             <div class="card-face card-front" style="transform: rotateY(0deg);">
               <div class="card-header">
@@ -277,6 +451,7 @@ const GameBoard = {
                   <span class="card-cat-icon">${category.icon}</span>
                   <span class="card-cat-name">${category.name}</span>
                 </div>
+                <span style="font-size: 9px; color: var(--accent-amber);">🔒 Скрыто</span>
               </div>
               <div class="card-content-text">${card.text}</div>
               <div class="card-footer">
@@ -293,13 +468,18 @@ const GameBoard = {
     }
 
     // CASE 3: Card is Hidden for other players (Standard mysterious back cover)
+    // Regular players CANNOT flip it! Master can click to trigger confirmation.
+    const masterClickAction = isMaster ? `GameBoard.confirmMasterReveal('${playerId}', '${category.key}', '${category.name}', '${playerName}')` : '';
+
     return `
-      <div class="card-container" onclick="${isMaster ? `GameBoard.toggleCard('${playerId}', '${category.key}')` : ''}">
+      <div class="card-container ${isMaster ? 'cursor-pointer' : ''}" onclick="${masterClickAction}">
         <div class="bunker-card">
           <div class="card-face card-back">
             <div class="card-back-icon">${category.icon}</div>
             <div class="card-back-text">${category.name}</div>
-            <div style="font-size: 9px; color: var(--text-dim); margin-top: 4px;">🔒 Скрыто</div>
+            <div style="font-size: 9px; color: var(--text-dim); margin-top: 4px;">
+              ${isMaster ? '👁️ Нажмите для вскрытия' : '🔒 Скрыто'}
+            </div>
           </div>
           <div class="card-face card-front">
             <div class="card-header">
@@ -315,11 +495,19 @@ const GameBoard = {
     `;
   },
 
+  // --- ACTIONS ---
+
   async toggleCard(targetPlayerId, categoryKey) {
     try {
       App.playSound('flip');
       await App.sendAction('reveal_card', { targetPlayerId, categoryKey });
     } catch (e) {}
+  },
+
+  confirmMasterReveal(targetPlayerId, categoryKey, catName, playerName) {
+    if (confirm(`Вскрыть карту [${catName}] игрока ${playerName} для всех участников?`)) {
+      this.toggleCard(targetPlayerId, categoryKey);
+    }
   },
 
   async toggleExile(targetPlayerId) {
@@ -329,42 +517,41 @@ const GameBoard = {
     } catch (e) {}
   },
 
-  async revealAll(targetPlayerId) {
-    try {
-      App.playSound('flip');
-      await App.sendAction('reveal_all_cards', { targetPlayerId });
-    } catch (e) {}
-  },
-
+  // --- SHOW FINAL RESULTS MODAL ---
   showResultsModal(results) {
     const modal = document.getElementById('results-modal');
     modal.classList.remove('hidden');
 
-    document.getElementById('results-disaster-title').textContent = `Катастрофа: ${results.disaster || 'Апокалипсис'}`;
+    document.getElementById('results-disaster-title').textContent = `Катастрофа: ${results.disaster || 'Глобальный катаклизм'}`;
 
     const verdictBox = document.getElementById('results-verdict-box');
-    verdictBox.textContent = results.verdict;
+    verdictBox.innerHTML = `
+      <div style="font-size: 26px; font-weight: 900; margin-bottom: 4px;">${results.percentage}%</div>
+      <div style="font-size: 16px; font-weight: 700;">${results.verdict}</div>
+      <p style="font-size: 13px; font-weight: normal; margin-top: 8px; line-height: 1.5; color: var(--text-main);">${results.epilogue || ''}</p>
+    `;
     verdictBox.className = `results-badge-verdict ${results.isSuccess ? 'success' : 'danger'}`;
 
     const survList = document.getElementById('results-survivors-list');
-    survList.innerHTML = results.survivors.length > 0 ? results.survivors.map(s => `
+    survList.innerHTML = (results.survivors && results.survivors.length > 0) ? results.survivors.map(s => `
       <div class="survivor-item">
         <strong>🛡️ ${s.name}</strong>
         <small>${s.profession} | ${s.health}</small>
+        ${s.traits ? `<small style="color: var(--text-dim); display: block;">Черта: ${s.traits}</small>` : ''}
       </div>
-    `).join('') : '<div style="color: var(--text-dim); font-size: 12px;">Никто не спасся</div>';
+    `).join('') : '<div style="color: var(--text-dim); font-size: 12px;">Никто не спасся в бункере</div>';
 
     const exiledList = document.getElementById('results-exiled-list');
-    exiledList.innerHTML = results.exiled.length > 0 ? results.exiled.map(e => `
+    exiledList.innerHTML = (results.exiled && results.exiled.length > 0) ? results.exiled.map(e => `
       <div class="survivor-item" style="border-left: 2px solid var(--accent-red);">
-        <strong style="color: var(--accent-red);">💀 ${e.name}</strong>
+        <strong style="color: var(--accent-red);">💀 ${e.name} (ИЗГНАН)</strong>
         <small>${e.profession}</small>
       </div>
     `).join('') : '<div style="color: var(--text-dim); font-size: 12px;">Никто не был изгнан</div>';
 
     const btnLobby = document.getElementById('btn-results-to-lobby');
     if (!App.isHost) {
-      btnLobby.textContent = 'Ожидание Мастера...';
+      btnLobby.textContent = 'Ожидание решения Мастера...';
       btnLobby.disabled = true;
     } else {
       btnLobby.textContent = '🔄 ВЕРНУТЬ ВСЕХ В ЛОББИ';

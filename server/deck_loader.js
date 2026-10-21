@@ -38,6 +38,8 @@ class DeckLoader {
         description: deck.description || '',
         counts: {
           disasters: (deck.disasters || []).length,
+          bunker: ((deck.bunker || []).length || (deck.conditions || []).filter(c => !(c.title || '').includes('угроз') && !(c.title || '').includes('Угроз')).length),
+          threats: ((deck.threats || []).length || (deck.conditions || []).filter(c => (c.title || '').includes('угроз') || (c.title || '').includes('Угроз')).length),
           conditions: (deck.conditions || []).length,
           professions: (deck.professions || []).length,
           health: (deck.health || []).length,
