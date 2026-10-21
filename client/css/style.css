@@ -117,6 +117,18 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+  max-width: 150px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.user-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px;
+  display: inline-block;
+  font-weight: 600;
 }
 
 .role-badge {
@@ -1746,6 +1758,84 @@ body {
 }
 
 @media (max-width: 768px) {
+  .app-header {
+    padding: 8px 12px;
+  }
+
+  .header-right {
+    gap: 6px;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  .user-profile {
+    max-width: 110px;
+    min-width: 0;
+  }
+
+  .user-name {
+    max-width: 65px;
+    min-width: 0;
+  }
+
+  /* Rotated 90 deg counter-clockwise slim survivor column */
+  .col-player {
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    padding: 8px 2px !important;
+    text-align: center;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 11px;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+
+  .player-cell {
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    padding: 8px 2px !important;
+    text-align: center;
+  }
+
+  .player-info-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: 100%;
+    min-height: var(--card-h);
+  }
+
+  .player-row-name {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    white-space: nowrap;
+    font-size: 11px;
+    max-height: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .player-row-name strong {
+    max-width: 95px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .exile-stamp, .player-cell .role-badge {
+    font-size: 9px;
+    padding: 2px 3px;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
+
   .lobby-grid {
     grid-template-columns: 1fr;
   }
@@ -2089,5 +2179,179 @@ body {
   padding: 2px 7px;
   border-radius: 4px;
 }
+
+/* ============================================================
+   UGC MODE STYLES & HINTS
+   ============================================================ */
+.ugc-category-hint {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 4px 0 10px 0;
+  padding-left: 2px;
+  line-height: 1.3;
+}
+
+.ugc-category-hint em {
+  color: var(--accent-cyan);
+  font-style: normal;
+  font-weight: 500;
+}
+
+.ugc-submitted-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  max-width: 720px;
+  margin: 20px auto;
+}
+
+.ugc-submitted-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.ugc-submitted-badge {
+  display: inline-block;
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-green);
+  border: 1px solid var(--accent-green);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+/* ============================================================
+   EVALUATION MODAL: 2-COLUMN LAYOUT & SIDEBAR
+   ============================================================ */
+.eval-layout-grid {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .eval-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.eval-q-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.eval-q-res-chip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.eval-context-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.eval-sidebar-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.eval-ref-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+.eval-ref-card.disaster-ref-card {
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.eval-ref-card.bunker-ref-card {
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.eval-ref-card.threat-ref-card {
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.eval-ref-card-header {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.eval-ref-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.eval-ref-card-body {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.eval-ref-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.eval-ref-item {
+  font-size: 11px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+}
+
+.eval-ref-item.threat {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.eval-ref-item.bunker {
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.eval-ref-item-title {
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.eval-ref-item-desc {
+  color: var(--text-dim);
+  line-height: 1.3;
+}
+
+.eval-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
 
 

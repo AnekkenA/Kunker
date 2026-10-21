@@ -56,6 +56,10 @@ const App = {
           }
         }
       } catch (e) {}
+      // Clear stale/expired session
+      this.playerId = '';
+      sessionStorage.removeItem('bunker_player_id');
+      this.showScreen('screen-auth');
     }
   },
 
@@ -349,6 +353,18 @@ const App = {
   },
 
   onStateUpdate(state) {
+    if (this.playerId && !state.myId) {
+      // Server restarted or player was removed/invalid
+      this.playerId = '';
+      sessionStorage.removeItem('bunker_player_id');
+      if (this.eventSource) {
+        this.eventSource.close();
+        this.eventSource = null;
+      }
+      this.showScreen('screen-auth');
+      return;
+    }
+
     const prevState = this.state;
     this.state = state;
     this.isHost = state.isHost;
@@ -358,10 +374,16 @@ const App = {
       localStorage.setItem('bunker_room_id', this.roomId);
     }
 
+    const me = (state.players || []).find(p => p.id === state.myId);
+    if (me && me.name) {
+      this.playerName = me.name;
+      sessionStorage.setItem('bunker_player_name', me.name);
+    }
+
     // Header updates
     document.getElementById('btn-invite').classList.remove('hidden');
     document.getElementById('user-profile').classList.remove('hidden');
-    document.getElementById('user-display-name').textContent = this.playerName;
+    document.getElementById('user-display-name').textContent = this.playerName || 'Игрок';
 
     const roomBadge = document.getElementById('room-code-badge');
     const headerRoomCode = document.getElementById('header-room-code');

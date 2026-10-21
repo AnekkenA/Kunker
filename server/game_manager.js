@@ -164,7 +164,9 @@ class SingleGame {
   }
 
   // Calculate sum of survival parameters (fire, medicine, food, etc.) among active survivors
-  calculateTeamResources() {
+  // onlyRevealed = true (default during gameplay) counts ONLY revealed cards of non-exiled survivors
+  // onlyRevealed = false (during final evaluation) counts ALL cards of non-exiled survivors
+  calculateTeamResources(onlyRevealed = true) {
     const activeSurvivors = Array.from(this.players.values()).filter(p => !p.isExiled);
     const totals = {
       fire: 0,
@@ -180,6 +182,7 @@ class SingleGame {
     activeSurvivors.forEach(p => {
       Object.values(p.cards || {}).forEach(c => {
         if (!c) return;
+        if (onlyRevealed && !c.revealed) return;
         const tags = c.tags || [];
         tags.forEach(t => {
           if (totals[t.key] !== undefined) {
@@ -510,40 +513,20 @@ class SingleGame {
     return this.bunkerCapacity;
   }
 
-  // Check if game can proceed to evaluation (survivors count must not exceed capacity AND regular cards revealed)
+  // Check if game can proceed to evaluation (Master has full freedom, excess survivors will receive overpopulation penalty)
   canProceedToEvaluation() {
     const activeSurvivors = Array.from(this.players.values()).filter(p => !p.isExiled);
     const count = activeSurvivors.length;
     const capacity = this.bunkerCapacity;
+    const hasOverpopulation = count > capacity;
 
-    if (count > capacity) {
-      return {
-        allowed: false,
-        reason: `В бункере осталось ${count} чел., а мест всего ${capacity}! Изгоните еще ${count - capacity} чел. перед подведением итогов.`
-      };
-    }
-
-    const regularCats = this.categories.filter(c => !c.isSpecial && c.key !== 'special_cards');
-    const requiredRevealed = Math.max(1, regularCats.length - this.cardsLeftClosed);
-
-    if (activeSurvivors.length > 0) {
-      const counts = activeSurvivors.map(p => {
-        let c = 0;
-        regularCats.forEach(cat => {
-          if (p.cards[cat.key] && p.cards[cat.key].revealed) c++;
-        });
-        return c;
-      });
-      const minOpened = Math.min(...counts);
-      if (minOpened < requiredRevealed) {
-        return {
-          allowed: false,
-          reason: `Игра еще не завершена! У всех выживших должно быть открыто минимум по ${requiredRevealed} обычных карт (сейчас у некоторых только ${minOpened}).`
-        };
-      }
-    }
-
-    return { allowed: true };
+    return {
+      allowed: true,
+      hasOverpopulation,
+      survivorsCount: count,
+      capacity,
+      excess: Math.max(0, count - capacity)
+    };
   }
 
   // --- MASTER ACTION: REVEAL ALL REGULAR CARDS OF EXILED PLAYER (EXCEPT SPECIAL CARD) ---
@@ -1150,15 +1133,34 @@ class SingleGame {
       epilogue = 'Все кандидаты были изгнаны на поверхность. В убежище никто не вошел. Замкнутые системы отключились одна за другой, и человечество в этом регионе прекратило свое существование.';
     } else if (survivorsCount > capacity) {
       const excess = survivorsCount - capacity;
-      percentage = Math.max(5, percentage - (excess * 22));
-      isSuccess = false;
-      verdict = `⚠️ ПЕРЕНАСЕЛЕНИЕ БУНКЕРА! (${survivorsCount} чел. на ${capacity} мест)`;
+      const teamRes = this.calculateTeamResources(false);
+      const resourceBonus = Math.min(20, Math.round(
+        (teamRes.fire * 1.5) +
+        (teamRes.medicine * 2) +
+        (teamRes.food * 2) +
+        (teamRes.engineering * 2) +
+        (teamRes.psycho * 1.5) +
+        (teamRes.defense * 1.5) +
+        (teamRes.science * 1.5)
+      ));
+
+      percentage = Math.max(5, percentage + resourceBonus - (excess * 20));
+      isSuccess = percentage >= 50;
+      verdict = `⚠️ ПЕРЕНАСЕЛЕНИЕ БУНКЕРА! (${survivorsCount} чел. на ${capacity} мест, Шанс: ${percentage}%)`;
       epilogue = `В бункер попытались набиться ${survivorsCount} человек, хотя спальных капсул и ресурсов было рассчитано всего на ${capacity}. ` +
-        `Спустя 3 месяца системы регенерации кислорода вышли из строя от предельной нагрузки. ` +
-        `Началась жестокая борьба за пайки и воду. Бункер не выдержал внутреннего хаоса.`;
+        `Спустя 3 месяца системы регенерации кислорода и фильтры вышли из строя от предельной нагрузки (штраф перенаселения -${excess * 20}%). ` +
+        (isSuccess
+          ? `Однако благодаря совокупным навыкам и запасам команды выжившим удалось преодолеть кризис и стабилизировать системы убежища!`
+          : `Началась ожесточенная борьба за пайки и воду. Бункер не выдержал внутреннего хаоса.`);
+
+      const resLine = `\n\n📊 Совокупные ресурсы команды:\n` +
+        `🧯 Пожаротушение: ${teamRes.fire} | 💊 Медицина: ${teamRes.medicine} | 🍞 Провизия: ${teamRes.food} | ⚙️ Инженерия: ${teamRes.engineering} | 🧠 Психика: ${teamRes.psycho} | 🛡️ Защита: ${teamRes.defense} | 🔬 Наука: ${teamRes.science}` +
+        (resourceBonus > 0 ? ` (+${resourceBonus}% к шансу выживания за полезные предметы и навыки)` : '') +
+        ` | ⚠️ Штраф за перенаселение: -${excess * 20}%`;
+      epilogue += resLine;
     } else {
       // Normal or under capacity
-      const teamRes = this.calculateTeamResources();
+      const teamRes = this.calculateTeamResources(false);
       const resourceBonus = Math.min(20, Math.round(
         (teamRes.fire * 1.5) +
         (teamRes.medicine * 2) +
@@ -1203,7 +1205,7 @@ class SingleGame {
       exiled,
       bunkerCapacity: capacity,
       evalScores,
-      teamResources: this.calculateTeamResources(),
+      teamResources: this.calculateTeamResources(false),
       disaster: this.disaster ? this.disaster.title : 'Глобальная катастрофа',
       threatsCount: this.revealedThreatCards.length,
       bunkerCardsCount: this.revealedBunkerCards.length
@@ -1312,7 +1314,8 @@ class SingleGame {
       backgroundImage: this.backgroundImage,
       cardBackImage: this.cardBackImage,
       deckAuthor: this.deckAuthor,
-      teamResources: this.calculateTeamResources(),
+      teamResources: this.calculateTeamResources(true),
+      finalTeamResources: this.calculateTeamResources(false),
       bunkerCapacity: this.bunkerCapacity,
       activeSurvivorsCount,
       canFinish,
@@ -1341,7 +1344,7 @@ class SingleGame {
 
       results: this.results,
       isHost: isMaster,
-      myId: forPlayerId,
+      myId: this.players.has(forPlayerId) ? forPlayerId : null,
       players: playersList,
       categories: this.categories,
       logs: this.logs.slice(0, 35),

@@ -148,17 +148,10 @@ const GameBoard = {
           return;
         }
 
-        // Lock check: survivors count must not exceed bunker capacity!
-        if (App.state && !App.state.survivorsOk) {
-          const excess = App.state.excessPlayers || (App.state.activeSurvivorsCount - App.state.bunkerCapacity);
-          alert(`⚠️ В бункере перенаселение! Выживших (${App.state.activeSurvivorsCount}) больше, чем мест в бункере (${App.state.bunkerCapacity}).\n\nИгра не дает перейти к подведению итогов. Проведите финальное обсуждение и голосование, затем кнопкой [🚫 Выгнать] исключите еще ${excess} чел.!`);
-          return;
-        }
-
         if (App.state && !App.state.cardsRevealedOk) {
           const minRev = App.state.minRegularRevealed || 0;
           const reqRev = App.state.requiredRevealed || 7;
-          if (!confirm(`⚠️ Внимание: У игроков открыто минимум по ${minRev} из ${reqRev} обязательных карт.\n\nВы уверены, что хотите завершить игру досрочно прямо сейчас?`)) {
+          if (!confirm(`⚠️ Внимание: У некоторых выживших открыто только ${minRev} из ${reqRev} обязательных карт.\n\nПодвести итоги выживания прямо сейчас?`)) {
             return;
           }
         }
@@ -369,25 +362,103 @@ const GameBoard = {
       if (!p.isExiled) survivorsCount++;
     });
 
-    document.getElementById('eval-bunker-cap').textContent = state.bunkerCapacity || 3;
-    const survEl = document.getElementById('eval-survivors-count');
-    survEl.textContent = survivorsCount;
+    const cap = state.bunkerCapacity || 3;
+    const bunkerCapEl = document.getElementById('eval-bunker-cap');
+    if (bunkerCapEl) bunkerCapEl.textContent = cap;
 
-    if (survivorsCount > (state.bunkerCapacity || 3)) {
-      survEl.className = 'text-red';
-    } else {
-      survEl.className = 'text-green';
+    const survEl = document.getElementById('eval-survivors-count');
+    if (survEl) {
+      survEl.textContent = survivorsCount;
+      survEl.className = survivorsCount > cap ? 'text-red' : 'text-green';
     }
 
-    // Render team resources chips in evaluation modal
+    const noteEl = document.getElementById('eval-capacity-status-note');
+    if (noteEl) {
+      if (survivorsCount > cap) {
+        const excess = survivorsCount - cap;
+        noteEl.innerHTML = `<span class="text-red">⚠️ <strong>Перенаселение (+${excess} чел.)</strong>: При расчете будет применен штраф -${excess * 20}% к выживаемости!</span>`;
+      } else {
+        noteEl.innerHTML = `<span class="text-green">✅ Мест в бункере достаточно для всех ${survivorsCount} выживших.</span>`;
+      }
+    }
+
+    // Resources to display: prefer finalTeamResources (all cards of survivors) or live teamResources
+    const res = state.finalTeamResources || state.teamResources || {};
+
+    // 1. Per-Question Matching Resource Badges
+    const q1 = document.getElementById('eval-q-res-1');
+    if (q1) q1.innerHTML = `<span class="card-tag-chip" style="color: #f59e0b; background: rgba(245,158,11,0.12); border: 1px solid #f59e0b40; font-size: 11px;">🍞 Провизия команды: +${res.food || 0}</span>`;
+
+    const q2 = document.getElementById('eval-q-res-2');
+    if (q2) q2.innerHTML = `<span class="card-tag-chip" style="color: #10b981; background: rgba(16,185,129,0.12); border: 1px solid #10b98140; font-size: 11px;">💊 Медицина команды: +${res.medicine || 0}</span>`;
+
+    const q3 = document.getElementById('eval-q-res-3');
+    if (q3) q3.innerHTML = `
+      <span class="card-tag-chip" style="color: #6366f1; background: rgba(99,102,241,0.12); border: 1px solid #6366f140; font-size: 11px;">⚙️ Инженерия: +${res.engineering || 0}</span>
+      <span class="card-tag-chip" style="color: #06b6d4; background: rgba(6,182,212,0.12); border: 1px solid #06b6d440; font-size: 11px;">🔬 Наука: +${res.science || 0}</span>
+    `;
+
+    const q4 = document.getElementById('eval-q-res-4');
+    if (q4) q4.innerHTML = `
+      <span class="card-tag-chip" style="color: #ef4444; background: rgba(239,68,68,0.12); border: 1px solid #ef444440; font-size: 11px;">🧯 Пожаротушение: +${res.fire || 0}</span>
+      <span class="card-tag-chip" style="color: #3b82f6; background: rgba(59,130,246,0.12); border: 1px solid #3b82f640; font-size: 11px;">🛡️ Оборона/Защита: +${res.defense || 0}</span>
+    `;
+
+    const q5 = document.getElementById('eval-q-res-5');
+    if (q5) q5.innerHTML = `<span class="card-tag-chip" style="color: #a855f7; background: rgba(168,85,247,0.12); border: 1px solid #a855f740; font-size: 11px;">🧠 Психика и сон: +${res.psycho || 0}</span>`;
+
+    // 2. Right Reference Column: Catastrophe
+    const disTitle = document.getElementById('eval-ref-disaster-title');
+    const disGoal = document.getElementById('eval-ref-disaster-goal');
+    if (disTitle && disGoal) {
+      disTitle.textContent = state.disaster ? state.disaster.title : 'Глобальная катастрофа';
+      disGoal.textContent = state.disaster ? (state.disaster.goal || state.disaster.description || 'Выжить любой ценой') : 'Выжить любой ценой';
+    }
+
+    // 3. Right Reference Column: Bunker Cards
+    const bunkerCountEl = document.getElementById('eval-ref-bunker-count');
+    const bunkerListEl = document.getElementById('eval-ref-bunker-list');
+    const bunkerCards = state.revealedBunkerCards || [];
+    if (bunkerCountEl) bunkerCountEl.textContent = bunkerCards.length;
+    if (bunkerListEl) {
+      if (bunkerCards.length === 0) {
+        bunkerListEl.innerHTML = '<div class="eval-empty-note text-dim">На столе пока нет открытых карт бункера.</div>';
+      } else {
+        bunkerListEl.innerHTML = bunkerCards.map(c => `
+          <div class="eval-ref-item bunker">
+            <div class="eval-ref-item-title">🛡️ ${c.title || 'Карта бункера'}</div>
+            <div class="eval-ref-item-desc">${c.description || ''}</div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // 4. Right Reference Column: Threat Cards
+    const threatCountEl = document.getElementById('eval-ref-threats-count');
+    const threatListEl = document.getElementById('eval-ref-threats-list');
+    const threatCards = state.revealedThreatCards || [];
+    if (threatCountEl) threatCountEl.textContent = threatCards.length;
+    if (threatListEl) {
+      if (threatCards.length === 0) {
+        threatListEl.innerHTML = '<div class="eval-empty-note text-dim">На столе пока нет открытых карт угроз.</div>';
+      } else {
+        threatListEl.innerHTML = threatCards.map(c => `
+          <div class="eval-ref-item threat">
+            <div class="eval-ref-item-title">⚠️ ${c.title || 'Угроза бункеру'}</div>
+            <div class="eval-ref-item-desc">${c.description || ''}</div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // 5. Full Summary Chips
     const evalResChips = document.getElementById('eval-resources-chips');
     if (evalResChips && typeof TagHelper !== 'undefined') {
-      const res = state.teamResources || {};
       const chips = Object.entries(TagHelper.PARAM_DEFINITIONS).map(([key, def]) => {
         const val = res[key] || 0;
         return `
           <span class="card-tag-chip" style="color: ${def.color}; background: ${def.bg}; border: 1px solid ${def.color}40; font-size: 11px;">
-            ${def.icon} ${def.name}: <strong>${val}</strong>
+            ${def.icon} ${def.name}: <strong>+${val}</strong>
           </span>
         `;
       }).join('');

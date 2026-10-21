@@ -21,9 +21,6 @@
         </button>
       </div>
       <div class="header-right">
-        <span id="room-code-badge" class="badge font-mono hidden" style="background: rgba(6, 182, 212, 0.15); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); font-size: 11px; margin-right: 6px;" title="Код текущего бункера">
-          🏷️ <span id="header-room-code">BUNKER-101</span>
-        </span>
         <div id="user-profile" class="user-profile hidden">
           <span id="user-role-badge" class="role-badge">Игрок</span>
           <span id="user-display-name" class="user-name">...</span>
@@ -237,31 +234,57 @@
       <!-- SCREEN 3: UGC CREATION (MODE 2) -->
       <section id="screen-ugc" class="screen">
         <div class="ugc-container">
-          <div class="ugc-header">
-            <h2>✍️ Мастерская карт: Создание набора</h2>
-            <p>Напишите по 5 вариантов для каждой категории. После завершения сервер перемешает все варианты игроков и раздаст вам случайные роли!</p>
-            <div class="ugc-quick-bar">
-              <button id="btn-ugc-autofill" class="btn btn-sm btn-outline">🎲 Случайное автозаполнение</button>
-              <span id="ugc-status-badge" class="badge">Заполните поля</span>
-            </div>
-            <div id="ugc-tag-helper-bar" class="ugc-tag-helper-bar" style="margin-top: 12px;"></div>
-          </div>
-
-          <div class="ugc-categories-accordion" id="ugc-categories-container">
-            <!-- Rendered by JS -->
-          </div>
-
-          <div class="ugc-footer">
-            <button id="btn-ugc-submit" class="btn btn-primary btn-lg">ГОТОВО! ОТПРАВИТЬ КАРТЫ</button>
-            
-            <div id="ugc-master-panel" class="ugc-master-panel hidden">
-              <hr>
-              <h3>Панель Мастера игры:</h3>
-              <div id="ugc-players-ready-list" class="ugc-players-ready-list"></div>
-              <div class="form-group inline-flex">
-                <input type="text" id="input-ugc-theme-name" class="form-input" placeholder="Название набора (для сохранения в библиотеку)">
-                <button id="btn-ugc-start-game" class="btn btn-success">ЗАПУСТИТЬ ИГРУ</button>
+          <!-- FORM CONTAINER (VISIBLE WHILE WRITING) -->
+          <div id="ugc-creator-form-wrap">
+            <div class="ugc-header">
+              <h2>✍️ Мастерская карт: Создание набора</h2>
+              <p>Напишите по 5 вариантов для каждой категории. После завершения сервер перемешает все варианты игроков и раздаст вам случайные роли!</p>
+              <div class="ugc-quick-bar">
+                <button id="btn-ugc-autofill" class="btn btn-sm btn-outline">🎲 Случайное автозаполнение</button>
+                <span id="ugc-status-badge" class="badge">Заполните поля</span>
               </div>
+              <div id="ugc-tag-helper-bar" class="ugc-tag-helper-bar" style="margin-top: 12px;"></div>
+            </div>
+
+            <div class="ugc-categories-accordion" id="ugc-categories-container">
+              <!-- Rendered by JS -->
+            </div>
+
+            <div class="ugc-footer">
+              <button id="btn-ugc-submit" class="btn btn-primary btn-lg">ГОТОВО! ОТПРАВИТЬ КАРТЫ</button>
+            </div>
+          </div>
+
+          <!-- READY STATUS PANEL (SHOWN ONCE CARDS ARE SUBMITTED) -->
+          <div id="ugc-submitted-box" class="ugc-submitted-card hidden">
+            <div class="ugc-submitted-header">
+              <div class="ugc-submitted-badge">✅ Карты приняты</div>
+              <h2>Вы готовы к выживанию!</h2>
+              <p class="text-dim">Ваши 45 карт успешно загружены в банк бункера. Ожидаем заполнения карт остальными участниками.</p>
+            </div>
+
+            <div class="ugc-readiness-panel">
+              <div class="panel-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <h3>👥 Готовность выживших в бункере:</h3>
+                <button id="btn-ugc-edit-again" class="btn btn-sm btn-outline">✏️ Редактировать карты</button>
+              </div>
+              <div id="ugc-submitted-players-list" class="ugc-players-ready-list">
+                <!-- Rendered dynamically -->
+              </div>
+            </div>
+
+            <div id="ugc-submitted-master-actions" class="ugc-master-actions hidden">
+              <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
+              <h3>👑 Панель Мастера игры:</h3>
+              <p style="font-size: 13px; color: var(--text-dim); margin-bottom: 12px;">Вы можете запустить игру, когда все игроки готовы, либо прямо сейчас.</p>
+              <div class="form-group inline-flex">
+                <input type="text" id="input-ugc-theme-name" class="form-input" placeholder="Название набора (по желанию)">
+                <button id="btn-ugc-start-game" class="btn btn-success btn-lg">🚀 ЗАПУСТИТЬ ИГРУ</button>
+              </div>
+            </div>
+
+            <div id="ugc-submitted-player-waiting" class="ugc-waiting-notice hidden" style="margin-top: 18px; text-align: center; color: var(--text-muted); font-size: 14px;">
+              ⏳ <em>Мастер игры запустит бункер, когда все игроки будут готовы...</em>
             </div>
           </div>
         </div>
@@ -679,94 +702,141 @@
 
     <!-- 4. MODAL: MASTER SURVIVAL EVALUATION (АНКЕТА ОЦЕНКИ ВЫЖИВАЕМОСТИ) -->
     <div id="modal-evaluation" class="modal-backdrop hidden">
-      <div class="modal-card" style="max-width: 650px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-card modal-eval-card" style="max-width: 960px; width: 95vw; max-height: 92vh; overflow-y: auto;">
         <div class="modal-header">
           <h3>📋 Оценка выживаемости бункера (Анкета Мастера)</h3>
           <button id="btn-close-eval-modal" class="btn-icon">✕</button>
         </div>
         <div class="modal-body">
-          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
-            Мастер игры отвечает на вопросы, оценивая состав выживших, их профессии, здоровье, инвентарь и угрозы бункера:
-          </p>
+          <div class="eval-layout-grid">
+            
+            <!-- LEFT COLUMN: 5 QUESTIONS -->
+            <div class="eval-questions-col">
+              <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+                Мастер отвечает на 5 вопросов, оценивая готовность команды к выживанию:
+              </p>
 
-          <!-- QUESTION 1: SUPPLIES -->
-          <div class="eval-question-block">
-            <label class="eval-q-title">1. На сколько вам хватает припасов и чистой воды?</label>
-            <div class="eval-options-grid">
-              <label class="eval-opt"><input type="radio" name="eval-supplies" value="1"> <span>1 — Припасов нет (голод и жажда)</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-supplies" value="2"> <span>2 — Не хватает на всех (острый дефицит)</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-supplies" value="3" checked> <span>3 — Хватает, если строго экономить</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-supplies" value="4"> <span>4 — В достатке на весь срок изоляции</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-supplies" value="5"> <span>5 — Больше, чем нужно (полные склады)</span></label>
+              <!-- QUESTION 1: SUPPLIES -->
+              <div class="eval-question-block">
+                <div class="eval-q-header">
+                  <label class="eval-q-title">1. Припасы и чистая вода:</label>
+                  <div class="eval-q-res-chip" id="eval-q-res-1"></div>
+                </div>
+                <div class="eval-options-grid">
+                  <label class="eval-opt"><input type="radio" name="eval-supplies" value="1"> <span>1 — Припасов нет (голод и жажда)</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-supplies" value="2"> <span>2 — Не хватает на всех (острый дефицит)</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-supplies" value="3" checked> <span>3 — Хватает, если строго экономить</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-supplies" value="4"> <span>4 — В достатке на весь срок изоляции</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-supplies" value="5"> <span>5 — Больше, чем нужно (полные склады)</span></label>
+                </div>
+              </div>
+
+              <!-- QUESTION 2: MEDICINE -->
+              <div class="eval-question-block">
+                <div class="eval-q-header">
+                  <label class="eval-q-title">2. Медицинское обеспечение и здоровье:</label>
+                  <div class="eval-q-res-chip" id="eval-q-res-2"></div>
+                </div>
+                <div class="eval-options-grid">
+                  <label class="eval-opt"><input type="radio" name="eval-medicine" value="1"> <span>1 — Тяжелые больные, лекарств нет</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-medicine" value="2"> <span>2 — Медикаментов мало, уход затруднен</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-medicine" value="3" checked> <span>3 — Базовые аптечки есть, среднее здоровье</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-medicine" value="4"> <span>4 — Хорошее здоровье, есть врач/лекарства</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-medicine" value="5"> <span>5 — Полный медблок и идеальное здоровье</span></label>
+                </div>
+              </div>
+
+              <!-- QUESTION 3: SPECIALISTS -->
+              <div class="eval-question-block">
+                <div class="eval-q-header">
+                  <label class="eval-q-title">3. Специалисты и навыки для восстановления мира:</label>
+                  <div class="eval-q-res-chip" id="eval-q-res-3"></div>
+                </div>
+                <div class="eval-options-grid">
+                  <label class="eval-opt"><input type="radio" name="eval-specialists" value="1"> <span>1 — Нет нужных специалистов для катастрофы</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-specialists" value="2"> <span>2 — Навыки слабые, поддерживать бункер некому</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-specialists" value="3" checked> <span>3 — Есть базовые руки (механик/агроном/рабочий)</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-specialists" value="4"> <span>4 — Отличный баланс профессий под бункер</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-specialists" value="5"> <span>5 — Идеальный состав ученых, врачей и техников</span></label>
+                </div>
+              </div>
+
+              <!-- QUESTION 4: DEFENSE & THREATS -->
+              <div class="eval-question-block">
+                <div class="eval-q-header">
+                  <label class="eval-q-title">4. Защита бункера и нейтрализация угроз:</label>
+                  <div class="eval-q-res-chip" id="eval-q-res-4"></div>
+                </div>
+                <div class="eval-options-grid">
+                  <label class="eval-opt"><input type="radio" name="eval-defense" value="1"> <span>1 — Бункер беззащитен, угрозы смертельны</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-defense" value="2"> <span>2 — Защита слабая, высокий риск прорыва</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-defense" value="3" checked> <span>3 — Оборона достаточна при осторожности</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-defense" value="4"> <span>4 — Надежные укрепления, угрозы решены</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-defense" value="5"> <span>5 — Абсолютная неприступность и безопасность</span></label>
+                </div>
+              </div>
+
+              <!-- QUESTION 5: PSYCHOLOGY -->
+              <div class="eval-question-block">
+                <div class="eval-q-header">
+                  <label class="eval-q-title">5. Психологический климат и сплоченность:</label>
+                  <div class="eval-q-res-chip" id="eval-q-res-5"></div>
+                </div>
+                <div class="eval-options-grid">
+                  <label class="eval-opt"><input type="radio" name="eval-psychology" value="1"> <span>1 — Ненависть, драки и безумие взаперти</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-psychology" value="2"> <span>2 — Атмосфера взаимного недоверия</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-psychology" value="3" checked> <span>3 — Споры бывают, но держат себя в руках</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-psychology" value="4"> <span>4 — Сплоченная команда с высоким боевым духом</span></label>
+                  <label class="eval-opt"><input type="radio" name="eval-psychology" value="5"> <span>5 — Полное доверие, единство и взаимовыручка</span></label>
+                </div>
+              </div>
+
+              <button id="btn-submit-final-evaluation" class="btn btn-success btn-lg btn-block" style="margin-top: 14px;">🏆 РАССЧИТАТЬ ВЫЖИВАНИЕ БУНКЕРА</button>
             </div>
-          </div>
 
-          <!-- QUESTION 2: MEDICINE -->
-          <div class="eval-question-block">
-            <label class="eval-q-title">2. Медицинское обеспечение и здоровье выживших:</label>
-            <div class="eval-options-grid">
-              <label class="eval-opt"><input type="radio" name="eval-medicine" value="1"> <span>1 — Тяжелые больные, лекарств нет</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-medicine" value="2"> <span>2 — Медикаментов мало, уход затруднен</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-medicine" value="3" checked> <span>3 — Базовые аптечки есть, среднее здоровье</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-medicine" value="4"> <span>4 — Хорошее здоровье, есть врач/лекарства</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-medicine" value="5"> <span>5 — Полный медблок и идеальное здоровье</span></label>
+            <!-- RIGHT COLUMN: REFERENCE (DISASTER, BUNKER CARDS, THREATS, CAPACITY, RESOURCES) -->
+            <div class="eval-context-col">
+              <div class="eval-sidebar-title">📌 Сводка бункера для оценки:</div>
+
+              <!-- CATASTROPHE -->
+              <div class="eval-ref-card disaster-ref-card">
+                <div class="eval-ref-card-header">🌋 Катастрофа</div>
+                <div class="eval-ref-card-title" id="eval-ref-disaster-title">Загрузка...</div>
+                <div class="eval-ref-card-body" id="eval-ref-disaster-goal">...</div>
+              </div>
+
+              <!-- CAPACITY & SURVIVORS -->
+              <div class="eval-ref-card capacity-ref-card" id="eval-ref-capacity-card">
+                <div class="eval-ref-card-header">👥 Вместимость убежища</div>
+                <div style="font-size: 13px;">
+                  Мест в бункере: <strong id="eval-bunker-cap">0</strong> | Выживших: <strong id="eval-survivors-count">0</strong>
+                </div>
+                <div id="eval-capacity-status-note" style="font-size: 12px; margin-top: 6px;"></div>
+              </div>
+
+              <!-- BUNKER CARDS -->
+              <div class="eval-ref-card bunker-ref-card">
+                <div class="eval-ref-card-header">🛡️ Карты Бункера на столе (<span id="eval-ref-bunker-count">0</span>)</div>
+                <div class="eval-ref-cards-list" id="eval-ref-bunker-list"></div>
+              </div>
+
+              <!-- THREAT CARDS -->
+              <div class="eval-ref-card threat-ref-card">
+                <div class="eval-ref-card-header">⚠️ Карты Угроз на столе (<span id="eval-ref-threats-count">0</span>)</div>
+                <div class="eval-ref-cards-list" id="eval-ref-threats-list"></div>
+              </div>
+
+              <!-- TEAM RESOURCES FULL SUMMARY -->
+              <div class="eval-ref-card resources-ref-card">
+                <div class="eval-ref-card-header">📊 Совокупные параметры команды</div>
+                <div id="eval-resources-chips" class="eval-chips-container"></div>
+                <div style="font-size: 11px; color: var(--text-dim); margin-top: 6px;">
+                  Полезные предметы и навыки дают бонус к финальному выживанию!
+                </div>
+              </div>
             </div>
-          </div>
 
-          <!-- QUESTION 3: SPECIALISTS -->
-          <div class="eval-question-block">
-            <label class="eval-q-title">3. Специалисты и навыки для восстановления мира:</label>
-            <div class="eval-options-grid">
-              <label class="eval-opt"><input type="radio" name="eval-specialists" value="1"> <span>1 — Нет нужных специалистов для катастрофы</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-specialists" value="2"> <span>2 — Навыки слабые, поддерживать бункер некому</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-specialists" value="3" checked> <span>3 — Есть базовые руки (механик/агроном/рабочий)</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-specialists" value="4"> <span>4 — Отличный баланс профессий под бункер</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-specialists" value="5"> <span>5 — Идеальный состав ученых, врачей и техников</span></label>
-            </div>
           </div>
-
-          <!-- QUESTION 4: DEFENSE & THREATS -->
-          <div class="eval-question-block">
-            <label class="eval-q-title">4. Защита бункера и нейтрализация активных угроз:</label>
-            <div class="eval-options-grid">
-              <label class="eval-opt"><input type="radio" name="eval-defense" value="1"> <span>1 — Бункер беззащитен, угрозы смертельны</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-defense" value="2"> <span>2 — Защита слабая, высокий риск прорыва</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-defense" value="3" checked> <span>3 — Оборона достаточна при осторожности</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-defense" value="4"> <span>4 — Надежные укрепления, угрозы решены</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-defense" value="5"> <span>5 — Абсолютная неприступность и безопасность</span></label>
-            </div>
-          </div>
-
-          <!-- QUESTION 5: PSYCHOLOGY -->
-          <div class="eval-question-block">
-            <label class="eval-q-title">5. Психологический климат и сплоченность команды:</label>
-            <div class="eval-options-grid">
-              <label class="eval-opt"><input type="radio" name="eval-psychology" value="1"> <span>1 — Ненависть, драки и безумие взаперти</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-psychology" value="2"> <span>2 — Атмосфера взаимного недоверия</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-psychology" value="3" checked> <span>3 — Споры бывают, но держат себя в руках</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-psychology" value="4"> <span>4 — Сплоченная команда с высоким боевым духом</span></label>
-              <label class="eval-opt"><input type="radio" name="eval-psychology" value="5"> <span>5 — Полное доверие, единство и взаимовыручка</span></label>
-            </div>
-          </div>
-
-          <!-- TEAM RESOURCES BREAKDOWN IN EVALUATION -->
-          <div id="eval-team-resources-box" style="background: var(--bg-surface); border: 1px solid var(--accent-cyan); padding: 12px; border-radius: var(--radius-sm); margin: 14px 0;">
-            <div style="font-weight: 700; font-size: 13px; color: var(--accent-cyan); margin-bottom: 6px;">📊 Совокупные ресурсы выживших:</div>
-            <div id="eval-resources-chips" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
-            <div style="font-size: 11px; color: var(--text-dim); margin-top: 6px;">
-              Полезные предметы и навыки автоматически добавляют бонус к выживанию бункера!
-            </div>
-          </div>
-
-          <div class="eval-bunker-info" style="background: var(--bg-surface); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin: 16px 0;">
-            <div style="font-size: 13px;">Вместимость бункера: <strong id="eval-bunker-cap">0</strong> мест.</div>
-            <div style="font-size: 13px; margin-top: 4px;">Спасшихся выживших (не изгнаны): <strong id="eval-survivors-count" class="text-green">0</strong> чел.</div>
-            <div style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">
-              * Если число выживших превышает вместимость, произойдет перенаселение с критическим штрафом к выживаемости!
-            </div>
-          </div>
-
-          <button id="btn-submit-final-evaluation" class="btn btn-success btn-lg btn-block">🏆 РАССЧИТАТЬ ВЫЖИВАНИЕ БУНКЕРА</button>
         </div>
       </div>
     </div>
