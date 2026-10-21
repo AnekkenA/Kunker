@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
+const zlib = require('zlib');
 const { game, CATEGORIES, getNetworkInfo } = require('./game_manager');
 const deckLoader = require('./deck_loader');
 
@@ -24,6 +25,17 @@ function broadcast() {
 
 // Hook broadcast into game manager for timer auto-updates
 game.setBroadcast(broadcast);
+
+// SSE keepalive ping every 15 seconds to prevent Cloudflare/NAT drops
+setInterval(() => {
+  for (const client of sseClients) {
+    try {
+      client.res.write(': ping\n\n');
+    } catch (e) {
+      sseClients.delete(client);
+    }
+  }
+}, 15000);
 
 function sendJson(res, statusCode, data) {
   res.writeHead(statusCode, {
@@ -90,6 +102,7 @@ const server = http.createServer(async (req, res) => {
       'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-cache, no-transform',
       'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
       'Access-Control-Allow-Origin': '*'
     });
 
@@ -154,7 +167,29 @@ const server = http.createServer(async (req, res) => {
               game.bunkerCapacity = parseInt(payload.bunkerCapacity, 10) || 1;
             }
             game.mode = 'preset';
-            game.startPresetGame(playerId, { threatMode: payload ? payload.threatMode : 'threshold' });
+            game.startPresetGame(playerId, {
+              threatMode: payload ? payload.threatMode : 'threshold',
+              threatPercent: payload ? payload.threatPercent : 50,
+              worldCardsMaxLimit: payload ? payload.worldCardsMaxLimit : 6,
+              cardsLeftClosed: payload ? payload.cardsLeftClosed : 1,
+              categories: payload ? payload.categories : null,
+              backgroundImage: payload ? payload.backgroundImage : null,
+              cardBackImage: payload ? payload.cardBackImage : null,
+              deckAuthor: payload ? payload.deckAuthor : null
+            });
+            break;
+
+          case 'play_special_action': {
+            const res = game.playSpecialCardAction(playerId, payload.actionType, payload.params);
+            broadcastState();
+            if (res && res.privateSpyResult) {
+              return sendJson(200, { success: true, spyResult: res.privateSpyResult });
+            }
+            return sendJson(200, { success: true });
+          }
+
+          case 'reveal_exiled_all':
+            game.revealExiledPlayerCards(payload.targetPlayerId, playerId);
             break;
 
           case 'start_ugc_phase':
@@ -175,6 +210,10 @@ const server = http.createServer(async (req, res) => {
 
           case 'replace_card':
             game.replacePlayerCard(payload.targetPlayerId || playerId, payload.categoryKey, playerId);
+            break;
+
+          case 'change_bunker_capacity':
+            game.changeBunkerCapacity(payload.delta, playerId);
             break;
 
           case 'reveal_other_card':
@@ -286,7 +325,7 @@ const server = http.createServer(async (req, res) => {
     if (err || !stats.isFile()) {
       const indexPath = path.join(CLIENT_DIR, 'index.html');
       if (fs.existsSync(indexPath)) {
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
         return fs.createReadStream(indexPath).pipe(res);
       }
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -295,8 +334,27 @@ const server = http.createServer(async (req, res) => {
 
     const ext = path.extname(filePath).toLowerCase();
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-    res.writeHead(200, { 'Content-Type': contentType });
-    fs.createReadStream(filePath).pipe(res);
+    const acceptEncoding = req.headers['accept-encoding'] || '';
+
+    const headers = {
+      'Content-Type': contentType,
+      'Access-Control-Allow-Origin': '*'
+    };
+
+    if (ext === '.css' || ext === '.js' || ext === '.svg' || ext === '.png' || ext === '.ico') {
+      headers['Cache-Control'] = 'public, max-age=86400';
+    } else {
+      headers['Cache-Control'] = 'no-cache';
+    }
+
+    if (acceptEncoding.includes('gzip') && (contentType.includes('text') || contentType.includes('javascript') || contentType.includes('json') || contentType.includes('svg'))) {
+      headers['Content-Encoding'] = 'gzip';
+      res.writeHead(200, headers);
+      fs.createReadStream(filePath).pipe(zlib.createGzip()).pipe(res);
+    } else {
+      res.writeHead(200, headers);
+      fs.createReadStream(filePath).pipe(res);
+    }
   });
 });
 

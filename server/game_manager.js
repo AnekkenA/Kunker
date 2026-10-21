@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const deckLoader = require('./deck_loader');
+const TagHelper = require('../client/js/tag_helper');
 
 function getNetworkInfo() {
   const renderUrl = process.env.RENDER_EXTERNAL_URL;
@@ -52,15 +53,15 @@ function getNetworkInfo() {
 }
 
 const CATEGORIES = [
-  { key: 'profession', name: 'Профессия', icon: '💼' },
-  { key: 'health', name: 'Здоровье', icon: '❤️' },
-  { key: 'biology', name: 'Биология', icon: '🧬' },
-  { key: 'hobby', name: 'Хобби', icon: '🎨' },
-  { key: 'traits', name: 'Черты', icon: '🧠' },
-  { key: 'facts', name: 'Доп. сведения', icon: '📜' },
-  { key: 'small_inventory', name: 'Малый инв.', icon: '🎒' },
-  { key: 'large_inventory', name: 'Крупный инв.', icon: '📦' },
-  { key: 'special_cards', name: 'Спец-карта', icon: '⚡' }
+  { key: 'profession', name: 'Профессия', icon: '💼', isSpecial: false },
+  { key: 'health', name: 'Здоровье', icon: '❤️', isSpecial: false },
+  { key: 'biology', name: 'Биология', icon: '🧬', isSpecial: false },
+  { key: 'hobby', name: 'Хобби', icon: '🎨', isSpecial: false },
+  { key: 'traits', name: 'Черты', icon: '🧠', isSpecial: false },
+  { key: 'facts', name: 'Доп. сведения', icon: '📜', isSpecial: false },
+  { key: 'small_inventory', name: 'Малый инв.', icon: '🎒', isSpecial: false },
+  { key: 'large_inventory', name: 'Крупный инв.', icon: '📦', isSpecial: false },
+  { key: 'special_cards', name: 'Спец-карта', icon: '⚡', isSpecial: true }
 ];
 
 function shuffle(array) {
@@ -109,10 +110,17 @@ class SingleGame {
     this.threatTimerCountdown = 120;
     this.threatTimerHandle = null;
 
-    // Threshold reveal milestones
+    // Threat / Bunker limits and probabilities (customizable by Master)
+    this.worldCardsMaxLimit = 6; // Max world cards allowed on table
+    this.threatPercent = 50; // Chance of Threat (0-100), bunker is 100 - threatPercent
+    this.cardsLeftClosed = 1; // Number of regular cards left closed in finale
+
+    // Categories (customizable by Master)
+    this.categories = JSON.parse(JSON.stringify(CATEGORIES));
+
+    // Round milestone triggers (triggers when every active player reveals at least 2, 3, 4... cards)
+    this.triggeredRoundMilestones = new Set();
     this.totalRevealsCount = 0;
-    this.nextThreshold = 10;
-    this.thresholdMilestones = [10, 15, 20, 25, 30, 35, 40];
 
     // World Cards
     this.disaster = null;
@@ -124,7 +132,7 @@ class SingleGame {
     // Card Category Decks & In-Play tracking (STRICT 1 COPY PER CARD)
     this.categoryDecks = {};
     this.inPlayCards = {};
-    CATEGORIES.forEach(cat => {
+    this.categories.forEach(cat => {
       this.categoryDecks[cat.key] = [];
       this.inPlayCards[cat.key] = new Set();
     });
@@ -133,7 +141,166 @@ class SingleGame {
     this.players = new Map();
     this.logs = [];
 
+    // Theme Background & Card Back custom images & Author
+    this.backgroundImage = null;
+    this.cardBackImage = null;
+    this.deckAuthor = 'Бункер 3.1';
+
     this.addLog('Бункер инициализирован и готов к приему выживших.');
+  }
+
+  // Calculate sum of survival parameters (fire, medicine, food, etc.) among active survivors
+  calculateTeamResources() {
+    const activeSurvivors = Array.from(this.players.values()).filter(p => !p.isExiled);
+    const totals = {
+      fire: 0,
+      medicine: 0,
+      food: 0,
+      engineering: 0,
+      psycho: 0,
+      defense: 0,
+      science: 0,
+      custom: {}
+    };
+
+    activeSurvivors.forEach(p => {
+      Object.values(p.cards || {}).forEach(c => {
+        if (!c) return;
+        const tags = c.tags || [];
+        tags.forEach(t => {
+          if (totals[t.key] !== undefined) {
+            totals[t.key] += (t.value || 1);
+          } else if (t.name) {
+            totals.custom[t.name] = (totals.custom[t.name] || 0) + (t.value || 1);
+          }
+        });
+      });
+    });
+
+    return totals;
+  }
+
+  // Interactive Special Cards Execution
+  playSpecialCardAction(requesterId, actionType, params = {}) {
+    const player = this.players.get(requesterId);
+    if (!player) throw new Error('Игрок не найден.');
+
+    const specialCard = player.cards['special_cards'];
+    if (!specialCard) throw new Error('У игрока нет спец-карты.');
+
+    // Reveal special card
+    specialCard.revealed = true;
+    const cardTitle = specialCard.cleanText || specialCard.text || 'Спец-возможность';
+
+    let result = { success: true };
+
+    switch (actionType) {
+      case 'bunker_cap_plus': {
+        this.bunkerCapacity += 1;
+        this.addLog(`⚡ ${player.name} сыграл спец-карту «${cardTitle}»: Вместимость бункера УВЕЛИЧЕНА на +1 (теперь мест: ${this.bunkerCapacity})!`);
+        break;
+      }
+
+      case 'bunker_cap_minus': {
+        this.bunkerCapacity = Math.max(1, this.bunkerCapacity - 1);
+        this.addLog(`⚡ ${player.name} сыграл спец-карту «${cardTitle}»: Вместимость бункера УМЕНЬШЕНА на -1 (теперь мест: ${this.bunkerCapacity})!`);
+        break;
+      }
+
+      case 'exile_immunity': {
+        player.exileImmunity = true;
+        this.addLog(`⚡ ${player.name} сыграл спец-карту «${cardTitle}»: Получен иммунитет к изгнанию на следующее голосование!`);
+        break;
+      }
+
+      case 'discard_threat': {
+        const threatIdx = parseInt(params.threatIndex, 10);
+        if (this.revealedThreatCards.length > 0) {
+          let removed;
+          if (!isNaN(threatIdx) && threatIdx >= 0 && threatIdx < this.revealedThreatCards.length) {
+            removed = this.revealedThreatCards.splice(threatIdx, 1)[0];
+          } else {
+            removed = this.revealedThreatCards.pop();
+          }
+          this.addLog(`⚡ ${player.name} сыграл спец-карту «${cardTitle}»: Угроза «${removed.title || 'Угроза'}» обезврежена и сброшена!`);
+        } else {
+          this.addLog(`⚡ ${player.name} сыграл спец-карту «${cardTitle}» (на столе не было активных угроз).`);
+        }
+        break;
+      }
+
+      case 'spy_card': {
+        const targetPlayer = this.players.get(params.targetPlayerId);
+        if (!targetPlayer) throw new Error('Целевой игрок не найден.');
+        const catKey = params.categoryKey || 'profession';
+        const targetCard = targetPlayer.cards[catKey];
+        const catObj = this.categories.find(c => c.key === catKey);
+        const catName = catObj ? catObj.name : catKey;
+        this.addLog(`⚡ ${player.name} применил шпионаж против игрока ${targetPlayer.name} и тайно изучил его [${catName}].`);
+        result.privateSpyResult = {
+          targetPlayerName: targetPlayer.name,
+          categoryName: catName,
+          cardText: targetCard ? (targetCard.cleanText || targetCard.text) : 'Пусто'
+        };
+        break;
+      }
+
+      case 'force_reveal_other': {
+        const targetPlayer = this.players.get(params.targetPlayerId);
+        if (!targetPlayer) throw new Error('Целевой игрок не найден.');
+        const catKey = params.categoryKey || 'profession';
+        if (!targetPlayer.cards[catKey]) throw new Error('Категория не найдена.');
+        targetPlayer.cards[catKey].revealed = true;
+        const catObj = this.categories.find(c => c.key === catKey);
+        const catName = catObj ? catObj.name : catKey;
+        this.addLog(`⚡ ${player.name} сыграл «Публичное разоблачение»: карта [${catName}] игрока ${targetPlayer.name} открыта: "${targetPlayer.cards[catKey].text}"!`);
+        this.checkRoundMilestoneTriggers();
+        break;
+      }
+
+      case 'exchange_card': {
+        const targetPlayer = this.players.get(params.targetPlayerId);
+        if (!targetPlayer) throw new Error('Целевой игрок не найден.');
+        const catKey = params.categoryKey || 'profession';
+        const myCard = player.cards[catKey];
+        const theirCard = targetPlayer.cards[catKey];
+        if (!myCard || !theirCard) throw new Error('Категория для обмена не найдена.');
+
+        const temp = { ...myCard };
+        player.cards[catKey] = { ...theirCard };
+        targetPlayer.cards[catKey] = temp;
+
+        const catObj = this.categories.find(c => c.key === catKey);
+        const catName = catObj ? catObj.name : catKey;
+        this.addLog(`⚡ ${player.name} сыграл «Обмен судьбами»: обменялся картой [${catName}] с игроком ${targetPlayer.name}!`);
+        break;
+      }
+
+      case 'reroll_card': {
+        const catKey = params.categoryKey || 'profession';
+        this.replacePlayerCard(player.id, catKey, player.id, true);
+        const catObj = this.categories.find(c => c.key === catKey);
+        const catName = catObj ? catObj.name : catKey;
+        this.addLog(`⚡ ${player.name} сыграл «Второй шанс»: заменил [${catName}] на случайную свободную карту из колоды!`);
+        break;
+      }
+
+      case 'resurrect_exiled': {
+        const targetPlayer = this.players.get(params.targetPlayerId);
+        if (!targetPlayer) throw new Error('Игрок не найден.');
+        targetPlayer.isExiled = false;
+        this.addLog(`⚡ ${player.name} сыграл «Возвращение»: вернул изгнанного игрока ${targetPlayer.name} обратно в бункер!`);
+        this.checkRoundMilestoneTriggers();
+        break;
+      }
+
+      default: {
+        this.addLog(`⚡ ${player.name} разыграл спец-карту: "${cardTitle}"!`);
+        break;
+      }
+    }
+
+    return result;
   }
 
   addLog(text) {
@@ -174,7 +341,7 @@ class SingleGame {
       ugcReady: false
     };
 
-    CATEGORIES.forEach(cat => {
+    this.categories.forEach(cat => {
       player.cards[cat.key] = { text: '', revealed: false };
     });
 
@@ -191,7 +358,7 @@ class SingleGame {
       this.addLog(`🚪 ${p.name} покинул бункер.`);
 
       // Free player cards back to category decks if game was playing
-      CATEGORIES.forEach(cat => {
+      this.categories.forEach(cat => {
         const card = p.cards[cat.key];
         if (card && card.text) {
           if (this.inPlayCards[cat.key]) this.inPlayCards[cat.key].delete(card.text);
@@ -231,6 +398,10 @@ class SingleGame {
     } else {
       this.addLog(`♻️ Мастер ВЕРНУЛ игрока ${player.name} обратно в бункер.`);
     }
+
+    // Check round milestone triggers because active player count changed
+    this.checkRoundMilestoneTriggers();
+
     return player;
   }
 
@@ -262,25 +433,130 @@ class SingleGame {
       // If it was just revealed for the first time, increment reveal counter
       if (!wasRevealed) {
         this.totalRevealsCount++;
-
-        // Threshold mode check
-        if (this.threatMode === 'threshold' && this.totalRevealsCount >= this.nextThreshold) {
-          this.drawWorldCard();
-          // Advance threshold milestone
-          const nextIdx = this.thresholdMilestones.findIndex(m => m > this.totalRevealsCount);
-          if (nextIdx !== -1) {
-            this.nextThreshold = this.thresholdMilestones[nextIdx];
-          } else {
-            const step = Math.max(3, this.players.size);
-            this.nextThreshold += step;
-          }
-        }
+        // Check if all active players now have reached 2, 3, 4... revealed cards
+        this.checkRoundMilestoneTriggers();
       }
     } else {
       this.addLog(`🔒 ${player.name} скрыл [${catName}].`);
     }
 
     return card;
+  }
+
+  // Check round milestones: trigger when EVERY active (non-exiled) player has revealed at least 2, 3, 4... REGULAR cards
+  checkRoundMilestoneTriggers() {
+    if (this.threatMode !== 'threshold' || this.status !== 'playing') return;
+
+    const activePlayers = Array.from(this.players.values()).filter(p => !p.isExiled);
+    if (activePlayers.length === 0) return;
+
+    // Regular categories ONLY! Special cards are situational and do NOT trigger round milestones!
+    const regularCats = this.categories.filter(c => !c.isSpecial && c.key !== 'special_cards');
+    const totalRegular = regularCats.length;
+
+    // Count revealed regular cards for each active player
+    const playerRevealCounts = activePlayers.map(p => {
+      let count = 0;
+      regularCats.forEach(cat => {
+        if (p.cards[cat.key] && p.cards[cat.key].revealed) count++;
+      });
+      return count;
+    });
+
+    const minRegularRevealed = Math.min(...playerRevealCounts);
+
+    // Max milestone: totalRegular - cardsLeftClosed (milestones stop before last closed cards)
+    const maxMilestoneAllowed = Math.max(1, totalRegular - this.cardsLeftClosed);
+
+    for (let milestone = 2; milestone <= minRegularRevealed && milestone <= maxMilestoneAllowed; milestone++) {
+      if (!this.triggeredRoundMilestones.has(milestone)) {
+        this.triggeredRoundMilestones.add(milestone);
+        this.addLog(`📢 Все активные выжившие открыли минимум по ${milestone} обычные карты! Автоматически открывается карта Угрозы / Бункера.`);
+        this.drawWorldCard();
+      }
+    }
+  }
+
+  // --- MASTER ACTION: CHANGE BUNKER CAPACITY (+-1) ---
+  changeBunkerCapacity(delta, requesterId) {
+    if (requesterId !== this.hostId) {
+      throw new Error('Только Мастер игры может изменять вместимость бункера.');
+    }
+
+    const d = parseInt(delta, 10);
+    if (isNaN(d) || d === 0) return this.bunkerCapacity;
+
+    const oldCap = this.bunkerCapacity;
+    const newCap = Math.max(1, oldCap + d);
+    if (newCap === oldCap) return this.bunkerCapacity;
+
+    this.bunkerCapacity = newCap;
+    const changeWord = d > 0 ? `увеличена на +${d}` : `уменьшена на ${d}`;
+    this.addLog(`📦 Вместимость бункера ${changeWord} Мастером (сыграла карта особых условий): ${oldCap} ➔ ${newCap} мест!`);
+    return this.bunkerCapacity;
+  }
+
+  // Check if game can proceed to evaluation (survivors count must not exceed capacity AND regular cards revealed)
+  canProceedToEvaluation() {
+    const activeSurvivors = Array.from(this.players.values()).filter(p => !p.isExiled);
+    const count = activeSurvivors.length;
+    const capacity = this.bunkerCapacity;
+
+    if (count > capacity) {
+      return {
+        allowed: false,
+        reason: `В бункере осталось ${count} чел., а мест всего ${capacity}! Изгоните еще ${count - capacity} чел. перед подведением итогов.`
+      };
+    }
+
+    const regularCats = this.categories.filter(c => !c.isSpecial && c.key !== 'special_cards');
+    const requiredRevealed = Math.max(1, regularCats.length - this.cardsLeftClosed);
+
+    if (activeSurvivors.length > 0) {
+      const counts = activeSurvivors.map(p => {
+        let c = 0;
+        regularCats.forEach(cat => {
+          if (p.cards[cat.key] && p.cards[cat.key].revealed) c++;
+        });
+        return c;
+      });
+      const minOpened = Math.min(...counts);
+      if (minOpened < requiredRevealed) {
+        return {
+          allowed: false,
+          reason: `Игра еще не завершена! У всех выживших должно быть открыто минимум по ${requiredRevealed} обычных карт (сейчас у некоторых только ${minOpened}).`
+        };
+      }
+    }
+
+    return { allowed: true };
+  }
+
+  // --- MASTER ACTION: REVEAL ALL REGULAR CARDS OF EXILED PLAYER (EXCEPT SPECIAL CARD) ---
+  revealExiledPlayerCards(targetPlayerId, requesterId) {
+    if (requesterId !== this.hostId) {
+      throw new Error('Только Мастер игры может открывать карты изгнанного игрока.');
+    }
+    const player = this.players.get(targetPlayerId);
+    if (!player) throw new Error('Игрок не найден.');
+    if (!player.isExiled) {
+      throw new Error('Игрок не является изгнанным.');
+    }
+
+    let openedCount = 0;
+    this.categories.forEach(cat => {
+      // DO NOT reveal special cards! Special cards are situational and personal!
+      if (!cat.isSpecial && cat.key !== 'special_cards') {
+        const card = player.cards[cat.key];
+        if (card && !card.revealed && card.text) {
+          card.revealed = true;
+          openedCount++;
+        }
+      }
+    });
+
+    this.addLog(`👁️ Мастер вскрыл все обычные карты изгнанного игрока ${player.name} (${openedCount} карт). Спец-карта осталась закрытой.`);
+    return true;
   }
 
   // --- MASTER ACTION: REVEAL ANY CARD ---
@@ -292,8 +568,8 @@ class SingleGame {
   }
 
   // --- MASTER ACTION: REPLACE CARD WITH RANDOM UNUSED FROM SAME CLASS (STRICT 1 COPY) ---
-  replacePlayerCard(targetPlayerId, categoryKey, requesterId) {
-    if (requesterId !== this.hostId) {
+  replacePlayerCard(targetPlayerId, categoryKey, requesterId, allowSelf = false) {
+    if (!allowSelf && requesterId !== this.hostId) {
       throw new Error('Только Мастер игры может заменять карты.');
     }
 
@@ -332,21 +608,40 @@ class SingleGame {
       throw new Error(`В колоде категории "${categoryKey}" больше нет свободных карт (все уникальные карты уже на руках у игроков)!`);
     }
 
-    const newText = getRandomItem(available);
+    const newRawItem = getRandomItem(available);
+    let newRawText = '';
+    let cardAuthor = oldCard?.author || this.deckAuthor || 'Бункер';
+    let cardAction = null;
+
+    if (typeof newRawItem === 'string') {
+      newRawText = newRawItem;
+    } else if (newRawItem && typeof newRawItem === 'object') {
+      newRawText = newRawItem.text || newRawItem.title || newRawItem.name || JSON.stringify(newRawItem);
+      if (newRawItem.author) cardAuthor = newRawItem.author;
+      if (newRawItem.action) cardAction = newRawItem.action;
+    }
+
+    const parsed = TagHelper.parse(newRawText);
 
     // Remove new card from deck and mark in play
-    this.categoryDecks[categoryKey] = (this.categoryDecks[categoryKey] || []).filter(c => c !== newText);
-    this.inPlayCards[categoryKey].add(newText);
+    this.categoryDecks[categoryKey] = (this.categoryDecks[categoryKey] || []).filter(c => c !== newRawItem);
+    this.inPlayCards[categoryKey].add(newRawText);
 
     player.cards[categoryKey] = {
-      text: newText,
+      text: newRawText,
+      cleanText: parsed.cleanText,
+      tags: parsed.tags,
+      author: cardAuthor,
+      action: cardAction,
       revealed: wasRevealed
     };
 
     const catObj = CATEGORIES.find(c => c.key === categoryKey);
     const catName = catObj ? catObj.name : categoryKey;
 
-    this.addLog(`🎲 Мастер ЗАМЕНИЛ карту [${catName}] у игрока ${player.name}! Старая карта вернулась в колоду, выдана случайная свободная.`);
+    if (!allowSelf) {
+      this.addLog(`🎲 Мастер ЗАМЕНИЛ карту [${catName}] у игрока ${player.name}! Старая карта вернулась в колоду, выдана случайная свободная.`);
+    }
     return player.cards[categoryKey];
   }
 
@@ -389,33 +684,34 @@ class SingleGame {
 
   // --- WORLD CARDS: AUTO-DRAW THREAT OR BUNKER CARD (STRICT 1 COPY) ---
   drawWorldCard() {
-    // Choose between bunker and threats: prioritize the one with fewer on table or randomly
-    let pickType = 'threat';
-    if (this.bunkerDeck.length > 0 && this.threatsDeck.length > 0) {
-      if (this.revealedThreatCards.length > this.revealedBunkerCards.length) {
-        pickType = 'bunker';
-      } else if (this.revealedBunkerCards.length > this.revealedThreatCards.length) {
-        pickType = 'threat';
-      } else {
-        pickType = Math.random() < 0.5 ? 'threat' : 'bunker';
-      }
-    } else if (this.bunkerDeck.length > 0) {
-      pickType = 'bunker';
-    } else if (this.threatsDeck.length > 0) {
-      pickType = 'threat';
-    } else {
+    const totalDrawn = this.revealedBunkerCards.length + this.revealedThreatCards.length;
+    if (totalDrawn >= this.worldCardsMaxLimit) {
+      this.addLog(`ℹ️ Достигнут лимит карт Угроз и Бункера на столе (${this.worldCardsMaxLimit} карт).`);
+      return null;
+    }
+
+    if (this.bunkerDeck.length === 0 && this.threatsDeck.length === 0) {
       this.addLog('ℹ️ Все доступные карты Бункера и Угроз уже открыты на столе!');
       return null;
     }
 
-    if (pickType === 'bunker') {
+    // Determine pickType based strictly on configured probability (threatPercent vs bunkerPercent)
+    let pickType = 'threat';
+    const roll = Math.random() * 100;
+    if (roll < this.threatPercent) {
+      pickType = this.threatsDeck.length > 0 ? 'threat' : 'bunker';
+    } else {
+      pickType = this.bunkerDeck.length > 0 ? 'bunker' : 'threat';
+    }
+
+    if (pickType === 'bunker' && this.bunkerDeck.length > 0) {
       const card = this.bunkerDeck.shift();
       if (card) {
         this.revealedBunkerCards.push(card);
         this.addLog(`🛡️ АВТОМАТИЧЕСКИ ОТКРЫТА КАРТА БУНКЕРА: "${card.title}"! ${card.description}`);
         return { type: 'bunker', card };
       }
-    } else {
+    } else if (this.threatsDeck.length > 0) {
       const card = this.threatsDeck.shift();
       if (card) {
         this.revealedThreatCards.push(card);
@@ -466,6 +762,18 @@ class SingleGame {
     if (options.threatMode) {
       this.threatMode = options.threatMode; // 'threshold' | 'timer'
     }
+    if (options.threatPercent !== undefined) {
+      this.threatPercent = Math.max(0, Math.min(100, parseInt(options.threatPercent, 10) || 50));
+    }
+    if (options.worldCardsMaxLimit !== undefined) {
+      this.worldCardsMaxLimit = Math.max(1, parseInt(options.worldCardsMaxLimit, 10) || 6);
+    }
+    if (options.cardsLeftClosed !== undefined) {
+      this.cardsLeftClosed = Math.max(0, parseInt(options.cardsLeftClosed, 10) || 1);
+    }
+    if (Array.isArray(options.categories) && options.categories.length > 0) {
+      this.categories = options.categories;
+    }
 
     const pool = {
       disasters: [],
@@ -507,9 +815,12 @@ class SingleGame {
         }
 
         // Player categories
-        CATEGORIES.forEach(cat => {
+        this.categories.forEach(cat => {
           const list = deck[cat.key] || deck[cat.key + 's'] || [];
-          if (Array.isArray(list)) pool[cat.key].push(...list);
+          if (Array.isArray(list)) {
+            if (!pool[cat.key]) pool[cat.key] = [];
+            pool[cat.key].push(...list);
+          }
         });
       }
     });
@@ -534,16 +845,23 @@ class SingleGame {
     this.revealedBunkerCards = [];
     this.revealedThreatCards = [];
 
-    // Draw initial Bunker card
-    if (this.bunkerDeck.length > 0) {
-      this.revealedBunkerCards.push(this.bunkerDeck.shift());
-    }
+    const primaryDeck = this.selectedDecks.length > 0 ? deckLoader.getDeck(this.selectedDecks[0]) : null;
+    this.backgroundImage = options.backgroundImage || (primaryDeck && primaryDeck.backgroundImage) || null;
+    this.cardBackImage = options.cardBackImage || (primaryDeck && primaryDeck.cardBackImage) || null;
+    this.deckAuthor = options.deckAuthor || (primaryDeck && primaryDeck.author) || (primaryDeck && primaryDeck.name) || 'Бункер 3.1';
 
     // 3. Player Cards (STRICT 1 COPY PER CARD)
-    CATEGORIES.forEach(cat => {
+    this.categories.forEach(cat => {
       let sourceList = pool[cat.key] || [];
+      if (cat.customCards && Array.isArray(cat.customCards) && cat.customCards.length > 0) {
+        sourceList = cat.customCards;
+      }
       if (sourceList.length === 0) {
-        sourceList = classicDeck[cat.key] || classicDeck[cat.key + 's'] || ['—'];
+        sourceList = classicDeck[cat.key] || classicDeck[cat.key + 's'] || [];
+      }
+      if (sourceList.length === 0) {
+        // Fallback for custom dynamically added categories
+        sourceList = Array.from({ length: 30 }, (_, i) => `${cat.name} №${i + 1}`);
       }
 
       // De-duplicate master pool
@@ -555,12 +873,28 @@ class SingleGame {
 
       this.players.forEach(player => {
         player.isExiled = false;
-        let cardText = this.categoryDecks[cat.key].shift() || '—';
-        if (typeof cardText !== 'string') cardText = cardText.title || cardText.name || JSON.stringify(cardText);
+        let cardItem = this.categoryDecks[cat.key].shift() || '—';
+        let rawText = '';
+        let cardAuthor = this.deckAuthor || 'Бункер';
+        let cardAction = null;
 
-        this.inPlayCards[cat.key].add(cardText);
+        if (typeof cardItem === 'string') {
+          rawText = cardItem;
+        } else if (cardItem && typeof cardItem === 'object') {
+          rawText = cardItem.text || cardItem.title || cardItem.name || JSON.stringify(cardItem);
+          if (cardItem.author) cardAuthor = cardItem.author;
+          if (cardItem.action) cardAction = cardItem.action;
+        }
+
+        const parsed = TagHelper.parse(rawText);
+
+        this.inPlayCards[cat.key].add(rawText);
         player.cards[cat.key] = {
-          text: cardText,
+          text: rawText,
+          cleanText: parsed.cleanText,
+          tags: parsed.tags,
+          author: cardAuthor,
+          action: cardAction,
           revealed: false
         };
       });
@@ -660,8 +994,16 @@ class SingleGame {
           const list = player.ugcSubmissions[cat.key];
           if (Array.isArray(list)) {
             list.forEach(item => {
-              const str = String(item || '').trim();
-              if (str) pool[cat.key].push(str);
+              if (!item) return;
+              let itemText = typeof item === 'string' ? item : item.text;
+              itemText = String(itemText || '').trim();
+              if (itemText) {
+                pool[cat.key].push({
+                  text: itemText,
+                  author: player.name,
+                  action: (typeof item === 'object' && item.action) ? item.action : null
+                });
+              }
             });
           }
         });
@@ -671,7 +1013,11 @@ class SingleGame {
     const classicDeck = deckLoader.getDeck('classic') || {};
     CATEGORIES.forEach(cat => {
       if (!pool[cat.key] || pool[cat.key].length === 0) {
-        pool[cat.key] = classicDeck[cat.key] || classicDeck[cat.key + 's'] || ['Карта игрока'];
+        const fallbacks = classicDeck[cat.key] || classicDeck[cat.key + 's'] || ['Карта игрока'];
+        pool[cat.key] = fallbacks.map(f => ({
+          text: typeof f === 'string' ? f : (f.text || JSON.stringify(f)),
+          author: 'Бункер'
+        }));
       }
     });
 
@@ -683,23 +1029,31 @@ class SingleGame {
 
     this.bunkerDeck = shuffle(classicDeck.bunker || [{ title: 'Убежище ручной сборки', description: 'Оборудование создано игроками' }]);
     this.threatsDeck = shuffle(classicDeck.threats || [{ title: 'Нестабильные внешние генераторы', description: 'Требуется постоянный контроль' }]);
-    this.revealedBunkerCards = [this.bunkerDeck.shift()];
+    this.revealedBunkerCards = [];
     this.revealedThreatCards = [];
 
     // Distribute unique cards
     CATEGORIES.forEach(cat => {
-      const uniquePool = Array.from(new Set(pool[cat.key]));
-      const shuffled = shuffle(uniquePool);
+      const shuffled = shuffle(pool[cat.key]);
 
       this.categoryDecks[cat.key] = [...shuffled];
       this.inPlayCards[cat.key] = new Set();
 
       this.players.forEach(player => {
         player.isExiled = false;
-        const text = this.categoryDecks[cat.key].shift() || '—';
-        this.inPlayCards[cat.key].add(text);
+        const cardItem = this.categoryDecks[cat.key].shift() || { text: '—', author: 'Игрок' };
+        const rawText = typeof cardItem === 'string' ? cardItem : (cardItem.text || '—');
+        const cardAuthor = (typeof cardItem === 'object' && cardItem.author) ? cardItem.author : 'Игрок';
+        const cardAction = (typeof cardItem === 'object' && cardItem.action) ? cardItem.action : null;
+
+        const parsed = TagHelper.parse(rawText);
+        this.inPlayCards[cat.key].add(rawText);
         player.cards[cat.key] = {
-          text,
+          text: rawText,
+          cleanText: parsed.cleanText,
+          tags: parsed.tags,
+          author: cardAuthor,
+          action: cardAction,
           revealed: false
         };
       });
@@ -723,6 +1077,11 @@ class SingleGame {
   submitSurvivalEvaluation(evaluation, requesterId) {
     if (requesterId !== this.hostId) {
       throw new Error('Только Мастер игры может подвести итоги выживания.');
+    }
+
+    const check = this.canProceedToEvaluation();
+    if (!check.allowed) {
+      throw new Error(check.reason);
     }
 
     this.stopThreatTimer();
@@ -785,6 +1144,19 @@ class SingleGame {
         `Началась жестокая борьба за пайки и воду. Бункер не выдержал внутреннего хаоса.`;
     } else {
       // Normal or under capacity
+      const teamRes = this.calculateTeamResources();
+      const resourceBonus = Math.min(20, Math.round(
+        (teamRes.fire * 1.5) +
+        (teamRes.medicine * 2) +
+        (teamRes.food * 2) +
+        (teamRes.engineering * 2) +
+        (teamRes.psycho * 1.5) +
+        (teamRes.defense * 1.5) +
+        (teamRes.science * 1.5)
+      ));
+
+      percentage = Math.min(100, Math.max(5, percentage + resourceBonus));
+
       if (percentage >= 70) {
         isSuccess = true;
         verdict = `🎉 БУНКЕР УСПЕШНО ВЫЖИЛ! (Шанс выживания: ${percentage}%)`;
@@ -801,6 +1173,11 @@ class SingleGame {
         epilogue = `Несмотря на то, что бункер закрылся, критическая нехватка ресурсов, болезни и нерешенные внешние угрозы оказались фатальными. ` +
           `Системы жизнеобеспечения угасли задолго до открытия спасательного шлюза.`;
       }
+
+      const resLine = `\n\n📊 Совокупные ресурсы команды:\n` +
+        `🧯 Пожаротушение: ${teamRes.fire} | 💊 Медицина: ${teamRes.medicine} | 🍞 Провизия: ${teamRes.food} | ⚙️ Инженерия: ${teamRes.engineering} | 🧠 Психика: ${teamRes.psycho} | 🛡️ Защита: ${teamRes.defense} | 🔬 Наука: ${teamRes.science}` +
+        (resourceBonus > 0 ? ` (+${resourceBonus}% к шансу выживания за полезные предметы и навыки)` : '');
+      epilogue += resLine;
     }
 
     this.results = {
@@ -812,6 +1189,7 @@ class SingleGame {
       exiled,
       bunkerCapacity: capacity,
       evalScores,
+      teamResources: this.calculateTeamResources(),
       disaster: this.disaster ? this.disaster.title : 'Глобальная катастрофа',
       threatsCount: this.revealedThreatCards.length,
       bunkerCardsCount: this.revealedBunkerCards.length
@@ -852,17 +1230,25 @@ class SingleGame {
       const isSelf = p.id === forPlayerId;
       const safeCards = {};
 
-      CATEGORIES.forEach(cat => {
+      this.categories.forEach(cat => {
         const card = p.cards[cat.key] || { text: '', revealed: false };
         if (card.revealed || isSelf || isFinished) {
           safeCards[cat.key] = {
             text: card.text,
+            cleanText: card.cleanText || card.text,
+            tags: card.tags || [],
+            author: card.author || this.deckAuthor || 'Бункер',
+            action: card.action || null,
             revealed: card.revealed,
             canReveal: isSelf || isMaster
           };
         } else {
           safeCards[cat.key] = {
             text: '',
+            cleanText: '',
+            tags: [],
+            author: '',
+            action: null,
             revealed: false,
             canReveal: isMaster
           };
@@ -879,18 +1265,60 @@ class SingleGame {
       });
     });
 
+    const activePlayers = Array.from(this.players.values()).filter(p => !p.isExiled);
+    const activeSurvivorsCount = activePlayers.length;
+    const excessPlayers = Math.max(0, activeSurvivorsCount - this.bunkerCapacity);
+
+    // Regular categories ONLY (special cards do NOT count towards rounds)
+    const regularCats = this.categories.filter(c => !c.isSpecial && c.key !== 'special_cards');
+    let minRegularRevealed = 0;
+    if (activePlayers.length > 0) {
+      const counts = activePlayers.map(p => {
+        let c = 0;
+        regularCats.forEach(cat => {
+          if (p.cards[cat.key] && p.cards[cat.key].revealed) c++;
+        });
+        return c;
+      });
+      minRegularRevealed = Math.min(...counts);
+    }
+
+    const maxMilestoneAllowed = Math.max(1, regularCats.length - this.cardsLeftClosed);
+    const requiredRevealed = maxMilestoneAllowed;
+
+    const survivorsOk = activeSurvivorsCount <= this.bunkerCapacity;
+    const cardsRevealedOk = minRegularRevealed >= requiredRevealed;
+    const canFinish = survivorsOk && cardsRevealedOk;
+
     return {
       hasPassword: Boolean(this.password),
       status: this.status,
       mode: this.mode,
       selectedDecks: this.selectedDecks,
+      backgroundImage: this.backgroundImage,
+      cardBackImage: this.cardBackImage,
+      deckAuthor: this.deckAuthor,
+      teamResources: this.calculateTeamResources(),
       bunkerCapacity: this.bunkerCapacity,
+      activeSurvivorsCount,
+      canFinish,
+      survivorsOk,
+      cardsRevealedOk,
+      excessPlayers,
+      minRevealedCards: minRegularRevealed,
+      minRegularRevealed,
+      maxMilestoneAllowed,
+      requiredRevealed,
 
-      // Threat / Bunker mode & progress
+      // Threat / Bunker settings & progress
       threatMode: this.threatMode,
+      threatPercent: this.threatPercent,
+      bunkerPercent: 100 - this.threatPercent,
+      worldCardsMaxLimit: this.worldCardsMaxLimit,
+      cardsLeftClosed: this.cardsLeftClosed,
       threatTimerCountdown: this.threatTimerCountdown,
       totalRevealsCount: this.totalRevealsCount,
-      nextThreshold: this.nextThreshold,
+      nextThreshold: Math.min(maxMilestoneAllowed, Math.max(2, minRegularRevealed + 1)),
 
       // World Cards
       disaster: this.disaster,
@@ -901,7 +1329,7 @@ class SingleGame {
       isHost: isMaster,
       myId: forPlayerId,
       players: playersList,
-      categories: CATEGORIES,
+      categories: this.categories,
       logs: this.logs.slice(0, 35),
       network: getNetworkInfo()
     };
@@ -912,6 +1340,7 @@ const singleGameInstance = new SingleGame();
 
 module.exports = {
   game: singleGameInstance,
+  SingleGame,
   CATEGORIES,
   getNetworkInfo
 };

@@ -1,8 +1,10 @@
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
 const readline = require('readline');
+
+let cfProcess = null;
 
 function getNetworkDetails() {
   const interfaces = os.networkInterfaces();
@@ -43,6 +45,129 @@ function startHttpServer() {
   require('./server.js');
 }
 
+function cleanupProcesses() {
+  if (cfProcess) {
+    try {
+      cfProcess.kill();
+    } catch (e) {}
+    cfProcess = null;
+  }
+}
+
+process.on('exit', cleanupProcesses);
+process.on('SIGINT', () => {
+  cleanupProcesses();
+  process.exit();
+});
+process.on('SIGTERM', () => {
+  cleanupProcesses();
+  process.exit();
+});
+
+// --- MODE 1: INTERNET & PHONES (CLOUDFLARE TUNNEL - WORKS EVERYWHERE) ---
+function startInternetMode() {
+  const net = getNetworkDetails();
+  const localhostUrl = 'http://localhost:3000';
+  const wifiUrl = `http://${net.localIp}:3000`;
+  const radminUrl = `http://${net.radminIp}:3000`;
+
+  // Write initial tunnel_info
+  fs.writeFileSync(path.join(__dirname, 'tunnel_info.json'), JSON.stringify({
+    primaryUrl: wifiUrl,
+    localIpUrl: wifiUrl,
+    radminIpUrl: radminUrl,
+    localhostUrl,
+    mode: 'internet',
+    updatedAt: Date.now()
+  }, null, 2));
+
+  startHttpServer();
+
+  console.clear();
+  console.log('===============================================================');
+  console.log('     ИГРА «БУНКЕР» ЗАПУСКАЕТСЯ В ИНТЕРНЕТЕ (CLOUDFLARE)...');
+  console.log('===============================================================');
+  console.log('');
+  console.log('  [i] Создание безопасного интернет-соединения...');
+  console.log('      (Обычно занимает 2-4 секунды, ожидайте)...');
+  console.log('');
+
+  const cloudflaredBin = path.join(__dirname, '..', 'bin', 'cloudflared.exe');
+  if (!fs.existsSync(cloudflaredBin)) {
+    console.log('[!] Файл bin/cloudflared.exe не найден. Запуск в режиме Wi-Fi.');
+    startWifiMode();
+    return;
+  }
+
+  cfProcess = spawn(cloudflaredBin, ['tunnel', '--protocol', 'http2', '--url', 'http://127.0.0.1:3000']);
+  let tunnelEstablished = false;
+
+  function onOutput(data) {
+    const text = data.toString();
+    const match = text.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/i);
+    if (match && !tunnelEstablished) {
+      tunnelEstablished = true;
+      const publicUrl = match[0];
+
+      fs.writeFileSync(path.join(__dirname, 'tunnel_info.json'), JSON.stringify({
+        publicUrl,
+        primaryUrl: publicUrl,
+        localIpUrl: wifiUrl,
+        radminIpUrl: radminUrl,
+        localhostUrl,
+        mode: 'internet',
+        updatedAt: Date.now()
+      }, null, 2));
+
+      console.clear();
+      console.log('===============================================================');
+      console.log('         ИГРА «БУНКЕР» УСПЕШНО ЗАПУЩЕНА В ИНТЕРНЕТЕ!');
+      console.log('===============================================================');
+      console.log('');
+      console.log('  ССЫЛКА ДЛЯ ТЕЛЕФОНОВ И ДРУГИХ ИГРОКОВ:');
+      console.log('');
+      console.log(`     >>  ${publicUrl}  <<`);
+      console.log('');
+      console.log('     * Работает с ЛЮБОГО смартфона через мобильный интернет (4G/LTE)');
+      console.log('     * Работает через любой домашний или мобильный Wi-Fi');
+      console.log('     * Работает для друзей на ПК из любых городов');
+      console.log('     * В лобби на компьютере можно показать QR-код этой ссылки!');
+      console.log('');
+      console.log('  ДЛЯ ВАС (Мастер игры на этом ПК):');
+      console.log(`     >>  ${localhostUrl}  <<`);
+      console.log('');
+      console.log('===============================================================');
+      console.log('  Не закрывайте это окно консоли во время игры.');
+      console.log('');
+
+      setTimeout(() => {
+        openBrowser(localhostUrl);
+      }, 400);
+    }
+  }
+
+  cfProcess.stdout.on('data', onOutput);
+  cfProcess.stderr.on('data', onOutput);
+
+  cfProcess.on('error', (err) => {
+    console.error('[!] Ошибка запуска cloudflared:', err.message);
+    if (!tunnelEstablished) {
+      console.log('    Резервный адрес для Wi-Fi: ' + wifiUrl);
+      openBrowser(localhostUrl);
+    }
+  });
+
+  // Timeout fallback if internet is unreachable
+  setTimeout(() => {
+    if (!tunnelEstablished) {
+      console.log('[!] Не удалось связаться с Cloudflare за 12 секунд (нет интернета?).');
+      console.log('    Запущен локальный сервер Wi-Fi: ' + wifiUrl);
+      openBrowser(localhostUrl);
+    }
+  }, 12000);
+}
+
+// --- MODE 2: LOCAL WI-FI / HOTSPOT (OFFLINE) ---
 function startWifiMode() {
   const net = getNetworkDetails();
   const wifiUrl = `http://${net.localIp}:3000`;
@@ -74,7 +199,7 @@ function startWifiMode() {
   console.log('  ДЛЯ ВАС (на этом компьютере):');
   console.log(`     >>  ${localhostUrl}  <<`);
   console.log('');
-  console.log('  Если телефоны не могут подключиться, выберите пункт [3]');
+  console.log('  Если телефоны не могут подключиться, выберите пункт [4]');
   console.log('  в меню для открытия порта в Брандмауэре Windows.');
   console.log('===============================================================');
   console.log('  Не закрывайте это окно консоли во время игры.');
@@ -85,6 +210,7 @@ function startWifiMode() {
   }, 400);
 }
 
+// --- MODE 3: RADMIN VPN ---
 function startRadminMode() {
   const net = getNetworkDetails();
   const wifiUrl = `http://${net.localIp}:3000`;
@@ -125,6 +251,7 @@ function startRadminMode() {
   }, 400);
 }
 
+// --- MODE 4: FIREWALL PORT UNLOCK ---
 function openFirewallPort() {
   console.clear();
   console.log('===============================================================');
@@ -153,16 +280,19 @@ function askMenu() {
   console.log('            ИГРА «БУНКЕР: УБЕЖИЩЕ-101»');
   console.log('===============================================================');
   console.log('');
-  console.log('  Выберите способ подключения игроков:');
+  console.log('  Выберите способ подключения:');
   console.log('');
-  console.log('   [1] ОБЩИЙ WI-FI / ТОЧКА ДОСТУПА С ТЕЛЕФОНА');
-  console.log(`       Для смартфонов и ПК в одной сети (${net.localIp})`);
+  console.log('   [1] ИНТЕРНЕТ И ТЕЛЕФОНЫ (Рекомендуется - работает ВСЕГДА)');
+  console.log('       Для любых смартфонов (через мобильный 4G или Wi-Fi)');
+  console.log('       и друзей из других городов (без белого IP и без роутера)');
   console.log('');
-  console.log('   [2] RADMIN VPN');
-  console.log(`       Для друзей на ПК из других городов (${net.radminIp})`);
+  console.log('   [2] ТОЛЬКО ЛОКАЛЬНАЯ СЕТЬ (Офлайн Wi-Fi / Точка доступа)');
+  console.log(`       Без интернета, только устройства в одной подсети (${net.localIp})`);
   console.log('');
-  console.log('   [3] Открыть порт 3000 в Брандмауэре Windows');
-  console.log('       (Разрешить входящие подключения в системе)');
+  console.log('   [3] RADMIN VPN');
+  console.log(`       Для ПК через комнату Radmin VPN (${net.radminIp})`);
+  console.log('');
+  console.log('   [4] Открыть порт 3000 в Брандмауэре Windows');
   console.log('');
   console.log('===============================================================');
 
@@ -171,14 +301,16 @@ function askMenu() {
     output: process.stdout
   });
 
-  rl.question('Введите номер (1, 2 или 3) [по умолчанию 1]: ', (ans) => {
+  rl.question('Введите номер (1, 2, 3 или 4) [по умолчанию 1]: ', (ans) => {
     rl.close();
     const choice = ans.trim();
     if (choice === '1' || choice === '') {
-      startWifiMode();
+      startInternetMode();
     } else if (choice === '2') {
-      startRadminMode();
+      startWifiMode();
     } else if (choice === '3') {
+      startRadminMode();
+    } else if (choice === '4') {
       openFirewallPort();
     } else {
       askMenu();
@@ -187,7 +319,9 @@ function askMenu() {
 }
 
 const arg = process.argv[2];
-if (arg === '--wifi') {
+if (arg === '--internet') {
+  startInternetMode();
+} else if (arg === '--wifi') {
   startWifiMode();
 } else if (arg === '--radmin') {
   startRadminMode();

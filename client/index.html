@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>БУНКЕР — Настольная игра на выживание</title>
   <link rel="stylesheet" href="css/style.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 </head>
 <body class="theme-dark">
   <div id="app">
@@ -45,17 +42,15 @@
             <p class="auth-subtitle">Введите ваше имя, чтобы войти в бункер</p>
           </div>
 
-          <div class="form-group">
-            <label for="input-player-name">Ваш позывной (Имя):</label>
-            <input type="text" id="input-player-name" class="form-input" placeholder="Например: Сталкер_77" maxlength="20" autofocus>
-          </div>
+          <form id="form-auth" onsubmit="event.preventDefault();">
+            <div class="form-group">
+              <label for="input-player-name">Ваш позывной (Имя или никнейм):</label>
+              <input type="text" id="input-player-name" class="form-input" placeholder="Например: Сталкер, Доктор, Макс" maxlength="20" autofocus required>
+              <small class="form-hint" style="color: var(--text-dim); margin-top: 6px; display: block;">Никаких паролей не требуется. Просто введите имя для входа в игру.</small>
+            </div>
 
-          <div class="form-group" id="group-auth-password">
-            <label for="input-player-password">Пароль бункера (если задан):</label>
-            <input type="password" id="input-player-password" class="form-input" placeholder="Введите пароль (если требуется)">
-          </div>
-
-          <button id="btn-join-game" class="btn btn-success btn-lg btn-block">ВОЙТИ В БУНКЕР</button>
+            <button type="submit" id="btn-join-game" class="btn btn-success btn-lg btn-block">ВОЙТИ В БУНКЕР</button>
+          </form>
         </div>
       </section>
 
@@ -121,7 +116,7 @@
                   <div class="mode-card-content" style="padding: 10px;">
                     <span class="mode-icon">📊</span>
                     <span class="mode-name">По открытию карт</span>
-                    <span class="mode-desc">Открытие на 10, 15, 20... картах</span>
+                    <span class="mode-desc">Когда все открыли по 2, 3, 4... карты</span>
                   </div>
                 </label>
                 <label class="mode-card">
@@ -135,6 +130,58 @@
               </div>
             </div>
 
+            <!-- THREAT / BUNKER PROBABILITY & LIMITS -->
+            <div class="setting-group">
+              <label class="setting-title">Баланс карт Угрозы и Бункера:</label>
+              <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px;">
+                <div style="flex: 1;">
+                  <label style="font-size: 11px; color: var(--text-muted); display: block;">Шанс Угрозы (%):</label>
+                  <input type="number" id="input-threat-percent" min="0" max="100" value="50" class="form-input" style="padding: 6px 10px;">
+                </div>
+                <div style="flex: 2; padding-top: 14px;">
+                  <span id="threat-percent-badge" class="badge" style="font-size: 11px; padding: 6px 10px; width: 100%; text-align: center; display: block;">50% Угрозы / 50% Бункер</span>
+                </div>
+              </div>
+              <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 6px;">
+                <div style="flex: 1;">
+                  <label style="font-size: 11px; color: var(--text-muted); display: block;">Лимит карт мира:</label>
+                  <input type="number" id="input-world-cards-limit" min="1" max="15" value="6" class="form-input" style="padding: 6px 10px;">
+                </div>
+                <div style="flex: 1;">
+                  <label style="font-size: 11px; color: var(--text-muted); display: block;">Скрыто в финале:</label>
+                  <input type="number" id="input-cards-left-closed" min="0" max="4" value="1" class="form-input" style="padding: 6px 10px;">
+                </div>
+              </div>
+              <small class="form-hint">Лимит ограничивает общее число карт угроз/бункера на столе. В финале 1 карта останется скрытой для интриги.</small>
+            </div>
+
+            <!-- CATEGORIES MANAGER (CUSTOM CATEGORIES) -->
+            <div class="setting-group">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="setting-title" style="margin-bottom: 0;">Категории карт (<span id="categories-count-badge">9</span>):</label>
+                <button type="button" id="btn-toggle-cat-manager" class="btn btn-sm btn-outline">✏️ Настроить</button>
+              </div>
+              <div id="lobby-categories-preview" style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+                <!-- Category chips injected by JS -->
+              </div>
+
+              <!-- COLLAPSIBLE CATEGORY BOX -->
+              <div id="lobby-categories-box" class="lobby-categories-box hidden" style="margin-top: 10px; background: var(--bg-surface); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                <div id="lobby-categories-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; margin-bottom: 10px;">
+                  <!-- Checkboxes injected by JS -->
+                </div>
+                <div style="border-top: 1px solid var(--border-color); padding-top: 8px;">
+                  <div style="font-size: 11px; font-weight: 700; margin-bottom: 6px; color: var(--accent-cyan);">+ Добавить категорию (например: Знак зодиака, Фобия):</div>
+                  <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                    <input type="text" id="input-new-cat-icon" placeholder="Эмодзи (♈)" maxlength="4" class="form-input" style="width: 75px; padding: 4px 6px; font-size: 12px;">
+                    <input type="text" id="input-new-cat-name" placeholder="Название (Знак зодиака)" class="form-input" style="flex: 1; padding: 4px 6px; font-size: 12px;">
+                  </div>
+                  <input type="text" id="input-new-cat-cards" placeholder="Варианты через запятую (Овен, Телец, Близнецы...)" class="form-input" style="width: 100%; padding: 4px 6px; font-size: 11px; margin-bottom: 6px;">
+                  <button type="button" id="btn-add-custom-cat" class="btn btn-sm btn-primary btn-block">+ Добавить категорию в игру</button>
+                </div>
+              </div>
+            </div>
+
             <!-- BUNKER CAPACITY -->
             <div class="setting-group">
               <div class="capacity-header">
@@ -143,6 +190,23 @@
               </div>
               <input type="range" id="input-bunker-capacity" min="1" max="20" value="3" class="range-slider">
               <small class="form-hint">Столько человек смогут спастись в финале</small>
+
+              <!-- OFFICIAL CAPACITY GUIDE TABLE -->
+              <div class="official-capacity-guide">
+                <div class="guide-title">📋 Официальные правила «Бункер 3.1» (Вместимость):</div>
+                <div class="capacity-table-grid">
+                  <div class="cap-col"><span>4–5 игр.</span> ➔ <strong>2 места</strong></div>
+                  <div class="cap-col"><span>6–7 игр.</span> ➔ <strong>3 места</strong></div>
+                  <div class="cap-col"><span>8–9 игр.</span> ➔ <strong>4 места</strong></div>
+                  <div class="cap-col"><span>10–11 игр.</span> ➔ <strong>5 мест</strong></div>
+                  <div class="cap-col"><span>12–13 игр.</span> ➔ <strong>6 мест</strong></div>
+                  <div class="cap-col"><span>14–15 игр.</span> ➔ <strong>7 мест</strong></div>
+                  <div class="cap-col"><span>16 игр.</span> ➔ <strong>8 мест</strong></div>
+                </div>
+                <div class="cap-rule-note">
+                  Формула: ровно <strong>половина</strong> игроков (округление вниз). Сервер рассчитывает значение автоматически при входе участников!
+                </div>
+              </div>
             </div>
 
             <!-- MASTER START ACTION -->
@@ -164,6 +228,7 @@
               <button id="btn-ugc-autofill" class="btn btn-sm btn-outline">🎲 Случайное автозаполнение</button>
               <span id="ugc-status-badge" class="badge">Заполните поля</span>
             </div>
+            <div id="ugc-tag-helper-bar" class="ugc-tag-helper-bar" style="margin-top: 12px;"></div>
           </div>
 
           <div class="ugc-categories-accordion" id="ugc-categories-container">
@@ -240,9 +305,18 @@
           <!-- MASTER ACTION TOOLBAR -->
           <div class="game-toolbar">
             <div class="toolbar-stats">
-              <span class="stat-item">Вместимость: <strong id="stat-bunker-cap">0</strong></span>
+              <span class="stat-item capacity-stat-item">
+                Вместимость: 
+                <button id="btn-cap-minus" class="btn-cap-step hidden" title="Уменьшить вместимость на 1 (сыграла спец-карта)">−</button>
+                <strong id="stat-bunker-cap">0</strong>
+                <button id="btn-cap-plus" class="btn-cap-step hidden" title="Увеличить вместимость на 1 (сыграла спец-карта)">+</button>
+              </span>
               <span class="stat-item">В игре: <strong id="stat-active-count" class="text-green">0</strong></span>
               <span class="stat-item">Изгнано: <strong id="stat-exiled-count" class="text-red">0</strong></span>
+              <button id="btn-open-resources-modal" class="btn btn-sm btn-outline" style="font-size: 11px; padding: 2px 7px;" title="Посмотреть суммарные ресурсы выживших (пожаротушение, медицина, припасы и др.)">📊 Ресурсы команды</button>
+              <span id="stat-excess-warning" class="stat-item stat-warning-chip hidden">
+                ⚠️ Лишних: <strong id="stat-excess-count">0</strong> чел.
+              </span>
             </div>
 
             <div class="toolbar-actions">
@@ -261,7 +335,7 @@
           <div class="table-scroll-wrapper">
             <table class="bunker-table" id="bunker-game-table">
               <thead>
-                <tr>
+                <tr id="bunker-table-header-row">
                   <th class="col-player">Выживший</th>
                   <th class="col-card">💼 Профессия</th>
                   <th class="col-card">❤️ Здоровье</th>
@@ -298,28 +372,71 @@
         <div class="editor-container">
           <div class="editor-header">
             <h2>🛠️ Конструктор наборов карт</h2>
-            <button id="btn-editor-back" class="btn btn-outline">← Назад в лобби</button>
+            <div class="editor-header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <button id="btn-editor-export-json" class="btn btn-sm btn-outline" title="Скачать тему на компьютер в формате .json">📥 Скачать (.json)</button>
+              <button id="btn-editor-import-json" class="btn btn-sm btn-outline" title="Загрузить тему с компьютера (.json)">📤 Загрузить (.json)</button>
+              <input type="file" id="input-editor-file" accept=".json" class="hidden">
+              <button id="btn-editor-back" class="btn btn-sm btn-outline">← Назад в лобби</button>
+            </div>
           </div>
 
           <div class="editor-body">
+            <!-- LEFT: THEMES LIST -->
             <div class="editor-sidebar">
               <h3>Темы в папке decks/</h3>
               <div id="editor-decks-list" class="editor-decks-list"></div>
               <button id="btn-editor-new" class="btn btn-primary btn-block">+ Создать новую тему</button>
             </div>
 
+            <!-- CENTER: FORM & CATEGORIES CONSTRUCTOR -->
             <div class="editor-main" id="editor-form-area">
-              <div class="form-group">
-                <label>ID набора (англ. буквы):</label>
-                <input type="text" id="edit-deck-id" class="form-input" placeholder="cyberpunk">
+              <div class="deck-meta-grid">
+                <div class="form-group">
+                  <label>ID набора (англ. буквы):</label>
+                  <input type="text" id="edit-deck-id" class="form-input" placeholder="cyberpunk">
+                </div>
+                <div class="form-group">
+                  <label>Название набора:</label>
+                  <input type="text" id="edit-deck-name" class="form-input" placeholder="Киберпанк и Роботы">
+                </div>
+                <div class="form-group">
+                  <label>Автор / Студия набора:</label>
+                  <input type="text" id="edit-deck-author" class="form-input" placeholder="Иван / CyberStudio">
+                </div>
               </div>
-              <div class="form-group">
-                <label>Название набора:</label>
-                <input type="text" id="edit-deck-name" class="form-input" placeholder="Киберпанк и Роботы">
-              </div>
+
               <div class="form-group">
                 <label>Описание набора:</label>
                 <textarea id="edit-deck-desc" class="form-input" rows="2"></textarea>
+              </div>
+
+              <!-- THEME VISUAL CUSTOMIZATION (BACKGROUND & CARD BACK) -->
+              <div class="editor-theme-styling-box">
+                <div class="theme-style-title">🎨 Оформление игрового стола и карт:</div>
+                <div class="theme-inputs-grid">
+                  <div class="form-group">
+                    <label>Фоновое изображение стола (URL):</label>
+                    <input type="text" id="edit-deck-bg" class="form-input" placeholder="https://... (или выберите пресет)">
+                    <div class="preset-links">
+                      <span class="preset-label">Пресеты фона:</span>
+                      <button type="button" class="btn-preset-link" onclick="DeckEditor.setBgPreset('bunker')">Бункер</button>
+                      <button type="button" class="btn-preset-link" onclick="DeckEditor.setBgPreset('ruins')">Руины</button>
+                      <button type="button" class="btn-preset-link" onclick="DeckEditor.setBgPreset('space')">Космос</button>
+                      <button type="button" class="btn-preset-link" onclick="DeckEditor.setBgPreset('none')">Сброс</button>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Изображение рубашки карт (URL):</label>
+                    <input type="text" id="edit-deck-card-back" class="form-input" placeholder="https://... (или выберите пресет)">
+                    <div class="preset-links">
+                      <span class="preset-label">Пресеты рубашки:</span>
+                      <button type="button" class="btn-preset-link" onclick="DeckEditor.setBackPreset('vault')">Люк</button>
+                      <button type="button" class="btn-preset-link" onclick="DeckEditor.setBackPreset('biohazard')">Радиация</button>
+                      <button type="button" class="btn-preset-link" onclick="DeckEditor.setBackPreset('cyber')">Кибер</button>
+                      <button type="button" class="btn-preset-link" onclick="DeckEditor.setBackPreset('none')">Сброс</button>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <!-- CATEGORIES CONSTRUCTOR -->
@@ -332,6 +449,53 @@
                 <button id="btn-editor-delete" class="btn btn-danger">Удалить тему</button>
               </div>
             </div>
+
+            <!-- RIGHT: LIVE STATIC PREVIEW (HONEST IN-GAME CARD FACE & BACK) -->
+            <div class="editor-preview-column">
+              <div class="preview-sticky-box">
+                <div class="preview-header">
+                  <h4>👁️ Реальный предпросмотр</h4>
+                  <small style="color: var(--text-dim);">Без анимаций: точный вид на экране</small>
+                </div>
+
+                <div class="preview-cards-pair">
+                  <!-- CARD FACE PREVIEW -->
+                  <div class="card-preview-wrapper">
+                    <div class="preview-label">Лицевая сторона (Открыта):</div>
+                    <div class="bunker-card-preview face-preview" id="card-preview-face">
+                      <div class="card-header">
+                        <div class="card-cat-title">
+                          <span class="card-cat-icon" id="prev-cat-icon">💼</span>
+                          <span class="card-cat-name" id="prev-cat-name">Профессия</span>
+                        </div>
+                      </div>
+                      <div class="card-content-text" id="prev-card-text">Врач-хирург высшей категории</div>
+                      <div class="card-tags-badges" id="prev-card-tags">
+                        <span class="card-tag-chip" style="color: #10b981; background: rgba(16, 185, 129, 0.15);">💊 Медицина +5</span>
+                      </div>
+                      <div class="card-footer">
+                        <span class="card-author-badge" id="prev-card-author">✍️ Автор: Набор</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- CARD BACK PREVIEW -->
+                  <div class="card-preview-wrapper">
+                    <div class="preview-label">Рубашка (Закрыта):</div>
+                    <div class="bunker-card-preview back-preview" id="card-preview-back">
+                      <div class="card-back-icon" id="prev-back-icon">🛡️</div>
+                      <div class="card-back-text" id="prev-back-text">БУНКЕР 3.1</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="preview-test-input-box">
+                  <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Быстрая проверка карты с параметрами:</label>
+                  <input type="text" id="prev-test-input" class="form-input" placeholder="Например: Пожарный (#Пожаротушение[4])" value="Огнетушитель углекислотный (#Пожаротушение[4])">
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
@@ -352,16 +516,26 @@
           </div>
 
           <div class="invite-links-box">
-            <!-- 1. Local Wi-Fi / Hotspot link -->
+            <!-- 1. Internet / Public link (Cloudflare Tunnel - 4G/LTE / Any Wi-Fi) -->
+            <div class="link-group" id="group-public-link">
+              <label>🌐 <strong>Ссылка для телефонов и друзей из интернета:</strong></label>
+              <div class="input-with-copy">
+                <input type="text" id="input-public-link" class="form-input" readonly>
+                <button class="btn btn-primary btn-sm" onclick="App.copyInputLink('input-public-link')">📋 Скопировать</button>
+              </div>
+              <small style="color: var(--accent-green); font-size: 11px;">✓ Работает с любых телефонов через мобильный 4G или любой Wi-Fi</small>
+            </div>
+
+            <!-- 2. Local Wi-Fi / Hotspot link -->
             <div class="link-group" id="group-local-link">
-              <label>🏠 <strong>Ссылка для Wi-Fi / Точки доступа с телефона:</strong></label>
+              <label>🏠 <strong>Локальная сеть (Wi-Fi / Точка доступа):</strong></label>
               <div class="input-with-copy">
                 <input type="text" id="input-local-link" class="form-input" readonly>
-                <button class="btn btn-primary btn-sm" onclick="App.copyInputLink('input-local-link')">📋 Скопировать</button>
+                <button class="btn btn-outline btn-sm" onclick="App.copyInputLink('input-local-link')">📋 Скопировать</button>
               </div>
             </div>
 
-            <!-- 2. Radmin VPN link -->
+            <!-- 3. Radmin VPN link -->
             <div class="link-group" id="group-radmin-link">
               <label>🛡️ <strong>Ссылка для Radmin VPN (сеть 26.X.X.X):</strong></label>
               <div class="input-with-copy">
@@ -553,6 +727,15 @@
             </div>
           </div>
 
+          <!-- TEAM RESOURCES BREAKDOWN IN EVALUATION -->
+          <div id="eval-team-resources-box" style="background: var(--bg-surface); border: 1px solid var(--accent-cyan); padding: 12px; border-radius: var(--radius-sm); margin: 14px 0;">
+            <div style="font-weight: 700; font-size: 13px; color: var(--accent-cyan); margin-bottom: 6px;">📊 Совокупные ресурсы выживших:</div>
+            <div id="eval-resources-chips" style="display: flex; flex-wrap: wrap; gap: 6px;"></div>
+            <div style="font-size: 11px; color: var(--text-dim); margin-top: 6px;">
+              Полезные предметы и навыки автоматически добавляют бонус к выживанию бункера!
+            </div>
+          </div>
+
           <div class="eval-bunker-info" style="background: var(--bg-surface); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); margin: 16px 0;">
             <div style="font-size: 13px;">Вместимость бункера: <strong id="eval-bunker-cap">0</strong> мест.</div>
             <div style="font-size: 13px; margin-top: 4px;">Спасшихся выживших (не изгнаны): <strong id="eval-survivors-count" class="text-green">0</strong> чел.</div>
@@ -562,6 +745,76 @@
           </div>
 
           <button id="btn-submit-final-evaluation" class="btn btn-success btn-lg btn-block">🏆 РАССЧИТАТЬ ВЫЖИВАНИЕ БУНКЕРА</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. MODAL: BULK IMPORT CARDS INTO CATEGORY -->
+    <div id="modal-bulk-import" class="modal-backdrop hidden">
+      <div class="modal-card" style="max-width: 580px;">
+        <div class="modal-header">
+          <h3 id="bulk-modal-title">📋 Пакетная вставка карт списком</h3>
+          <button id="btn-close-bulk-modal" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+            Вставьте список карт (каждая строка — отдельная карта). Поддерживаются теги параметров, например: <code>Врач-хирург (#Медицина[5], #Психика[2])</code>
+          </p>
+          <div class="quick-tag-insert-bar" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
+            <span style="font-size: 11px; color: var(--text-dim); align-self: center;">Вставить тег:</span>
+            <button type="button" class="btn-tag-chip" onclick="DeckEditor.insertBulkTag('#Пожаротушение[4]')">🧯 Пожар[4]</button>
+            <button type="button" class="btn-tag-chip" onclick="DeckEditor.insertBulkTag('#Медицина[4]')">💊 Мед[4]</button>
+            <button type="button" class="btn-tag-chip" onclick="DeckEditor.insertBulkTag('#Еда[4]')">🍞 Еда[4]</button>
+            <button type="button" class="btn-tag-chip" onclick="DeckEditor.insertBulkTag('#Инженерия[4]')">⚙️ Инж[4]</button>
+            <button type="button" class="btn-tag-chip" onclick="DeckEditor.insertBulkTag('#Психика[4]')">🧠 Псих[4]</button>
+            <button type="button" class="btn-tag-chip" onclick="DeckEditor.insertBulkTag('#Защита[4]')">🛡️ Защита[4]</button>
+            <button type="button" class="btn-tag-chip" onclick="DeckEditor.insertBulkTag('#Наука[4]')">🔬 Наука[4]</button>
+          </div>
+          <textarea id="bulk-import-textarea" class="form-input" rows="8" placeholder="Строка 1&#10;Строка 2&#10;Строка 3 (#Медицина[3])"></textarea>
+          <div style="display: flex; gap: 10px; margin-top: 14px;">
+            <button id="btn-apply-bulk-import" class="btn btn-primary btn-block">➕ ДОБАВИТЬ ВСЕ КАРТЫ</button>
+            <button id="btn-cancel-bulk-modal" class="btn btn-outline">Отмена</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. MODAL: PLAY INTERACTIVE SPECIAL CARD -->
+    <div id="modal-special-action" class="modal-backdrop hidden">
+      <div class="modal-card" style="max-width: 500px;">
+        <div class="modal-header">
+          <h3>⚡ Применение спец-карты</h3>
+          <button id="btn-close-special-modal" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <div id="special-card-summary-box" style="background: var(--bg-surface); border: 1px solid var(--accent-amber); padding: 12px; border-radius: var(--radius-sm); margin-bottom: 14px;">
+            <!-- Injected via JS -->
+          </div>
+          <div id="special-action-controls">
+            <!-- Dynamic inputs based on action type -->
+          </div>
+          <button id="btn-confirm-special-action" class="btn btn-warning btn-block" style="margin-top: 14px;">⚡ ПОДТВЕРДИТЬ И РАЗЫГРАТЬ</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. MODAL: TEAM SURVIVAL RESOURCES BREAKDOWN -->
+    <div id="modal-team-resources" class="modal-backdrop hidden">
+      <div class="modal-card" style="max-width: 540px;">
+        <div class="modal-header">
+          <h3>📊 Совокупные ресурсы команды</h3>
+          <button id="btn-close-resources-modal" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+            Суммарные показатели полезных предметов, профессий и навыков не изгнанных выживших:
+          </p>
+          <div id="team-resources-modal-grid" class="team-resources-grid">
+            <!-- Injected via JS -->
+          </div>
+          <p style="font-size: 11px; color: var(--text-dim); margin-top: 12px; line-height: 1.4;">
+            * Очки суммируются только у участников внутри бункера. Каждый полезный параметр увеличивает шанс выживания в финале и помогает преодолевать катастрофы и угрозы!
+          </p>
         </div>
       </div>
     </div>
@@ -600,6 +853,7 @@
 
   <!-- SCRIPTS -->
   <script src="js/qrcode.min.js"></script>
+  <script src="js/tag_helper.js"></script>
   <script src="js/app.js"></script>
   <script src="js/lobby.js"></script>
   <script src="js/ugc_creator.js"></script>

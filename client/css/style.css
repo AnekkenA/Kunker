@@ -18,14 +18,14 @@
   --accent-red: #ef4444;
   --accent-purple: #a855f7;
 
-  --card-w: 130px;
-  --card-h: 175px;
+  --card-w: 148px;
+  --card-h: 255px;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
 
-  --font-display: 'Orbitron', -apple-system, sans-serif;
-  --font-body: 'Roboto', -apple-system, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 15px rgba(56, 189, 248, 0.25);
 }
@@ -569,6 +569,55 @@ body {
   margin-top: 8px;
 }
 
+/* OFFICIAL CAPACITY GUIDE (LOBBY) */
+.official-capacity-guide {
+  margin-top: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.guide-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.capacity-table-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 6px;
+  font-size: 11px;
+}
+
+.cap-col {
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  padding: 4px 6px;
+  text-align: center;
+  color: var(--text-main);
+}
+
+.cap-col span {
+  color: var(--text-dim);
+}
+
+.cap-col strong {
+  color: var(--accent-amber);
+}
+
+.cap-rule-note {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
 .lobby-actions {
   display: flex;
   flex-direction: column;
@@ -743,8 +792,66 @@ body {
 
 .toolbar-stats {
   display: flex;
+  align-items: center;
   gap: 16px;
   font-size: 13px;
+}
+
+.capacity-stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-cap-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--accent-amber);
+  font-weight: 900;
+  font-size: 14px;
+  cursor: pointer;
+  line-height: 1;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.btn-cap-step:hover {
+  background: var(--accent-amber);
+  color: #000;
+  border-color: var(--accent-amber);
+  transform: scale(1.1);
+}
+
+.btn-cap-step:active {
+  transform: scale(0.95);
+}
+
+.stat-warning-chip {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid var(--accent-red);
+  color: var(--accent-red);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  animation: pulse-warn 2s infinite;
+}
+
+@keyframes pulse-warn {
+  0% { opacity: 0.9; }
+  50% { opacity: 0.5; }
+  100% { opacity: 0.9; }
+}
+
+.btn-disabled-lock {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  filter: grayscale(0.5);
 }
 
 .stat-item strong {
@@ -806,13 +913,13 @@ body {
   border-bottom: 1px solid var(--border-color);
   border-right: 1px solid var(--border-color);
   vertical-align: top !important;
-  height: 165px;
+  height: calc(var(--card-h) + 18px);
   box-sizing: border-box;
 }
 
 .player-row {
   transition: background-color 0.2s;
-  height: 165px;
+  height: calc(var(--card-h) + 18px);
 }
 
 .player-row:hover {
@@ -866,10 +973,10 @@ body {
 
 /* 3D FLIP CARD (RIGID FIXED DIMENSIONS) */
 .card-container {
-  width: 125px;
-  height: 155px;
-  min-height: 155px;
-  max-height: 155px;
+  width: var(--card-w);
+  height: var(--card-h);
+  min-height: var(--card-h);
+  max-height: var(--card-h);
   perspective: 800px;
   margin: 0 auto;
   box-sizing: border-box;
@@ -972,8 +1079,8 @@ body {
 }
 
 .card-content-text {
-  font-size: 11px;
-  line-height: 1.3;
+  font-size: 11.5px;
+  line-height: 1.35;
   color: #fff;
   font-weight: 500;
   flex: 1;
@@ -981,10 +1088,10 @@ body {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 2px 0;
+  padding: 4px 2px;
   word-break: break-word;
   overflow-y: auto;
-  max-height: 90px;
+  max-height: 160px;
 }
 
 .card-footer {
@@ -1006,6 +1113,12 @@ body {
   font-weight: 700;
   cursor: pointer;
   width: 100%;
+}
+
+.btn-reveal-self.btn-special-play {
+  background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 0 8px rgba(236, 72, 153, 0.5);
 }
 
 .btn-special-use {
@@ -1205,8 +1318,9 @@ body {
 
 .editor-body {
   display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: 24px;
+  grid-template-columns: 240px 1fr 310px;
+  gap: 20px;
+  align-items: start;
 }
 
 .editor-decks-list {
@@ -1435,9 +1549,20 @@ body {
 }
 
 .qrcode-wrapper {
-  display: flex;
+  display: inline-flex;
   justify-content: center;
   align-items: center;
+  background: #ffffff;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.35);
+  margin: 0 auto;
+}
+
+.qrcode-wrapper canvas,
+.qrcode-wrapper img {
+  display: block;
+  margin: 0 auto;
 }
 
 .qr-hint {
@@ -1611,6 +1736,15 @@ body {
 }
 
 /* MOBILE RESPONSIVENESS */
+@media (max-width: 1280px) {
+  .editor-body {
+    grid-template-columns: 220px 1fr;
+  }
+  .editor-preview-column {
+    grid-column: span 2;
+  }
+}
+
 @media (max-width: 768px) {
   .lobby-grid {
     grid-template-columns: 1fr;
@@ -1624,12 +1758,300 @@ body {
     grid-template-columns: 1fr;
   }
 
+  .editor-preview-column {
+    grid-column: span 1;
+  }
+
   .editor-categories {
     grid-template-columns: 1fr;
   }
 
   :root {
-    --card-w: 110px;
-    --card-h: 155px;
+    --card-w: 125px;
+    --card-h: 225px;
   }
 }
+
+/* ============================================================
+   SURVIVAL PARAMETER TAGS & BADGES
+   ============================================================ */
+.card-tags-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  justify-content: center;
+  align-items: center;
+  margin: 3px 0;
+  max-width: 100%;
+}
+
+.card-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 5px;
+  border-radius: 4px;
+  line-height: 1.1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+}
+
+.card-author-badge {
+  font-size: 8.5px;
+  color: var(--text-dim);
+  max-width: 85px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: inline-block;
+  opacity: 0.85;
+}
+
+/* ============================================================
+   DECK EDITOR: META GRID & VISUAL THEME CONTROLS
+   ============================================================ */
+.deck-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 900px) {
+  .deck-meta-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.editor-theme-styling-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-bottom: 16px;
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.08);
+}
+
+.theme-style-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  margin-bottom: 10px;
+}
+
+.theme-inputs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .theme-inputs-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.preset-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.preset-label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.btn-preset-link {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-preset-link:hover {
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  background: rgba(6, 182, 212, 0.1);
+}
+
+/* ============================================================
+   DECK EDITOR: LIVE STATIC PREVIEW COLUMN (NO 3D ANIMATION)
+   ============================================================ */
+.editor-preview-column {
+  min-width: 280px;
+}
+
+.preview-sticky-box {
+  position: sticky;
+  top: 80px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.preview-header {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+  margin-bottom: 14px;
+}
+
+.preview-header h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  margin-bottom: 2px;
+}
+
+.preview-cards-pair {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.card-preview-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.preview-label {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.bunker-card-preview {
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 6px 8px;
+  box-sizing: border-box;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  position: relative;
+  overflow: hidden;
+}
+
+.bunker-card-preview.face-preview {
+  background: var(--bg-surface);
+  border: 2px solid var(--border-glow);
+}
+
+.bunker-card-preview.back-preview {
+  background: linear-gradient(145deg, #182230 0%, #0d131a 100%);
+  border: 2px solid #2b3b52;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.bunker-card-preview.back-preview::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.preview-test-input-box {
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+}
+
+/* ============================================================
+   QUICK TAG INSERT BAR & CHIPS
+   ============================================================ */
+.quick-tag-insert-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.btn-tag-chip {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.btn-tag-chip:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================================
+   TEAM SURVIVAL RESOURCES GRID & MODAL
+   ============================================================ */
+.team-resources-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.team-res-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.team-res-card:hover {
+  border-color: var(--border-glow);
+}
+
+.team-res-icon {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.team-res-val {
+  font-size: 20px;
+  font-weight: 900;
+  font-family: var(--font-display);
+  line-height: 1.2;
+}
+
+.team-res-name {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.action-select-inline {
+  background: #0b0f17;
+  border: 1px solid var(--border-color);
+  color: var(--accent-amber);
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  outline: none;
+}
+

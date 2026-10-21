@@ -117,14 +117,23 @@ const App = {
       btnSound.textContent = this.soundEnabled ? '🔊' : '🔇';
     });
 
-    // Enter / Join Game
-    document.getElementById('btn-join-game').addEventListener('click', async () => {
-      const name = document.getElementById('input-player-name').value.trim();
-      const password = document.getElementById('input-player-password').value.trim();
+    // Enter / Join Game (Form Submit + Button Click)
+    const joinBtn = document.getElementById('btn-join-game');
+    const authForm = document.getElementById('form-auth');
+
+    const handleJoin = async () => {
+      const nameInput = document.getElementById('input-player-name');
+      const name = nameInput ? nameInput.value.trim() : '';
 
       if (!name) {
         this.showToast('⚠️ Пожалуйста, введите ваше имя (никнейм)!');
+        if (nameInput) nameInput.focus();
         return;
+      }
+
+      if (joinBtn) {
+        joinBtn.disabled = true;
+        joinBtn.textContent = '⏳ ВХОД В БУНКЕР...';
       }
 
       this.playerName = name;
@@ -134,7 +143,7 @@ const App = {
         const res = await fetch('/api/join', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, password })
+          body: JSON.stringify({ name, password: '' })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Ошибка входа');
@@ -148,9 +157,27 @@ const App = {
         this.showToast(data.isHost ? '👑 Вы вошли как Мастер игры!' : '🚪 Вы вошли в бункер!');
         this.playSound('start');
       } catch (err) {
+        if (joinBtn) {
+          joinBtn.disabled = false;
+          joinBtn.textContent = 'ВОЙТИ В БУНКЕР';
+        }
         this.showToast(`❌ ${err.message}`);
+        alert(`Ошибка входа: ${err.message}`);
       }
-    });
+    };
+
+    if (authForm) {
+      authForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        handleJoin();
+      });
+    }
+    if (joinBtn) {
+      joinBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        handleJoin();
+      });
+    }
 
     // Invite Modal Open
     const handleOpenInvite = () => {
@@ -205,6 +232,23 @@ const App = {
     this.eventSource.onerror = () => {
       console.warn('SSE переподключение...');
     };
+
+    this.startHeartbeat();
+  },
+
+  startHeartbeat() {
+    if (this.heartbeatInterval) clearInterval(this.heartbeatInterval);
+    this.heartbeatInterval = setInterval(async () => {
+      if (this.playerId) {
+        try {
+          const res = await fetch(`/api/state?playerId=${encodeURIComponent(this.playerId)}`);
+          if (res.ok) {
+            const state = await res.json();
+            this.onStateUpdate(state);
+          }
+        } catch (e) {}
+      }
+    }, 2500);
   },
 
   onStateUpdate(state) {
@@ -274,12 +318,31 @@ const App = {
       if (res.ok) net = await res.json();
     } catch (e) {}
 
+    const publicLink = (net.publicUrl || '').trim();
     const radminLink = net.radminIpUrl || '';
-    const localLink = (window.location.origin.startsWith('http') ? window.location.origin : (net.localIpUrl || 'http://localhost:3000'));
+    const localLink = (net.localIpUrl || 'http://localhost:3000').trim();
 
+    // Determine the BEST link for other players (NEVER encode localhost into QR!)
+    let bestLink = publicLink;
+    if (!bestLink) {
+      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        bestLink = window.location.origin;
+      } else {
+        bestLink = localLink;
+      }
+    }
+
+    const pubInput = document.getElementById('input-public-link');
+    const pubGroup = document.getElementById('group-public-link');
     const radInput = document.getElementById('input-radmin-link');
     const locInput = document.getElementById('input-local-link');
     const radGroup = document.getElementById('group-radmin-link');
+
+    if (pubInput) pubInput.value = publicLink;
+    if (pubGroup) {
+      if (publicLink) pubGroup.classList.remove('hidden');
+      else pubGroup.classList.add('hidden');
+    }
 
     if (locInput) locInput.value = localLink;
     if (radInput) radInput.value = radminLink;
@@ -292,17 +355,26 @@ const App = {
       }
     }
 
-    // Use active URL for QR Code
-    const qrLink = localLink.trim();
+    // Use active URL for QR Code (NEVER localhost!)
+    const qrLink = (bestLink || localLink || 'http://localhost:3000').trim();
     const qrContainer = document.getElementById('invite-qrcode');
-    if (window.QRCode && qrContainer && qrLink) {
+    if (qrContainer && qrLink) {
       qrContainer.innerHTML = '';
-      new QRCode(qrContainer, {
-        text: qrLink,
-        width: 180,
-        height: 180,
-        correctLevel: QRCode.CorrectLevel.M
-      });
+      try {
+        if (typeof QRCode !== 'undefined') {
+          const correctLevel = (QRCode.CorrectLevel && QRCode.CorrectLevel.M !== undefined) ? QRCode.CorrectLevel.M : 0;
+          new QRCode(qrContainer, {
+            text: qrLink,
+            width: 180,
+            height: 180,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel
+          });
+        }
+      } catch (err) {
+        console.error('Ошибка отрисовки QR-кода:', err);
+      }
     }
   },
 
