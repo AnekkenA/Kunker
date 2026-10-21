@@ -2055,3 +2055,39 @@ body {
   outline: none;
 }
 
+/* ============================================================
+   MULTI-ROOM & UNIQUE QR CODE STYLES
+   ============================================================ */
+.auth-room-badge {
+  background: rgba(6, 182, 212, 0.1);
+  border: 1px dashed var(--accent-cyan);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  display: block;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.room-id-banner {
+  background: rgba(6, 182, 212, 0.12);
+  border: 1px solid var(--accent-cyan);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  text-align: center;
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.1);
+}
+
+.font-mono {
+  font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace !important;
+}
+
+.text-uppercase {
+  text-transform: uppercase !important;
+}
+
+.btn-xs {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+

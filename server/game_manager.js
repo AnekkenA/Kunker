@@ -5,14 +5,18 @@ const os = require('os');
 const deckLoader = require('./deck_loader');
 const TagHelper = require('../client/js/tag_helper');
 
-function getNetworkInfo() {
+function getNetworkInfo(roomId = null) {
+  const queryParam = roomId ? `?room=${encodeURIComponent(roomId)}` : '';
+
   const renderUrl = process.env.RENDER_EXTERNAL_URL;
   if (renderUrl) {
+    const base = renderUrl.replace(/\/+$/, '');
     return {
-      publicUrl: renderUrl,
-      localIpUrl: renderUrl,
+      roomId: roomId || 'BUNKER-101',
+      publicUrl: `${base}/${queryParam}`,
+      localIpUrl: `${base}/${queryParam}`,
       radminIpUrl: null,
-      localhostUrl: renderUrl
+      localhostUrl: `${base}/${queryParam}`
     };
   }
 
@@ -44,11 +48,15 @@ function getNetworkInfo() {
     }
   }
 
+  const cleanPublic = publicUrl ? (publicUrl.replace(/\/+$/, '') + '/' + queryParam) : null;
+  const localBase = localIp ? `http://${localIp}:3000` : 'http://localhost:3000';
+
   return {
-    publicUrl,
-    localIpUrl: localIp ? `http://${localIp}:3000` : 'http://localhost:3000',
-    radminIpUrl: radminIp ? `http://${radminIp}:3000` : null,
-    localhostUrl: 'http://localhost:3000'
+    roomId: roomId || 'BUNKER-101',
+    publicUrl: cleanPublic,
+    localIpUrl: `${localBase}/${queryParam}`,
+    radminIpUrl: radminIp ? `http://${radminIp}:3000/${queryParam}` : null,
+    localhostUrl: `http://localhost:3000/${queryParam}`
   };
 }
 
@@ -79,7 +87,9 @@ function getRandomItem(array, fallback = '—') {
 }
 
 class SingleGame {
-  constructor() {
+  constructor(roomId = 'BUNKER-101') {
+    this.roomId = (roomId || 'BUNKER-101').trim().toUpperCase();
+    this.sseClients = new Set();
     this.broadcastCallback = null;
     this.resetGame();
   }
@@ -90,8 +100,12 @@ class SingleGame {
 
   notifyBroadcast() {
     if (typeof this.broadcastCallback === 'function') {
-      this.broadcastCallback();
+      this.broadcastCallback(this);
     }
+  }
+
+  broadcast() {
+    this.notifyBroadcast();
   }
 
   resetGame() {
@@ -1331,16 +1345,72 @@ class SingleGame {
       players: playersList,
       categories: this.categories,
       logs: this.logs.slice(0, 35),
-      network: getNetworkInfo()
+      roomId: this.roomId,
+      network: getNetworkInfo(this.roomId)
     };
   }
 }
 
-const singleGameInstance = new SingleGame();
+class RoomManager {
+  constructor() {
+    this.rooms = new Map();
+    this.defaultRoomId = 'BUNKER-101';
+    this.onRoomCreated = null;
+    // Pre-create default room
+    this.getRoom(this.defaultRoomId);
+  }
+
+  generateRoomCode() {
+    const digits = Math.floor(1000 + Math.random() * 9000);
+    return `BUNKER-${digits}`;
+  }
+
+  getRoom(roomId, createIfNotFound = true) {
+    let cleanId = (roomId || '').trim().toUpperCase();
+    if (!cleanId) {
+      cleanId = this.defaultRoomId;
+    }
+
+    if (!this.rooms.has(cleanId)) {
+      if (!createIfNotFound) return null;
+      const gameInstance = new SingleGame(cleanId);
+      this.rooms.set(cleanId, gameInstance);
+      if (typeof this.onRoomCreated === 'function') {
+        this.onRoomCreated(gameInstance);
+      }
+      return gameInstance;
+    }
+    return this.rooms.get(cleanId);
+  }
+
+  createRoom(customId = null) {
+    const roomId = customId ? customId.trim().toUpperCase() : this.generateRoomCode();
+    const gameInstance = new SingleGame(roomId);
+    this.rooms.set(roomId, gameInstance);
+    if (typeof this.onRoomCreated === 'function') {
+      this.onRoomCreated(gameInstance);
+    }
+    return gameInstance;
+  }
+
+  listRooms() {
+    return Array.from(this.rooms.values()).map(r => ({
+      roomId: r.roomId,
+      playersCount: r.players.size,
+      status: r.status,
+      disaster: r.disaster ? r.disaster.title : null
+    }));
+  }
+}
+
+const roomManager = new RoomManager();
+const singleGameInstance = roomManager.getRoom('BUNKER-101');
 
 module.exports = {
   game: singleGameInstance,
   SingleGame,
+  RoomManager,
+  roomManager,
   CATEGORIES,
   getNetworkInfo
 };

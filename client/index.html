@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>БУНКЕР — Настольная игра на выживание</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="theme-dark">
@@ -20,6 +21,9 @@
         </button>
       </div>
       <div class="header-right">
+        <span id="room-code-badge" class="badge font-mono hidden" style="background: rgba(6, 182, 212, 0.15); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); font-size: 11px; margin-right: 6px;" title="Код текущего бункера">
+          🏷️ <span id="header-room-code">BUNKER-101</span>
+        </span>
         <div id="user-profile" class="user-profile hidden">
           <span id="user-role-badge" class="role-badge">Игрок</span>
           <span id="user-display-name" class="user-name">...</span>
@@ -47,6 +51,17 @@
               <label for="input-player-name">Ваш позывной (Имя или никнейм):</label>
               <input type="text" id="input-player-name" class="form-input" placeholder="Например: Сталкер, Доктор, Макс" maxlength="20" autofocus required>
               <small class="form-hint" style="color: var(--text-dim); margin-top: 6px; display: block;">Никаких паролей не требуется. Просто введите имя для входа в игру.</small>
+            </div>
+
+            <div class="form-group" style="margin-top: 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <label for="input-room-code" style="margin-bottom: 0; font-size: 13px;">Код бункера (комнаты):</label>
+                <button type="button" id="btn-random-room-code" class="btn btn-xs btn-outline" style="font-size: 11px; padding: 2px 7px;">🎲 Новый код</button>
+              </div>
+              <input type="text" id="input-room-code" class="form-input text-uppercase font-mono" placeholder="BUNKER-101" maxlength="20" value="BUNKER-101" style="font-weight: 700; letter-spacing: 0.5px;">
+              <div id="auth-room-badge" class="auth-room-badge hidden" style="font-size: 11.5px; color: var(--accent-cyan); margin-top: 4px;">
+                🛡️ Подключение по ссылке к: <strong id="auth-room-badge-text"></strong>
+              </div>
             </div>
 
             <button type="submit" id="btn-join-game" class="btn btn-success btn-lg btn-block">ВОЙТИ В БУНКЕР</button>
@@ -213,6 +228,7 @@
             <div class="lobby-actions">
               <button id="btn-start-game" class="btn btn-success btn-lg btn-block">🚀 НАЧАТЬ ИГРУ</button>
               <button id="btn-open-deck-editor" class="btn btn-outline btn-block">🛠️ Конструктор наборов карт</button>
+              <button id="btn-lobby-new-room" class="btn btn-outline btn-block" style="margin-top: 8px;" title="Создать новую независимую комнату со своим уникальным QR-кодом">🎲 Создать новый бункер (комнату)</button>
             </div>
           </div>
         </div>
@@ -510,6 +526,12 @@
           <button id="btn-close-invite-modal" class="btn-icon">✕</button>
         </div>
         <div class="modal-body">
+          <div class="room-id-banner" style="background: rgba(6, 182, 212, 0.12); border: 1px solid var(--accent-cyan); border-radius: var(--radius-sm); padding: 10px 14px; text-align: center; margin-bottom: 12px;">
+            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Персональный бункер (комната):</div>
+            <div style="font-size: 20px; font-weight: 900; font-family: var(--font-display); color: var(--accent-cyan); letter-spacing: 1px; margin-top: 2px;" id="invite-room-code-display">BUNKER-101</div>
+            <div style="font-size: 11px; color: var(--accent-green); margin-top: 4px;">✓ Этот QR-код подключает строго к вашей текущей игре!</div>
+          </div>
+
           <div class="qr-section">
             <div id="invite-qrcode" class="qrcode-wrapper"></div>
             <p class="qr-hint">📷 <strong>Наведите камеру смартфона</strong> на QR-код для мгновенного входа!</p>

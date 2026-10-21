@@ -3,36 +3,60 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 const zlib = require('zlib');
-const { game, CATEGORIES, getNetworkInfo } = require('./game_manager');
+const { roomManager, CATEGORIES, getNetworkInfo } = require('./game_manager');
 const deckLoader = require('./deck_loader');
 
 const PORT = process.env.PORT || 3000;
 const CLIENT_DIR = path.join(__dirname, '..', 'client');
 
-// SSE clients set: Set of { res, playerId }
-const sseClients = new Set();
-
-function broadcast() {
-  for (const client of sseClients) {
+// Broadcast state to all SSE clients connected to a specific room
+function broadcastRoom(targetRoom) {
+  if (!targetRoom || !targetRoom.sseClients) return;
+  const stateCache = new Map();
+  for (const client of targetRoom.sseClients) {
     try {
-      const state = game.toClientState(client.playerId);
+      let state = stateCache.get(client.playerId);
+      if (!state) {
+        state = targetRoom.toClientState(client.playerId);
+        stateCache.set(client.playerId, state);
+      }
       client.res.write(`data: ${JSON.stringify(state)}\n\n`);
     } catch (e) {
-      sseClients.delete(client);
+      targetRoom.sseClients.delete(client);
     }
   }
 }
 
-// Hook broadcast into game manager for timer auto-updates
-game.setBroadcast(broadcast);
+// Hook roomManager so rooms auto-attach broadcastRoom
+roomManager.onRoomCreated = (room) => {
+  room.setBroadcast(() => broadcastRoom(room));
+};
+for (const r of roomManager.rooms.values()) {
+  r.setBroadcast(() => broadcastRoom(r));
+}
 
-// SSE keepalive ping every 15 seconds to prevent Cloudflare/NAT drops
+// Helper to resolve the target room instance from request
+function getGameFromReq(req, parsedUrl, body = null) {
+  let roomId = null;
+  if (body && body.roomId) roomId = body.roomId;
+  if (!roomId && parsedUrl && parsedUrl.query && parsedUrl.query.room) roomId = parsedUrl.query.room;
+  if (!roomId && req && req.headers && req.headers['x-room-id']) roomId = req.headers['x-room-id'];
+  const room = roomManager.getRoom(roomId);
+  if (!room.broadcastCallback) {
+    room.setBroadcast(() => broadcastRoom(room));
+  }
+  return room;
+}
+
+// SSE keepalive ping every 15 seconds to prevent Cloudflare/NAT drops across all rooms
 setInterval(() => {
-  for (const client of sseClients) {
-    try {
-      client.res.write(': ping\n\n');
-    } catch (e) {
-      sseClients.delete(client);
+  for (const room of roomManager.rooms.values()) {
+    for (const client of room.sseClients) {
+      try {
+        client.res.write(': ping\n\n');
+      } catch (e) {
+        room.sseClients.delete(client);
+      }
     }
   }
 }, 15000);
@@ -97,6 +121,7 @@ const server = http.createServer(async (req, res) => {
   // 1. API: Server-Sent Events (SSE) Realtime Stream
   if (pathname === '/api/events') {
     const playerId = parsedUrl.query.playerId;
+    const targetGame = getGameFromReq(req, parsedUrl);
 
     res.writeHead(200, {
       'Content-Type': 'text/event-stream; charset=utf-8',
@@ -107,14 +132,14 @@ const server = http.createServer(async (req, res) => {
     });
 
     const clientObj = { res, playerId };
-    sseClients.add(clientObj);
+    targetGame.sseClients.add(clientObj);
 
     // Send initial state immediately
-    const initialState = game.toClientState(playerId);
+    const initialState = targetGame.toClientState(playerId);
     res.write(`data: ${JSON.stringify(initialState)}\n\n`);
 
     req.on('close', () => {
-      sseClients.delete(clientObj);
+      targetGame.sseClients.delete(clientObj);
     });
     return;
   }
@@ -122,52 +147,72 @@ const server = http.createServer(async (req, res) => {
   // 2. API Routes
   if (pathname.startsWith('/api/')) {
     try {
+      // Create new unique room / game
+      if (pathname === '/api/create_room' && req.method === 'POST') {
+        const body = await parseBody(req);
+        const newGame = roomManager.createRoom(body ? body.customRoomId : null);
+        newGame.setBroadcast(() => broadcastRoom(newGame));
+        return sendJson(res, 200, {
+          success: true,
+          roomId: newGame.roomId
+        });
+      }
+
+      // List active rooms
+      if (pathname === '/api/rooms' && req.method === 'GET') {
+        return sendJson(res, 200, { rooms: roomManager.listRooms() });
+      }
+
       // Join / Enter Game
       if (pathname === '/api/join' && req.method === 'POST') {
         const body = await parseBody(req);
-        const { playerId, isHost } = game.joinPlayer(body.name, body.password);
-        broadcast();
+        const targetGame = getGameFromReq(req, parsedUrl, body);
+        const { playerId, isHost } = targetGame.joinPlayer(body.name, body.password);
+        targetGame.broadcast();
         return sendJson(res, 200, {
           success: true,
           playerId,
           isHost,
-          state: game.toClientState(playerId)
+          roomId: targetGame.roomId,
+          state: targetGame.toClientState(playerId)
         });
       }
 
       // Game State
       if (pathname === '/api/state') {
+        const targetGame = getGameFromReq(req, parsedUrl);
         const playerId = parsedUrl.query.playerId;
-        return sendJson(res, 200, game.toClientState(playerId));
+        return sendJson(res, 200, targetGame.toClientState(playerId));
       }
 
       // Actions
       if (pathname === '/api/action' && req.method === 'POST') {
         const body = await parseBody(req);
+        const targetGame = getGameFromReq(req, parsedUrl, body);
         const { action, playerId, payload } = body;
 
         switch (action) {
           case 'reveal_card':
-            game.revealCard(payload.targetPlayerId, payload.categoryKey, playerId);
+            targetGame.revealCard(payload.targetPlayerId, payload.categoryKey, playerId);
             break;
 
           case 'reveal_all_cards':
-            game.revealAllPlayerCards(payload.targetPlayerId, playerId);
+            targetGame.revealAllPlayerCards(payload.targetPlayerId, playerId);
             break;
 
           case 'toggle_exile':
-            game.toggleExile(payload.targetPlayerId, playerId);
+            targetGame.toggleExile(payload.targetPlayerId, playerId);
             break;
 
           case 'start_preset':
             if (payload && Array.isArray(payload.decks)) {
-              game.selectedDecks = payload.decks;
+              targetGame.selectedDecks = payload.decks;
             }
             if (payload && payload.bunkerCapacity) {
-              game.bunkerCapacity = parseInt(payload.bunkerCapacity, 10) || 1;
+              targetGame.bunkerCapacity = parseInt(payload.bunkerCapacity, 10) || 1;
             }
-            game.mode = 'preset';
-            game.startPresetGame(playerId, {
+            targetGame.mode = 'preset';
+            targetGame.startPresetGame(playerId, {
               threatMode: payload ? payload.threatMode : 'threshold',
               threatPercent: payload ? payload.threatPercent : 50,
               worldCardsMaxLimit: payload ? payload.worldCardsMaxLimit : 6,
@@ -180,101 +225,101 @@ const server = http.createServer(async (req, res) => {
             break;
 
           case 'play_special_action': {
-            const res = game.playSpecialCardAction(playerId, payload.actionType, payload.params);
-            broadcastState();
-            if (res && res.privateSpyResult) {
-              return sendJson(200, { success: true, spyResult: res.privateSpyResult });
+            const resData = targetGame.playSpecialCardAction(playerId, payload.actionType, payload.params);
+            targetGame.broadcast();
+            if (resData && resData.privateSpyResult) {
+              return sendJson(res, 200, { success: true, spyResult: resData.privateSpyResult });
             }
-            return sendJson(200, { success: true });
+            return sendJson(res, 200, { success: true });
           }
 
           case 'reveal_exiled_all':
-            game.revealExiledPlayerCards(payload.targetPlayerId, playerId);
+            targetGame.revealExiledPlayerCards(payload.targetPlayerId, playerId);
             break;
 
           case 'start_ugc_phase':
-            game.mode = 'ugc';
+            targetGame.mode = 'ugc';
             if (payload && payload.bunkerCapacity) {
-              game.bunkerCapacity = parseInt(payload.bunkerCapacity, 10) || 1;
+              targetGame.bunkerCapacity = parseInt(payload.bunkerCapacity, 10) || 1;
             }
-            game.startUgcPhase(playerId, { threatMode: payload ? payload.threatMode : 'threshold' });
+            targetGame.startUgcPhase(playerId, { threatMode: payload ? payload.threatMode : 'threshold' });
             break;
 
           case 'submit_ugc':
-            game.submitUgcCards(playerId, payload.submissions);
+            targetGame.submitUgcCards(playerId, payload.submissions);
             break;
 
           case 'start_ugc_game':
-            game.startUgcGame(playerId, payload ? payload.saveThemeName : null);
+            targetGame.startUgcGame(playerId, payload ? payload.saveThemeName : null);
             break;
 
           case 'replace_card':
-            game.replacePlayerCard(payload.targetPlayerId || playerId, payload.categoryKey, playerId);
+            targetGame.replacePlayerCard(payload.targetPlayerId || playerId, payload.categoryKey, playerId);
             break;
 
           case 'change_bunker_capacity':
-            game.changeBunkerCapacity(payload.delta, playerId);
+            targetGame.changeBunkerCapacity(payload.delta, playerId);
             break;
 
           case 'reveal_other_card':
-            game.revealOtherPlayerCard(payload.targetPlayerId, payload.categoryKey, playerId);
+            targetGame.revealOtherPlayerCard(payload.targetPlayerId, payload.categoryKey, playerId);
             break;
 
           case 'shuffle_selected_cards':
-            game.shuffleSelectedCards(payload.categoryKey, payload.playerIds, playerId);
+            targetGame.shuffleSelectedCards(payload.categoryKey, payload.playerIds, playerId);
             break;
 
           case 'draw_world_card':
-            game.drawWorldCard();
+            targetGame.drawWorldCard();
             break;
 
           case 'submit_evaluation':
-            game.submitSurvivalEvaluation(payload.evaluation, playerId);
+            targetGame.submitSurvivalEvaluation(payload.evaluation, playerId);
             break;
 
           case 'swap_cards':
-            game.swapPlayerCards(payload.player1Id, payload.player2Id, payload.categoryKey, playerId);
+            targetGame.swapPlayerCards(payload.player1Id, payload.player2Id, payload.categoryKey, playerId);
             break;
 
           case 'shuffle_revealed_cards':
-            game.shuffleSelectedCards(payload.categoryKey, Array.from(game.players.keys()), playerId);
+            targetGame.shuffleSelectedCards(payload.categoryKey, Array.from(targetGame.players.keys()), playerId);
             break;
 
           case 'steal_card':
-            game.stealPlayerCard(payload.fromPlayerId, payload.toPlayerId, payload.categoryKey, playerId);
+            targetGame.stealPlayerCard(payload.fromPlayerId, payload.toPlayerId, payload.categoryKey, playerId);
             break;
 
           case 'finish_game':
-            // Opens questionnaire or direct finish
             if (payload && payload.evaluation) {
-              game.submitSurvivalEvaluation(payload.evaluation, playerId);
+              targetGame.submitSurvivalEvaluation(payload.evaluation, playerId);
             } else {
-              game.finishGame(playerId);
+              targetGame.finishGame(playerId);
             }
             break;
 
           case 'reset_lobby':
-            game.resetToLobby(playerId);
+            targetGame.resetToLobby(playerId);
             break;
 
           case 'update_settings':
-            if (playerId !== game.hostId) throw new Error('Только мастер может менять настройки');
-            if (payload.bunkerCapacity) game.bunkerCapacity = parseInt(payload.bunkerCapacity, 10) || 1;
-            if (payload.decks) game.selectedDecks = payload.decks;
-            if (payload.password !== undefined) game.password = String(payload.password).trim();
+            if (playerId !== targetGame.hostId) throw new Error('Только мастер может менять настройки');
+            if (payload.bunkerCapacity) targetGame.bunkerCapacity = parseInt(payload.bunkerCapacity, 10) || 1;
+            if (payload.decks) targetGame.selectedDecks = payload.decks;
+            if (payload.password !== undefined) targetGame.password = String(payload.password).trim();
             break;
 
           default:
             return sendJson(res, 400, { error: `Неизвестное действие: ${action}` });
         }
 
-        broadcast();
+        targetGame.broadcast();
         return sendJson(res, 200, { success: true });
       }
 
       // Network Info
       if (pathname === '/api/network' && req.method === 'GET') {
-        return sendJson(res, 200, getNetworkInfo());
+        const targetGame = getGameFromReq(req, parsedUrl);
+        return sendJson(res, 200, getNetworkInfo(targetGame.roomId));
       }
 
       // Deck endpoints

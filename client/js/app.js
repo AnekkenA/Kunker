@@ -1,7 +1,8 @@
-// --- GLOBAL APP STATE & NETWORKING (SINGLE SESSION ENGINE) ---
+// --- GLOBAL APP STATE & NETWORKING (MULTI-ROOM ENGINE) ---
 const App = {
   playerName: sessionStorage.getItem('bunker_player_name') || '',
   playerId: sessionStorage.getItem('bunker_player_id') || '',
+  roomId: 'BUNKER-101',
   isHost: false,
   soundEnabled: true,
   state: null,
@@ -10,16 +11,42 @@ const App = {
 
   async init() {
     this.initAudio();
+
+    // Resolve room from URL query parameter ?room=... or local storage
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomParam = urlParams.get('room');
+    if (roomParam) {
+      this.roomId = roomParam.trim().toUpperCase();
+      localStorage.setItem('bunker_room_id', this.roomId);
+    } else {
+      this.roomId = (localStorage.getItem('bunker_room_id') || 'BUNKER-101').trim().toUpperCase();
+    }
+
+    const roomInput = document.getElementById('input-room-code');
+    if (roomInput) {
+      roomInput.value = this.roomId;
+    }
+
+    const authBadge = document.getElementById('auth-room-badge');
+    const authBadgeText = document.getElementById('auth-room-badge-text');
+    if (authBadge && authBadgeText && roomParam) {
+      authBadgeText.textContent = this.roomId;
+      authBadge.classList.remove('hidden');
+    }
+
     this.bindGlobalEvents();
 
     if (this.playerName) {
-      document.getElementById('input-player-name').value = this.playerName;
+      const nameInput = document.getElementById('input-player-name');
+      if (nameInput) nameInput.value = this.playerName;
     }
 
-    // If session has player ID, try restoring state
+    // If session has player ID, try restoring state for this specific room
     if (this.playerId) {
       try {
-        const res = await fetch(`/api/state?playerId=${encodeURIComponent(this.playerId)}`);
+        const res = await fetch(`/api/state?playerId=${encodeURIComponent(this.playerId)}&room=${encodeURIComponent(this.roomId)}`, {
+          headers: { 'x-room-id': this.roomId }
+        });
         if (res.ok) {
           const state = await res.json();
           if (state && state.myId) {
@@ -58,36 +85,50 @@ const App = {
     if (type === 'flip') {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(300, now);
-      osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+      osc.frequency.exponentialRampToValueAtTime(150, now + 0.12);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
       osc.start(now);
-      osc.stop(now + 0.15);
+      osc.stop(now + 0.12);
     } else if (type === 'click') {
       osc.type = 'triangle';
-      osc.frequency.setValueAtTime(600, now);
-      gain.gain.setValueAtTime(0.1, now);
+      osc.frequency.setValueAtTime(450, now);
+      gain.gain.setValueAtTime(0.08, now);
       gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
       osc.start(now);
       osc.stop(now + 0.05);
-    } else if (type === 'exile') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(200, now);
-      osc.frequency.setValueAtTime(150, now + 0.15);
-      gain.gain.setValueAtTime(0.25, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
-      osc.start(now);
-      osc.stop(now + 0.35);
     } else if (type === 'start') {
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.setValueAtTime(554, now + 0.1);
-      osc.frequency.setValueAtTime(659, now + 0.2);
+      osc.frequency.setValueAtTime(260, now);
+      osc.frequency.exponentialRampToValueAtTime(520, now + 0.3);
       gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
       osc.start(now);
-      osc.stop(now + 0.4);
+      osc.stop(now + 0.3);
+    } else if (type === 'danger') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, now);
+      osc.frequency.linearRampToValueAtTime(100, now + 0.25);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+      osc.start(now);
+      osc.stop(now + 0.25);
     }
+  },
+
+  showToast(message, duration = 3000) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(-10px)';
+      toast.style.transition = 'all 0.3s ease';
+      setTimeout(() => toast.remove(), 300);
+    }, duration);
   },
 
   showScreen(screenId) {
@@ -96,26 +137,51 @@ const App = {
     if (target) target.classList.add('active');
   },
 
-  showToast(message, duration = 3000) {
-    const container = document.getElementById('toast-container');
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = message;
-    container.appendChild(toast);
-
-    setTimeout(() => {
-      toast.style.opacity = '0';
-      setTimeout(() => toast.remove(), 300);
-    }, duration);
-  },
-
   bindGlobalEvents() {
-    // Sound toggle
+    // Sound Toggle Button
     const btnSound = document.getElementById('btn-sound-toggle');
-    btnSound.addEventListener('click', () => {
-      this.soundEnabled = !this.soundEnabled;
-      btnSound.textContent = this.soundEnabled ? '🔊' : '🔇';
-    });
+    if (btnSound) {
+      btnSound.addEventListener('click', () => {
+        this.soundEnabled = !this.soundEnabled;
+        btnSound.textContent = this.soundEnabled ? '🔊' : '🔇';
+        this.showToast(this.soundEnabled ? 'Звук включен' : 'Звук выключен');
+      });
+    }
+
+    // Random Room Code button on Auth screen
+    const btnRandomRoom = document.getElementById('btn-random-room-code');
+    if (btnRandomRoom) {
+      btnRandomRoom.addEventListener('click', () => {
+        const rnd = Math.floor(1000 + Math.random() * 9000);
+        this.roomId = `BUNKER-${rnd}`;
+        const roomInput = document.getElementById('input-room-code');
+        if (roomInput) roomInput.value = this.roomId;
+        localStorage.setItem('bunker_room_id', this.roomId);
+        this.playSound('click');
+        this.showToast(`Сгенерирован новый код: ${this.roomId}`);
+      });
+    }
+
+    // Create New Room button on Lobby screen
+    const btnLobbyNewRoom = document.getElementById('btn-lobby-new-room');
+    if (btnLobbyNewRoom) {
+      btnLobbyNewRoom.addEventListener('click', async () => {
+        if (!confirm('Создать новый отдельный бункер (новую комнату)? Текущая игра останется активной в своей комнате.')) return;
+        try {
+          const res = await fetch('/api/create_room', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          const data = await res.json();
+          if (data && data.roomId) {
+            localStorage.setItem('bunker_room_id', data.roomId);
+            window.location.search = `?room=${data.roomId}`;
+          }
+        } catch (e) {
+          this.showToast(`Ошибка: ${e.message}`);
+        }
+      });
+    }
 
     // Enter / Join Game (Form Submit + Button Click)
     const joinBtn = document.getElementById('btn-join-game');
@@ -124,6 +190,12 @@ const App = {
     const handleJoin = async () => {
       const nameInput = document.getElementById('input-player-name');
       const name = nameInput ? nameInput.value.trim() : '';
+
+      const roomInput = document.getElementById('input-room-code');
+      if (roomInput && roomInput.value.trim()) {
+        this.roomId = roomInput.value.trim().toUpperCase();
+      }
+      localStorage.setItem('bunker_room_id', this.roomId);
 
       if (!name) {
         this.showToast('⚠️ Пожалуйста, введите ваше имя (никнейм)!');
@@ -142,15 +214,24 @@ const App = {
       try {
         const res = await fetch('/api/join', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, password: '' })
+          headers: {
+            'Content-Type': 'application/json',
+            'x-room-id': this.roomId || 'BUNKER-101'
+          },
+          body: JSON.stringify({
+            name,
+            password: '',
+            roomId: this.roomId || 'BUNKER-101'
+          })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Ошибка входа');
 
         this.playerId = data.playerId;
         this.isHost = data.isHost;
+        this.roomId = data.roomId || this.roomId;
         sessionStorage.setItem('bunker_player_id', data.playerId);
+        localStorage.setItem('bunker_room_id', this.roomId);
 
         this.connectEvents();
         this.onStateUpdate(data.state);
@@ -185,31 +266,45 @@ const App = {
       this.playSound('click');
     };
 
-    document.getElementById('btn-invite').addEventListener('click', handleOpenInvite);
-    document.getElementById('btn-lobby-invite').addEventListener('click', handleOpenInvite);
+    const btnInvite = document.getElementById('btn-invite');
+    if (btnInvite) btnInvite.addEventListener('click', handleOpenInvite);
+    const btnLobbyInvite = document.getElementById('btn-lobby-invite');
+    if (btnLobbyInvite) btnLobbyInvite.addEventListener('click', handleOpenInvite);
 
     // Close modal
-    document.getElementById('btn-close-invite-modal').addEventListener('click', () => {
-      document.getElementById('invite-modal').classList.add('hidden');
-      this.playSound('click');
-    });
-
-    document.getElementById('invite-modal').addEventListener('click', (e) => {
-      if (e.target.id === 'invite-modal') {
+    const btnCloseInvite = document.getElementById('btn-close-invite-modal');
+    if (btnCloseInvite) {
+      btnCloseInvite.addEventListener('click', () => {
         document.getElementById('invite-modal').classList.add('hidden');
-      }
-    });
+        this.playSound('click');
+      });
+    }
+
+    const inviteModal = document.getElementById('invite-modal');
+    if (inviteModal) {
+      inviteModal.addEventListener('click', (e) => {
+        if (e.target.id === 'invite-modal') {
+          inviteModal.classList.add('hidden');
+        }
+      });
+    }
 
     // Logs Drawer
     const logsDrawer = document.getElementById('logs-drawer');
-    document.getElementById('btn-toggle-logs').addEventListener('click', () => {
-      logsDrawer.classList.toggle('open');
-      this.playSound('click');
-    });
-    document.getElementById('btn-close-logs').addEventListener('click', () => {
-      logsDrawer.classList.remove('open');
-      this.playSound('click');
-    });
+    const btnToggleLogs = document.getElementById('btn-toggle-logs');
+    if (btnToggleLogs && logsDrawer) {
+      btnToggleLogs.addEventListener('click', () => {
+        logsDrawer.classList.toggle('open');
+        this.playSound('click');
+      });
+    }
+    const btnCloseLogs = document.getElementById('btn-close-logs');
+    if (btnCloseLogs && logsDrawer) {
+      btnCloseLogs.addEventListener('click', () => {
+        logsDrawer.classList.remove('open');
+        this.playSound('click');
+      });
+    }
   },
 
   connectEvents() {
@@ -217,7 +312,7 @@ const App = {
       this.eventSource.close();
     }
 
-    const sseUrl = `/api/events?playerId=${encodeURIComponent(this.playerId)}`;
+    const sseUrl = `/api/events?playerId=${encodeURIComponent(this.playerId)}&room=${encodeURIComponent(this.roomId || 'BUNKER-101')}`;
     this.eventSource = new EventSource(sseUrl);
 
     this.eventSource.onmessage = (event) => {
@@ -241,7 +336,9 @@ const App = {
     this.heartbeatInterval = setInterval(async () => {
       if (this.playerId) {
         try {
-          const res = await fetch(`/api/state?playerId=${encodeURIComponent(this.playerId)}`);
+          const res = await fetch(`/api/state?playerId=${encodeURIComponent(this.playerId)}&room=${encodeURIComponent(this.roomId || 'BUNKER-101')}`, {
+            headers: { 'x-room-id': this.roomId || 'BUNKER-101' }
+          });
           if (res.ok) {
             const state = await res.json();
             this.onStateUpdate(state);
@@ -256,10 +353,22 @@ const App = {
     this.state = state;
     this.isHost = state.isHost;
 
+    if (state.roomId) {
+      this.roomId = state.roomId;
+      localStorage.setItem('bunker_room_id', this.roomId);
+    }
+
     // Header updates
     document.getElementById('btn-invite').classList.remove('hidden');
     document.getElementById('user-profile').classList.remove('hidden');
     document.getElementById('user-display-name').textContent = this.playerName;
+
+    const roomBadge = document.getElementById('room-code-badge');
+    const headerRoomCode = document.getElementById('header-room-code');
+    if (roomBadge && headerRoomCode) {
+      headerRoomCode.textContent = this.roomId;
+      roomBadge.classList.remove('hidden');
+    }
 
     const roleBadge = document.getElementById('user-role-badge');
     if (state.isHost) {
@@ -278,55 +387,70 @@ const App = {
     // Route screen
     if (state.status === 'lobby') {
       this.showScreen('screen-lobby');
-      Lobby.render(state);
-      document.getElementById('results-modal').classList.add('hidden');
+      if (typeof Lobby !== 'undefined') Lobby.render(state);
+      const resModal = document.getElementById('results-modal');
+      if (resModal) resModal.classList.add('hidden');
     } else if (state.status === 'ugc_building') {
       this.showScreen('screen-ugc');
-      UgcCreator.render(state);
-      document.getElementById('results-modal').classList.add('hidden');
+      if (typeof UgcCreator !== 'undefined') UgcCreator.render(state);
+      const resModal = document.getElementById('results-modal');
+      if (resModal) resModal.classList.add('hidden');
     } else if (state.status === 'playing') {
       this.showScreen('screen-game');
-      GameBoard.render(state);
-      document.getElementById('results-modal').classList.add('hidden');
+      if (typeof GameBoard !== 'undefined') GameBoard.render(state);
+      const resModal = document.getElementById('results-modal');
+      if (resModal) resModal.classList.add('hidden');
     } else if (state.status === 'finished') {
       this.showScreen('screen-game');
-      GameBoard.render(state);
-      if (state.results) {
-        GameBoard.showResultsModal(state.results);
+      if (typeof GameBoard !== 'undefined') {
+        GameBoard.render(state);
+        if (state.results) {
+          GameBoard.showResultsModal(state.results);
+        }
       }
     }
 
     // Activity logs
     if (state.logs) {
       const logsList = document.getElementById('logs-list');
-      logsList.innerHTML = state.logs.map(log => `
-        <div class="log-entry">
-          <span class="log-time">[${log.time}]</span>
-          <span class="log-text">${log.text}</span>
-        </div>
-      `).join('');
+      if (logsList) {
+        logsList.innerHTML = state.logs.map(log => `
+          <div class="log-entry">
+            <span class="log-time">[${log.time}]</span>
+            <span class="log-text">${log.text}</span>
+          </div>
+        `).join('');
+      }
     }
   },
 
   async openInviteModal() {
     const modal = document.getElementById('invite-modal');
+    if (!modal) return;
     modal.classList.remove('hidden');
+
+    const roomDisplay = document.getElementById('invite-room-code-display');
+    if (roomDisplay) {
+      roomDisplay.textContent = this.roomId || 'BUNKER-101';
+    }
 
     let net = (this.state && this.state.network) || {};
     try {
-      const res = await fetch('/api/network');
+      const res = await fetch(`/api/network?room=${encodeURIComponent(this.roomId || 'BUNKER-101')}`, {
+        headers: { 'x-room-id': this.roomId || 'BUNKER-101' }
+      });
       if (res.ok) net = await res.json();
     } catch (e) {}
 
     const publicLink = (net.publicUrl || '').trim();
     const radminLink = net.radminIpUrl || '';
-    const localLink = (net.localIpUrl || 'http://localhost:3000').trim();
+    const localLink = (net.localIpUrl || `http://localhost:3000/?room=${encodeURIComponent(this.roomId || 'BUNKER-101')}`).trim();
 
     // Determine the BEST link for other players (NEVER encode localhost into QR!)
     let bestLink = publicLink;
     if (!bestLink) {
       if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        bestLink = window.location.origin;
+        bestLink = `${window.location.origin}/?room=${encodeURIComponent(this.roomId || 'BUNKER-101')}`;
       } else {
         bestLink = localLink;
       }
@@ -355,8 +479,8 @@ const App = {
       }
     }
 
-    // Use active URL for QR Code (NEVER localhost!)
-    const qrLink = (bestLink || localLink || 'http://localhost:3000').trim();
+    // Use active URL for QR Code (distinct per room!)
+    const qrLink = (bestLink || localLink).trim();
     const qrContainer = document.getElementById('invite-qrcode');
     if (qrContainer && qrLink) {
       qrContainer.innerHTML = '';
@@ -369,11 +493,11 @@ const App = {
             height: 180,
             colorDark: '#000000',
             colorLight: '#ffffff',
-            correctLevel
+            correctLevel: correctLevel
           });
         }
-      } catch (err) {
-        console.error('Ошибка отрисовки QR-кода:', err);
+      } catch (e) {
+        qrContainer.innerHTML = `<div style="font-size: 11px; color: var(--accent-red); padding: 10px;">Ошибка генерации QR: ${e.message}</div>`;
       }
     }
   },
@@ -396,10 +520,14 @@ const App = {
     try {
       const res = await fetch('/api/action', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-room-id': this.roomId || 'BUNKER-101'
+        },
         body: JSON.stringify({
           action,
           playerId: this.playerId,
+          roomId: this.roomId || 'BUNKER-101',
           payload
         })
       });
