@@ -6,7 +6,7 @@ const UgcCreator = {
 
   categoryExamples: {
     profession: 'Военный хирург (#Медицина[5], #Психика[2])',
-    health: 'Иммунитет к инфекциям (#Медицина[4])',
+    health: 'Иммунитет к радиации (#Медицина[4])',
     biology: 'Мужчина, 32 года, атлет (#Защита[2])',
     hobby: 'Кулинария и консервация (#Еда[4])',
     traits: 'Хладнокровие в стрессе (#Психика[4])',
@@ -17,6 +17,60 @@ const UgcCreator = {
   },
 
   samplePresets: {
+    disasters: [
+      {
+        title: 'Глобальный ядерный конфликт и радиоактивные осадки',
+        goal: 'Продержаться в герметичном бункере 3 года до снижения фона радиации на поверхности.'
+      },
+      {
+        title: 'Смертоносный синтетический вирус «Омега»',
+        goal: 'Изолироваться на 5 лет, сохранить стерильность и синтезировать постоянную вакцину.'
+      }
+    ],
+    bunker: [
+      {
+        title: 'Богатый гидропонный сад',
+        description: 'Запас свежих овощей, злаков и зелени на 15 лет с автоматическим поливом.'
+      },
+      {
+        title: 'Медблок с операционной и реанимацией',
+        description: 'Запас антибиотиков, обезболивающих и хирургических инструментов на годы изоляции.'
+      },
+      {
+        title: 'Мощный геотермальный генератор',
+        description: 'Неисчерпаемый источник электроэнергии глубокого бурения бункера.'
+      },
+      {
+        title: 'Артезианская скважина чистоты',
+        description: 'Глубина 400 метров, неограниченный приток кристально чистой питьевой воды.'
+      },
+      {
+        title: 'Автоматическая мастерская и 3D-принтер',
+        description: 'Позволяет перерабатывать лом и изготавливать любые детали, инструменты и крепеж.'
+      }
+    ],
+    threats: [
+      {
+        title: 'Утечка ядовитого фреона из холодильных камер',
+        description: 'Поврежден контур охлаждения запасов, требуется химзащита (#Защита[3], #Инженерия[2]).'
+      },
+      {
+        title: 'Короткое замыкание в центральной щитовой',
+        description: 'Риск пожара в кабельных каналах убежища (#Пожаротушение[4]).'
+      },
+      {
+        title: 'Вспышка неизвестной лихорадки',
+        description: 'Опасность эпидемии в замкнутом пространстве, нужны медикаменты (#Медицина[4]).'
+      },
+      {
+        title: 'Острый психоз и паника взаперти',
+        description: 'Высокий риск бунта и срыва изоляции (#Психика[4]).'
+      },
+      {
+        title: 'Поломка глубинного водяного насоса',
+        description: 'Угроза обезвоживания бункера, требуется срочный ремонт механиком (#Инженерия[4]).'
+      }
+    ],
     profession: [
       'Пожарный спасатель (#Пожаротушение[5], #Защита[2])',
       'Врач-хирург (#Медицина[5], #Психика[2])',
@@ -87,17 +141,17 @@ const UgcCreator = {
   },
 
   bindEvents() {
-    // Autofill button
+    // 1. Autofill button
     const btnAutofill = document.getElementById('btn-ugc-autofill');
     if (btnAutofill) {
       btnAutofill.addEventListener('click', () => {
         this.autofillRandom();
         App.playSound('click');
-        App.showToast('🎲 Поля заполнены сбалансированными вариантами с тегами выживания!');
+        App.showToast('🎲 Все поля (Катастрофы, Бункер, Угрозы и Роли) успешно заполнены!');
       });
     }
 
-    // Submit UGC
+    // 2. Submit UGC Cards
     const btnSubmit = document.getElementById('btn-ugc-submit');
     if (btnSubmit) {
       btnSubmit.addEventListener('click', async () => {
@@ -105,49 +159,68 @@ const UgcCreator = {
         try {
           await App.sendAction('submit_ugc', { submissions });
           this.hasSubmitted = true;
-          this.showSubmittedView(true);
+          this.updateSubmitButtonUI(true);
           App.playSound('start');
-          App.showToast('✨ Ваши 45 карт успешно отправлены в банк бункера!');
+          App.showToast('✨ Ваши карты (Катастрофы, Бункер, Угрозы и Роли) успешно отправлены в банк!');
         } catch (e) {
-          App.showToast(`Ошибка: ${e.message}`);
+          App.showToast(`Ошибка отправки: ${e.message}`);
         }
       });
     }
 
-    // Edit again button
-    const btnEditAgain = document.getElementById('btn-ugc-edit-again');
-    if (btnEditAgain) {
-      btnEditAgain.addEventListener('click', () => {
-        this.hasSubmitted = false;
-        this.showSubmittedView(false);
-      });
-    }
+    // 3. Master Start Game Handlers (Top bar and Bottom bar)
+    const handleMasterStart = async () => {
+      const themeNameInput = document.getElementById('input-ugc-theme-name');
+      const themeName = themeNameInput ? themeNameInput.value.trim() : null;
 
-    // Master start UGC game button
-    const btnStart = document.getElementById('btn-ugc-start-game');
-    if (btnStart) {
-      btnStart.addEventListener('click', async () => {
-        const themeNameInput = document.getElementById('input-ugc-theme-name');
-        const themeName = themeNameInput ? themeNameInput.value.trim() : null;
+      const state = App.state || {};
+      const unreadyPlayers = (state.players || []).filter(p => !p.ugcReady);
+      if (unreadyPlayers.length > 0) {
+        const names = unreadyPlayers.map(p => p.name).join(', ');
+        if (!confirm(`⚠️ Еще не отправили карты: ${names}.\n\nЗапустить игру прямо сейчас? (Недостающие карты будут дополнены сервером автоматически)`)) {
+          return;
+        }
+      }
+
+      try {
         await App.sendAction('start_ugc_game', {
           saveThemeName: themeName || null
         });
         App.playSound('start');
-      });
-    }
+      } catch (e) {
+        App.showToast(`Ошибка запуска игры: ${e.message}`);
+      }
+    };
+
+    const btnStartTop = document.getElementById('btn-ugc-start-game');
+    if (btnStartTop) btnStartTop.addEventListener('click', handleMasterStart);
+
+    const btnStartBottom = document.getElementById('btn-ugc-start-game-bottom');
+    if (btnStartBottom) btnStartBottom.addEventListener('click', handleMasterStart);
   },
 
-  showSubmittedView(isSubmitted) {
-    const formWrap = document.getElementById('ugc-creator-form-wrap');
-    const submittedBox = document.getElementById('ugc-submitted-box');
-    if (!formWrap || !submittedBox) return;
-
-    if (isSubmitted) {
-      formWrap.classList.add('hidden');
-      submittedBox.classList.remove('hidden');
-    } else {
-      formWrap.classList.remove('hidden');
-      submittedBox.classList.add('hidden');
+  updateSubmitButtonUI(isReady) {
+    const btnSubmit = document.getElementById('btn-ugc-submit');
+    const badge = document.getElementById('ugc-status-badge');
+    if (btnSubmit) {
+      if (isReady) {
+        btnSubmit.innerHTML = '✅ КАРТЫ ОТПРАВЛЕНЫ В БАНК (НАЖМИТЕ ДЛЯ ПОВТОРНОГО СОХРАНЕНИЯ)';
+        btnSubmit.classList.remove('btn-primary');
+        btnSubmit.classList.add('btn-success');
+      } else {
+        btnSubmit.innerHTML = '💾 СОХРАНИТЬ И ОТПРАВИТЬ СВОИ КАРТЫ';
+        btnSubmit.classList.remove('btn-success');
+        btnSubmit.classList.add('btn-primary');
+      }
+    }
+    if (badge) {
+      if (isReady) {
+        badge.textContent = '✅ Карты в банке';
+        badge.style.background = 'var(--accent-green)';
+      } else {
+        badge.textContent = 'Заполните поля карт';
+        badge.style.background = '';
+      }
     }
   },
 
@@ -182,7 +255,6 @@ const UgcCreator = {
   insertTagIntoActiveInput(tag) {
     let input = this.lastFocusedInput;
     if (!input || !document.body.contains(input)) {
-      // Find first empty or first input in container
       input = document.querySelector('.ugc-input');
     }
     if (!input) return;
@@ -199,42 +271,63 @@ const UgcCreator = {
 
   render(state) {
     this.categories = state.categories || [];
-    const container = document.getElementById('ugc-categories-container');
-    if (!container) return;
-
     this.renderTagInsertBar();
 
-    // Check if current user is marked as ready or already submitted
-    const myPlayer = (state.players || []).find(p => p.id === state.myId);
-    const isSelfReady = myPlayer ? Boolean(myPlayer.ugcReady) : false;
-
-    if (isSelfReady || this.hasSubmitted) {
-      this.showSubmittedView(true);
+    // 1. Render World Section: Bunker Inputs (5 pairs)
+    const bunkerContainer = document.getElementById('ugc-bunker-inputs');
+    if (bunkerContainer && bunkerContainer.children.length === 0) {
+      bunkerContainer.innerHTML = [1, 2, 3, 4, 5].map(i => `
+        <div class="ugc-world-card-pair">
+          <span class="ugc-card-pair-badge">Отсек ${i}:</span>
+          <input type="text" class="form-input ugc-input" data-world="bunker" data-field="title" data-index="${i - 1}" placeholder="Название отсека (например: Автономный медблок)">
+          <input type="text" class="form-input ugc-input" data-world="bunker" data-field="desc" data-index="${i - 1}" placeholder="Описание бонуса (например: Запас лекарств на 5 лет)">
+        </div>
+      `).join('');
     }
 
-    // Build form if empty
-    if (container.children.length === 0) {
-      container.innerHTML = this.categories.map(cat => {
-        const example = this.categoryExamples[cat.key] || `${cat.name} (#Параметр[3])`;
-        return `
-          <div class="ugc-category-box">
-            <div class="ugc-category-title">
-              <span>${cat.icon}</span>
-              <span>${cat.name} (5 вариантов)</span>
-            </div>
-            <div class="ugc-category-hint">
-              💡 Формат: Название (#Параметр[сила]) &nbsp;•&nbsp; <em>Пример: ${example}</em>
-            </div>
-            <div class="ugc-inputs-grid">
-              ${[1, 2, 3, 4, 5].map(i => `
-                <input type="text" class="form-input ugc-input" data-cat="${cat.key}" data-index="${i - 1}" placeholder="Вариант ${i}">
-              `).join('')}
-            </div>
-          </div>
-        `;
-      }).join('');
+    // 2. Render World Section: Threat Inputs (5 pairs)
+    const threatsContainer = document.getElementById('ugc-threats-inputs');
+    if (threatsContainer && threatsContainer.children.length === 0) {
+      threatsContainer.innerHTML = [1, 2, 3, 4, 5].map(i => `
+        <div class="ugc-world-card-pair">
+          <span class="ugc-card-pair-badge">Угроза ${i}:</span>
+          <input type="text" class="form-input ugc-input" data-world="threats" data-field="title" data-index="${i - 1}" placeholder="Название опасности (например: Утечка ядовитого газа)">
+          <input type="text" class="form-input ugc-input" data-world="threats" data-field="desc" data-index="${i - 1}" placeholder="Описание угрозы (например: Риск удушья, требуется химзащита)">
+        </div>
+      `).join('');
+    }
 
-      // Attach focus listeners to keep track of last focused input
+    // 3. Render Character Categories Accordion
+    const container = document.getElementById('ugc-categories-container');
+    if (container) {
+      // Re-build if empty or if category count changed
+      const currentRenderedKeys = Array.from(container.querySelectorAll('.ugc-category-box[data-cat-key]')).map(el => el.getAttribute('data-cat-key'));
+      const activeKeys = this.categories.map(c => c.key);
+      const isMismatch = currentRenderedKeys.join(',') !== activeKeys.join(',');
+
+      if (container.children.length === 0 || isMismatch) {
+        container.innerHTML = this.categories.map(cat => {
+          const example = this.categoryExamples[cat.key] || `${cat.name} (#Параметр[3])`;
+          return `
+            <div class="ugc-category-box" data-cat-key="${cat.key}">
+              <div class="ugc-category-title">
+                <span>${cat.icon || '🎴'}</span>
+                <span>${cat.name} (5 вариантов)</span>
+              </div>
+              <div class="ugc-category-hint">
+                💡 Формат: Название (#Параметр[сила]) &nbsp;•&nbsp; <em>Пример: ${example}</em>
+              </div>
+              <div class="ugc-inputs-grid">
+                ${[1, 2, 3, 4, 5].map(i => `
+                  <input type="text" class="form-input ugc-input" data-cat="${cat.key}" data-index="${i - 1}" placeholder="Вариант ${i}">
+                `).join('')}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Attach focus listeners
       container.querySelectorAll('.ugc-input').forEach(inp => {
         inp.addEventListener('focus', () => {
           this.lastFocusedInput = inp;
@@ -242,58 +335,140 @@ const UgcCreator = {
       });
     }
 
-    // Render readiness list in #ugc-submitted-players-list
-    const submittedList = document.getElementById('ugc-submitted-players-list');
-    if (submittedList && state.players) {
-      submittedList.innerHTML = state.players.map(p => `
-        <div class="ugc-ready-row" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; margin-bottom: 6px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span>${p.isHost ? '👑' : '👤'}</span>
-            <strong>${p.name}</strong>
-            ${p.id === state.myId ? '<span class="role-badge" style="font-size: 10px;">(Вы)</span>' : ''}
-          </div>
-          <div>
-            ${p.ugcReady
-              ? '<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid var(--accent-green);">✅ Готов (карты в банке)</span>'
-              : '<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border: 1px solid var(--accent-amber);">⏳ Пишет карты...</span>'}
-          </div>
-        </div>
-      `).join('');
-    }
+    // Attach focus listeners for world inputs as well
+    document.querySelectorAll('.ugc-world-sections-container .ugc-input').forEach(inp => {
+      inp.addEventListener('focus', () => {
+        this.lastFocusedInput = inp;
+      });
+    });
 
-    // Toggle Host controls vs Player waiting notice in submitted panel
-    const masterActions = document.getElementById('ugc-submitted-master-actions');
-    const waitingNotice = document.getElementById('ugc-submitted-player-waiting');
-    if (masterActions && waitingNotice) {
-      if (state.isHost) {
-        masterActions.classList.remove('hidden');
-        waitingNotice.classList.add('hidden');
-      } else {
-        masterActions.classList.add('hidden');
-        waitingNotice.classList.remove('hidden');
+    // 4. Update Ready Status for Self
+    const myPlayer = (state.players || []).find(p => p.id === state.myId);
+    const isSelfReady = myPlayer ? Boolean(myPlayer.ugcReady) : false;
+    this.updateSubmitButtonUI(isSelfReady || this.hasSubmitted);
+
+    // 5. Update Master Top Bar vs Player Top Bar
+    const masterTopBar = document.getElementById('ugc-master-top-bar');
+    const playerTopBar = document.getElementById('ugc-player-top-bar');
+    const masterBottomLaunch = document.getElementById('ugc-master-bottom-launch');
+
+    const players = state.players || [];
+    const readyPlayers = players.filter(p => p.ugcReady);
+
+    const playerChipsHtml = players.map(p => `
+      <span class="ugc-status-chip ${p.ugcReady ? 'ready' : 'writing'}">
+        ${p.isHost ? '👑' : '👤'} <strong>${p.name}</strong>: ${p.ugcReady ? '✅ Готов' : '⏳ Пишет...'}
+      </span>
+    `).join('');
+
+    if (state.isHost) {
+      if (masterTopBar) masterTopBar.classList.remove('hidden');
+      if (playerTopBar) playerTopBar.classList.add('hidden');
+      if (masterBottomLaunch) masterBottomLaunch.classList.remove('hidden');
+
+      const hostStatusText = document.getElementById('ugc-host-status-text');
+      if (hostStatusText) {
+        hostStatusText.textContent = `Готовность выживших: ${readyPlayers.length} из ${players.length} игроков заполнили карты`;
       }
+
+      const chipsBar = document.getElementById('ugc-players-chips-bar');
+      if (chipsBar) chipsBar.innerHTML = playerChipsHtml;
+    } else {
+      if (masterTopBar) masterTopBar.classList.add('hidden');
+      if (playerTopBar) playerTopBar.classList.remove('hidden');
+      if (masterBottomLaunch) masterBottomLaunch.classList.add('hidden');
+
+      const playerChipsBar = document.getElementById('ugc-player-chips-bar');
+      if (playerChipsBar) playerChipsBar.innerHTML = playerChipsHtml;
     }
   },
 
   gatherSubmissions() {
-    const submissions = {};
+    const submissions = {
+      disasters: [],
+      bunker: [],
+      threats: []
+    };
     const authorName = (window.App && window.App.playerName) ? window.App.playerName : 'Игрок';
 
+    // Disasters (2 variants)
+    for (let i = 0; i < 2; i++) {
+      const tInp = document.querySelector(`.ugc-input[data-world="disasters"][data-field="title"][data-index="${i}"]`);
+      const gInp = document.querySelector(`.ugc-input[data-world="disasters"][data-field="goal"][data-index="${i}"]`);
+      const title = tInp ? tInp.value.trim() : '';
+      const goal = gInp ? gInp.value.trim() : '';
+      if (title) {
+        submissions.disasters.push({ title, goal, author: authorName });
+      }
+    }
+
+    // Bunker (5 variants)
+    for (let i = 0; i < 5; i++) {
+      const tInp = document.querySelector(`.ugc-input[data-world="bunker"][data-field="title"][data-index="${i}"]`);
+      const dInp = document.querySelector(`.ugc-input[data-world="bunker"][data-field="desc"][data-index="${i}"]`);
+      const title = tInp ? tInp.value.trim() : '';
+      const desc = dInp ? dInp.value.trim() : '';
+      if (title) {
+        submissions.bunker.push({ title, description: desc, author: authorName });
+      }
+    }
+
+    // Threats (5 variants)
+    for (let i = 0; i < 5; i++) {
+      const tInp = document.querySelector(`.ugc-input[data-world="threats"][data-field="title"][data-index="${i}"]`);
+      const dInp = document.querySelector(`.ugc-input[data-world="threats"][data-field="desc"][data-index="${i}"]`);
+      const title = tInp ? tInp.value.trim() : '';
+      const desc = dInp ? dInp.value.trim() : '';
+      if (title) {
+        submissions.threats.push({ title, description: desc, author: authorName });
+      }
+    }
+
+    // Character Categories (5 variants each)
     this.categories.forEach(cat => {
       submissions[cat.key] = [];
       const inputs = document.querySelectorAll(`.ugc-input[data-cat="${cat.key}"]`);
       inputs.forEach(input => {
-        const val = input.value.trim() || 'Стандартная карта';
+        const val = input.value.trim() || `${cat.name} №1`;
         submissions[cat.key].push({
           text: val,
           author: authorName
         });
       });
     });
+
     return submissions;
   },
 
   autofillRandom() {
+    // 1. Disasters
+    const disasters = this.samplePresets.disasters || [];
+    disasters.forEach((d, idx) => {
+      const titleInp = document.querySelector(`.ugc-input[data-world="disasters"][data-field="title"][data-index="${idx}"]`);
+      const goalInp = document.querySelector(`.ugc-input[data-world="disasters"][data-field="goal"][data-index="${idx}"]`);
+      if (titleInp) titleInp.value = d.title;
+      if (goalInp) goalInp.value = d.goal;
+    });
+
+    // 2. Bunker
+    const bunker = this.samplePresets.bunker || [];
+    bunker.forEach((b, idx) => {
+      const titleInp = document.querySelector(`.ugc-input[data-world="bunker"][data-field="title"][data-index="${idx}"]`);
+      const descInp = document.querySelector(`.ugc-input[data-world="bunker"][data-field="desc"][data-index="${idx}"]`);
+      if (titleInp) titleInp.value = b.title;
+      if (descInp) descInp.value = b.description;
+    });
+
+    // 3. Threats
+    const threats = this.samplePresets.threats || [];
+    threats.forEach((t, idx) => {
+      const titleInp = document.querySelector(`.ugc-input[data-world="threats"][data-field="title"][data-index="${idx}"]`);
+      const descInp = document.querySelector(`.ugc-input[data-world="threats"][data-field="desc"][data-index="${idx}"]`);
+      if (titleInp) titleInp.value = t.title;
+      if (descInp) descInp.value = t.description;
+    });
+
+    // 4. Character Categories
     this.categories.forEach(cat => {
       const inputs = document.querySelectorAll(`.ugc-input[data-cat="${cat.key}"]`);
       const presets = this.samplePresets[cat.key] || ['Вариант 1', 'Вариант 2', 'Вариант 3', 'Вариант 4', 'Вариант 5'];

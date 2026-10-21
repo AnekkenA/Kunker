@@ -675,6 +675,120 @@ body {
   margin-top: 14px;
 }
 
+/* --- UGC TOP BARS & WORLD SECTIONS --- */
+.ugc-top-bar {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.ugc-top-bar.master-bar {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(19, 27, 38, 0.95) 100%);
+}
+
+.ugc-top-bar.player-bar {
+  border-color: rgba(6, 182, 212, 0.4);
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.08) 0%, rgba(19, 27, 38, 0.95) 100%);
+}
+
+.ugc-bar-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ugc-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ugc-chips-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.ugc-status-chip {
+  font-size: 11.5px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+}
+
+.ugc-status-chip.ready {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.ugc-status-chip.writing {
+  border-color: var(--accent-amber);
+  color: var(--accent-amber);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.ugc-world-box {
+  margin-bottom: 16px;
+}
+
+.ugc-world-box.disaster-box {
+  border-left: 4px solid #ef4444;
+}
+
+.ugc-world-box.bunker-box {
+  border-left: 4px solid #10b981;
+}
+
+.ugc-world-box.threat-box {
+  border-left: 4px solid #f59e0b;
+}
+
+.ugc-world-inputs-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ugc-world-card-pair {
+  display: grid;
+  grid-template-columns: 85px 1fr 1.6fr;
+  gap: 8px;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.15);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+@media (max-width: 768px) {
+  .ugc-world-card-pair {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+}
+
+.ugc-card-pair-badge {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
 .ugc-category-box {
   background: var(--bg-surface);
   border: 1px solid var(--border-color);
@@ -723,6 +837,9 @@ body {
 #screen-game {
   padding: 16px;
   flex: 1;
+}
+
+#screen-game.active {
   display: flex;
   flex-direction: column;
 }

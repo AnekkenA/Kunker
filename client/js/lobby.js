@@ -42,7 +42,7 @@ const Lobby = {
             <input type="checkbox" data-idx="${idx}" class="cat-checkbox" ${cat.enabled !== false ? 'checked' : ''}>
             <span>${cat.icon || '🃏'} <strong>${cat.name}</strong> ${cat.isSpecial ? '<span style="color:var(--accent-amber); font-size:10px;">(Спец-карта)</span>' : '<span style="color:var(--text-dim); font-size:10px;">(Обычная)</span>'}</span>
           </label>
-          ${cat.isCustom ? `<button type="button" class="btn-icon" data-del="${idx}" style="color:var(--accent-red); font-size:11px;">✕</button>` : ''}
+          <button type="button" class="btn-icon" data-del="${idx}" style="color:var(--accent-red); font-size:12px; padding: 2px 6px;" title="Удалить категорию">🗑️</button>
         </div>
       `).join('');
 
@@ -218,7 +218,11 @@ const Lobby = {
         // UGC Mode
         await App.sendAction('start_ugc_phase', {
           bunkerCapacity: capacity,
-          threatMode
+          threatMode,
+          threatPercent,
+          worldCardsMaxLimit,
+          cardsLeftClosed,
+          categories: activeCategories
         });
       }
       App.playSound('start');

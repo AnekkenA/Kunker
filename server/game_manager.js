@@ -938,15 +938,19 @@ class SingleGame {
     this.stopThreatTimer();
     this.status = 'ugc_building';
     if (options.threatMode) this.threatMode = options.threatMode;
+    if (options.bunkerCapacity !== undefined) this.bunkerCapacity = Math.max(1, parseInt(options.bunkerCapacity, 10) || 3);
+    if (options.threatPercent !== undefined) this.threatPercent = Math.max(0, Math.min(100, parseInt(options.threatPercent, 10) || 50));
+    if (options.worldCardsMaxLimit !== undefined) this.worldCardsMaxLimit = Math.max(1, parseInt(options.worldCardsMaxLimit, 10) || 6);
+    if (options.cardsLeftClosed !== undefined) this.cardsLeftClosed = Math.max(0, parseInt(options.cardsLeftClosed, 10) || 1);
+    if (Array.isArray(options.categories) && options.categories.length > 0) {
+      this.categories = options.categories;
+    }
 
     this.players.forEach(p => {
       p.ugcReady = false;
-      p.ugcSubmissions = {};
-      CATEGORIES.forEach(cat => {
-        p.ugcSubmissions[cat.key] = ['', '', '', '', ''];
-      });
+      p.ugcSubmissions = null;
     });
-    this.addLog('🛠️ Режим "С нуля": Игроки начали заполнять свои наборы карт.');
+    this.addLog(`🛠️ Режим "С нуля": Игроки начали заполнять свои наборы карт (Катастрофы, Бункер, Угрозы и ${this.categories.length} категорий персонажа).`);
   }
 
   submitUgcCards(playerId, submissions) {
@@ -973,44 +977,88 @@ class SingleGame {
     const pool = {
       disasters: [],
       bunker: [],
-      threats: [],
-      profession: [],
-      health: [],
-      biology: [],
-      hobby: [],
-      traits: [],
-      facts: [],
-      small_inventory: [],
-      large_inventory: [],
-      special_cards: []
+      threats: []
     };
+    this.categories.forEach(cat => {
+      pool[cat.key] = [];
+    });
 
     this.players.forEach(player => {
-      if (player.ugcSubmissions) {
-        CATEGORIES.forEach(cat => {
-          const list = player.ugcSubmissions[cat.key];
-          if (Array.isArray(list)) {
-            list.forEach(item => {
-              if (!item) return;
-              let itemText = typeof item === 'string' ? item : item.text;
-              itemText = String(itemText || '').trim();
-              if (itemText) {
-                pool[cat.key].push({
-                  text: itemText,
-                  author: player.name,
-                  action: (typeof item === 'object' && item.action) ? item.action : null
-                });
-              }
-            });
+      const sub = player.ugcSubmissions;
+      if (!sub) return;
+
+      // 1. Disasters (2 variants per player)
+      if (Array.isArray(sub.disasters)) {
+        sub.disasters.forEach(d => {
+          if (!d) return;
+          const title = typeof d === 'string' ? d : (d.title || d.text || '');
+          const goal = typeof d === 'string' ? 'Выжить и возродить цивилизацию' : (d.goal || d.description || 'Выжить любой ценой');
+          if (title.trim()) {
+            pool.disasters.push({ title: title.trim(), goal: goal.trim(), author: player.name });
           }
         });
       }
+
+      // 2. Bunker Cards (5 variants per player)
+      if (Array.isArray(sub.bunker)) {
+        sub.bunker.forEach(b => {
+          if (!b) return;
+          const title = typeof b === 'string' ? b : (b.title || b.text || '');
+          const desc = typeof b === 'string' ? '' : (b.description || b.desc || '');
+          if (title.trim()) {
+            pool.bunker.push({ title: title.trim(), description: desc.trim(), author: player.name });
+          }
+        });
+      }
+
+      // 3. Threat Cards (5 variants per player)
+      if (Array.isArray(sub.threats)) {
+        sub.threats.forEach(t => {
+          if (!t) return;
+          const title = typeof t === 'string' ? t : (t.title || t.text || '');
+          const desc = typeof t === 'string' ? '' : (t.description || t.desc || '');
+          if (title.trim()) {
+            pool.threats.push({ title: title.trim(), description: desc.trim(), author: player.name });
+          }
+        });
+      }
+
+      // 4. Character Categories (5 variants per active category)
+      this.categories.forEach(cat => {
+        const list = sub[cat.key];
+        if (Array.isArray(list)) {
+          list.forEach(item => {
+            if (!item) return;
+            let itemText = typeof item === 'string' ? item : (item.text || item.title || '');
+            itemText = String(itemText || '').trim();
+            if (itemText) {
+              pool[cat.key].push({
+                text: itemText,
+                author: player.name,
+                action: (typeof item === 'object' && item.action) ? item.action : null
+              });
+            }
+          });
+        }
+      });
     });
 
     const classicDeck = deckLoader.getDeck('classic') || {};
-    CATEGORIES.forEach(cat => {
+
+    // Fallbacks if empty
+    if (pool.disasters.length === 0) {
+      pool.disasters = classicDeck.disasters || [{ title: 'Глобальная катастрофа', goal: 'Выжить в условиях бункера' }];
+    }
+    if (pool.bunker.length === 0) {
+      pool.bunker = classicDeck.bunker || [{ title: 'Автономный бункер', description: 'Системы жизнеобеспечения в норме' }];
+    }
+    if (pool.threats.length === 0) {
+      pool.threats = classicDeck.threats || [{ title: 'Износ фильтров воздуха', description: 'Нужна ручная очистка' }];
+    }
+
+    this.categories.forEach(cat => {
       if (!pool[cat.key] || pool[cat.key].length === 0) {
-        const fallbacks = classicDeck[cat.key] || classicDeck[cat.key + 's'] || ['Карта игрока'];
+        const fallbacks = classicDeck[cat.key] || classicDeck[cat.key + 's'] || Array.from({ length: 15 }, (_, i) => `${cat.name} №${i + 1}`);
         pool[cat.key] = fallbacks.map(f => ({
           text: typeof f === 'string' ? f : (f.text || JSON.stringify(f)),
           author: 'Бункер'
@@ -1018,21 +1066,24 @@ class SingleGame {
       }
     });
 
+    // 1. Draw random Disaster created by players
+    const chosenDisaster = getRandomItem(pool.disasters);
     this.disaster = {
-      title: 'Непредсказуемый катаклизм игроков',
-      goal: 'Выжить в условиях, созданных самими игроками!',
+      title: chosenDisaster.title,
+      goal: chosenDisaster.goal || 'Выжить любой ценой!',
+      author: chosenDisaster.author || 'Игроки',
       revealed: true
     };
 
-    this.bunkerDeck = shuffle(classicDeck.bunker || [{ title: 'Убежище ручной сборки', description: 'Оборудование создано игроками' }]);
-    this.threatsDeck = shuffle(classicDeck.threats || [{ title: 'Нестабильные внешние генераторы', description: 'Требуется постоянный контроль' }]);
+    // 2. Bunker & Threat Decks created by players
+    this.bunkerDeck = shuffle(pool.bunker);
+    this.threatsDeck = shuffle(pool.threats);
     this.revealedBunkerCards = [];
     this.revealedThreatCards = [];
 
-    // Distribute unique cards
-    CATEGORIES.forEach(cat => {
+    // 3. Category Decks and dealing cards
+    this.categories.forEach(cat => {
       const shuffled = shuffle(pool[cat.key]);
-
       this.categoryDecks[cat.key] = [...shuffled];
       this.inPlayCards[cat.key] = new Set();
 
@@ -1055,6 +1106,37 @@ class SingleGame {
         };
       });
     });
+
+    // Save as theme deck if requested
+    if (saveAsThemeName && typeof saveAsThemeName === 'string' && saveAsThemeName.trim()) {
+      try {
+        const customDeckId = 'ugc_' + Date.now();
+        const customDeck = {
+          id: customDeckId,
+          name: saveAsThemeName.trim(),
+          author: 'Игроки Бункера',
+          description: 'Пользовательский набор, созданный игроками в кастомном режиме.',
+          disasters: pool.disasters.map(d => ({ title: d.title, goal: d.goal })),
+          bunker: pool.bunker.map(b => ({ title: b.title, description: b.description })),
+          threats: pool.threats.map(t => ({ title: t.title, description: t.description }))
+        };
+        this.categories.forEach(cat => {
+          customDeck[cat.key] = pool[cat.key].map(c => c.text);
+        });
+        deckLoader.saveDeck(customDeck);
+        this.addLog(`💾 Набор карт сохранен в библиотеку как «${saveAsThemeName.trim()}»!`);
+      } catch (err) {
+        console.warn('Не удалось сохранить UGC колоду:', err);
+      }
+    }
+
+    if (this.threatMode === 'timer') {
+      this.startThreatTimer();
+    }
+
+    this.results = null;
+    this.status = 'playing';
+    this.addLog(`🚀 Игра началась в режиме "С нуля"! Катастрофа: "${this.disaster.title}". Доступно ${this.bunkerDeck.length} карт бункера и ${this.threatsDeck.length} угроз.`);
 
     const playerCount = Math.max(1, this.players.size);
     this.totalRevealsCount = 0;

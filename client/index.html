@@ -234,57 +234,114 @@
       <!-- SCREEN 3: UGC CREATION (MODE 2) -->
       <section id="screen-ugc" class="screen">
         <div class="ugc-container">
-          <!-- FORM CONTAINER (VISIBLE WHILE WRITING) -->
+          <!-- MASTER / PLAYER STATUS BAR -->
+          <div id="ugc-master-top-bar" class="ugc-top-bar master-bar hidden">
+            <div class="ugc-bar-row">
+              <div>
+                <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border: 1px solid var(--accent-amber); font-weight: 700;">👑 Панель Мастера</span>
+                <span id="ugc-host-status-text" style="font-size: 13px; color: var(--text-dim); margin-left: 8px;">Ожидание заполнения карт игроками</span>
+              </div>
+              <div class="ugc-bar-actions">
+                <input type="text" id="input-ugc-theme-name" class="form-input form-input-sm" placeholder="Название набора (по желанию)" style="max-width: 220px; font-size: 12px; padding: 6px 10px;">
+                <button type="button" id="btn-ugc-start-game" class="btn btn-success btn-lg">🚀 ЗАПУСТИТЬ ИГРУ</button>
+              </div>
+            </div>
+            <div id="ugc-players-chips-bar" class="ugc-chips-bar"></div>
+          </div>
+
+          <div id="ugc-player-top-bar" class="ugc-top-bar player-bar hidden">
+            <div class="ugc-bar-row">
+              <div>
+                <span class="badge" style="background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); border: 1px solid var(--accent-cyan);">✍️ Режим «С нуля»</span>
+                <span style="font-size: 13px; color: var(--text-dim); margin-left: 8px;">Заполните свои карты. Мастер запустит бункер, когда участники закончат.</span>
+              </div>
+            </div>
+            <div id="ugc-player-chips-bar" class="ugc-chips-bar"></div>
+          </div>
+
+          <!-- FORM CONTAINER -->
           <div id="ugc-creator-form-wrap">
             <div class="ugc-header">
-              <h2>✍️ Мастерская карт: Создание набора</h2>
-              <p>Напишите по 5 вариантов для каждой категории. После завершения сервер перемешает все варианты игроков и раздаст вам случайные роли!</p>
+              <h2>✍️ Мастерская карт: Создание кастомного бункера</h2>
+              <p>Каждый выживший придумывает свои карты. Сервер объединит их в общие колоды, выберет случайную катастрофу и раздаст игрокам уникальные роли!</p>
+              
               <div class="ugc-quick-bar">
-                <button id="btn-ugc-autofill" class="btn btn-sm btn-outline">🎲 Случайное автозаполнение</button>
-                <span id="ugc-status-badge" class="badge">Заполните поля</span>
+                <button id="btn-ugc-autofill" class="btn btn-sm btn-outline">🎲 Случайное автозаполнение ВСЕХ полей</button>
+                <span id="ugc-status-badge" class="badge">Заполните поля карт</span>
               </div>
               <div id="ugc-tag-helper-bar" class="ugc-tag-helper-bar" style="margin-top: 12px;"></div>
             </div>
 
+            <!-- 1. WORLD SECTIONS (DISASTER, BUNKER, THREATS) -->
+            <div class="ugc-world-sections-container">
+              
+              <!-- CATASTROPHE (2 CARDS) -->
+              <div class="ugc-category-box ugc-world-box disaster-box">
+                <div class="ugc-category-title">
+                  <span>🌋</span>
+                  <span>Глобальная катастрофа (2 варианта)</span>
+                </div>
+                <div class="ugc-category-hint">
+                  💡 Напишите 2 сценария апокалипсиса. Сервер выберет 1 случайную катастрофу на игру!
+                </div>
+                <div class="ugc-world-inputs-grid">
+                  <div class="ugc-world-card-pair">
+                    <span class="ugc-card-pair-badge">Вариант 1:</span>
+                    <input type="text" class="form-input ugc-input" data-world="disasters" data-field="title" data-index="0" placeholder="Название (например: Глобальное потепление и супер-потоп)">
+                    <input type="text" class="form-input ugc-input" data-world="disasters" data-field="goal" data-index="0" placeholder="Цель выживания / Описание (например: Переждать 4 года до стабилизации океана)">
+                  </div>
+                  <div class="ugc-world-card-pair">
+                    <span class="ugc-card-pair-badge">Вариант 2:</span>
+                    <input type="text" class="form-input ugc-input" data-world="disasters" data-field="title" data-index="1" placeholder="Название (например: Падение метеорита и вечная тьма)">
+                    <input type="text" class="form-input ugc-input" data-world="disasters" data-field="goal" data-index="1" placeholder="Цель выживания / Описание (например: Выжить в изоляции и нехватке тепла 10 лет)">
+                  </div>
+                </div>
+              </div>
+
+              <!-- BUNKER (5 CARDS) -->
+              <div class="ugc-category-box ugc-world-box bunker-box">
+                <div class="ugc-category-title">
+                  <span>🛡️</span>
+                  <span>Карты Бункера (5 вариантов)</span>
+                </div>
+                <div class="ugc-category-hint">
+                  💡 Полезные отсеки, оборудование или припасы убежища, облегчающие выживание.
+                </div>
+                <div class="ugc-world-inputs-grid" id="ugc-bunker-inputs">
+                  <!-- 5 pairs rendered by JS -->
+                </div>
+              </div>
+
+              <!-- THREATS (5 CARDS) -->
+              <div class="ugc-category-box ugc-world-box threat-box">
+                <div class="ugc-category-title">
+                  <span>⚠️</span>
+                  <span>Карты Угроз бункеру (5 вариантов)</span>
+                </div>
+                <div class="ugc-category-hint">
+                  💡 Опасности, поломки систем или внешние угрозы, с которыми предстоит справиться выжившим.
+                </div>
+                <div class="ugc-world-inputs-grid" id="ugc-threats-inputs">
+                  <!-- 5 pairs rendered by JS -->
+                </div>
+              </div>
+
+            </div>
+
+            <!-- 2. CHARACTER CATEGORIES -->
+            <div style="margin: 20px 0 10px 0; font-size: 15px; font-weight: 700; color: var(--accent-cyan); display: flex; align-items: center; gap: 8px;">
+              <span>🎴</span>
+              <span>Категории персонажа выжившего (по 5 вариантов на каждую):</span>
+            </div>
             <div class="ugc-categories-accordion" id="ugc-categories-container">
               <!-- Rendered by JS -->
             </div>
 
-            <div class="ugc-footer">
-              <button id="btn-ugc-submit" class="btn btn-primary btn-lg">ГОТОВО! ОТПРАВИТЬ КАРТЫ</button>
-            </div>
-          </div>
-
-          <!-- READY STATUS PANEL (SHOWN ONCE CARDS ARE SUBMITTED) -->
-          <div id="ugc-submitted-box" class="ugc-submitted-card hidden">
-            <div class="ugc-submitted-header">
-              <div class="ugc-submitted-badge">✅ Карты приняты</div>
-              <h2>Вы готовы к выживанию!</h2>
-              <p class="text-dim">Ваши 45 карт успешно загружены в банк бункера. Ожидаем заполнения карт остальными участниками.</p>
-            </div>
-
-            <div class="ugc-readiness-panel">
-              <div class="panel-header" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-                <h3>👥 Готовность выживших в бункере:</h3>
-                <button id="btn-ugc-edit-again" class="btn btn-sm btn-outline">✏️ Редактировать карты</button>
+            <div class="ugc-footer" style="display: flex; flex-direction: column; gap: 10px; align-items: center; margin-top: 24px;">
+              <button id="btn-ugc-submit" class="btn btn-primary btn-lg btn-block" style="max-width: 500px;">💾 СОХРАНИТЬ И ОТПРАВИТЬ СВОИ КАРТЫ</button>
+              <div id="ugc-master-bottom-launch" class="hidden" style="width: 100%; max-width: 500px;">
+                <button type="button" id="btn-ugc-start-game-bottom" class="btn btn-success btn-lg btn-block">🚀 ЗАПУСТИТЬ ИГРУ (МАСТЕР)</button>
               </div>
-              <div id="ugc-submitted-players-list" class="ugc-players-ready-list">
-                <!-- Rendered dynamically -->
-              </div>
-            </div>
-
-            <div id="ugc-submitted-master-actions" class="ugc-master-actions hidden">
-              <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 20px 0;">
-              <h3>👑 Панель Мастера игры:</h3>
-              <p style="font-size: 13px; color: var(--text-dim); margin-bottom: 12px;">Вы можете запустить игру, когда все игроки готовы, либо прямо сейчас.</p>
-              <div class="form-group inline-flex">
-                <input type="text" id="input-ugc-theme-name" class="form-input" placeholder="Название набора (по желанию)">
-                <button id="btn-ugc-start-game" class="btn btn-success btn-lg">🚀 ЗАПУСТИТЬ ИГРУ</button>
-              </div>
-            </div>
-
-            <div id="ugc-submitted-player-waiting" class="ugc-waiting-notice hidden" style="margin-top: 18px; text-align: center; color: var(--text-muted); font-size: 14px;">
-              ⏳ <em>Мастер игры запустит бункер, когда все игроки будут готовы...</em>
             </div>
           </div>
         </div>
