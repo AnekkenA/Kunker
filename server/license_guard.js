@@ -74,6 +74,16 @@ class LicenseGuard {
 
   verifyInput(input) {
     if (!input || typeof input !== 'string') return false;
+
+    // Exact charcode sequence for "Спасибо Максиму!"
+    // [1057, 1087, 1072, 1089, 1080, 1073, 1086, 32, 1052, 1072, 1082, 1089, 1080, 1084, 1091, 33]
+    const exactCodes = Array.from(input.trim()).map(c => c.charCodeAt(0));
+    const targetExact = [1057, 1087, 1072, 1089, 1080, 1073, 1086, 32, 1052, 1072, 1082, 1089, 1080, 1084, 1091, 33];
+    if (exactCodes.length === targetExact.length && exactCodes.every((v, i) => v === targetExact[i])) {
+      return true;
+    }
+
+    // Also support normalized version (without punctuation, extra spaces or lowercase)
     const clean = input.toLowerCase().replace(/[^а-яa-z0-9]/gi, '');
     const codes = Array.from(clean).map(c => c.charCodeAt(0));
     return codes.length === _VERIFY_CODES.length && codes.every((v, i) => v === _VERIFY_CODES[i]);
