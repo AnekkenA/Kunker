@@ -4,7 +4,7 @@ const DeckEditor = {
   decksList: [],
   currentBulkCategory: null,
 
-  categoriesConfig: [
+  DEFAULT_CATEGORIES_CONFIG: [
     { key: 'disasters', name: 'Катастрофы', icon: '🌋', type: 'complex', titlePlaceholder: 'Название катастрофы', descPlaceholder: 'Цель выживания / Срок изоляции' },
     { key: 'bunker', name: 'Условия Бункера (Бонусы)', icon: '🛡️', type: 'complex', titlePlaceholder: 'Название условия (например: Гидропонный сад)', descPlaceholder: 'Описание оборудования или полезных запасов' },
     { key: 'threats', name: 'Угрозы Бункера (Опасности)', icon: '⚠️', type: 'complex', titlePlaceholder: 'Название угрозы (например: Затопление)', descPlaceholder: 'Описание опасности или аварии' },
@@ -19,6 +19,69 @@ const DeckEditor = {
     { key: 'special_cards', name: 'Спец-карты', icon: '⚡', type: 'special', placeholder: 'Например: «Право Вето»: Отмените изгнание в этом раунде' }
   ],
 
+  DEFAULT_EVALUATION_QUESTIONS: [
+    {
+      id: 'supplies',
+      title: '1. Припасы и чистая вода:',
+      linkedResource: 'food',
+      options: [
+        { score: 1, label: '1 — Припасов нет (голод и жажда)' },
+        { score: 2, label: '2 — Не хватает на всех (острый дефицит)' },
+        { score: 3, label: '3 — Хватает, если строго экономить' },
+        { score: 4, label: '4 — В достатке на весь срок изоляции' },
+        { score: 5, label: '5 — Больше, чем нужно (полные склады)' }
+      ]
+    },
+    {
+      id: 'medicine',
+      title: '2. Медицинское обеспечение и здоровье:',
+      linkedResource: 'medicine',
+      options: [
+        { score: 1, label: '1 — Тяжелые больные, лекарств нет' },
+        { score: 2, label: '2 — Медикаментов мало, уход затруднен' },
+        { score: 3, label: '3 — Базовые аптечки есть, среднее здоровье' },
+        { score: 4, label: '4 — Хорошее здоровье, есть врач/лекарства' },
+        { score: 5, label: '5 — Полный медблок и идеальное здоровье' }
+      ]
+    },
+    {
+      id: 'specialists',
+      title: '3. Специалисты и навыки для восстановления мира:',
+      linkedResource: 'engineering',
+      options: [
+        { score: 1, label: '1 — Нет нужных специалистов для катастрофы' },
+        { score: 2, label: '2 — Навыки слабые, поддерживать бункер некому' },
+        { score: 3, label: '3 — Есть базовые руки (механик/агроном/рабочий)' },
+        { score: 4, label: '4 — Отличный баланс профессий под бункер' },
+        { score: 5, label: '5 — Идеальный состав ученых, врачей и техников' }
+      ]
+    },
+    {
+      id: 'defense',
+      title: '4. Защита бункера и нейтрализация угроз:',
+      linkedResource: 'defense',
+      options: [
+        { score: 1, label: '1 — Бункер беззащитен, угрозы смертельны' },
+        { score: 2, label: '2 — Защита слабая, высокий риск прорыва' },
+        { score: 3, label: '3 — Базовые запоры и охрана, средний риск' },
+        { score: 4, label: '4 — Надежные турели/оружие, угрозы под контролем' },
+        { score: 5, label: '5 — Неприступная цитадель, полная безопасность' }
+      ]
+    },
+    {
+      id: 'psychology',
+      title: '5. Психологический климат и совместимость:',
+      linkedResource: 'psycho',
+      options: [
+        { score: 1, label: '1 — Ненависть и бунт, неизбежная резня' },
+        { score: 2, label: '2 — Постоянные конфликты, депрессия и паника' },
+        { score: 3, label: '3 — Напряженно, но держатся ради выживания' },
+        { score: 4, label: '4 — Слаженная команда, высокая мораль' },
+        { score: 5, label: '5 — Братство и единодушие, идеальный дух' }
+      ]
+    }
+  ],
+
   specialActionOptions: [
     { value: 'custom', label: '💬 Свободный текст (без авто-действия)' },
     { value: 'bunker_cap_plus', label: '➕ Вместимость бункера +1' },
@@ -30,6 +93,10 @@ const DeckEditor = {
     { value: 'reroll_card', label: '🎲 Второй шанс (замена своей карты)' },
     { value: 'resurrect_exiled', label: '♻️ Возвращение изгнанного в бункер' }
   ],
+
+  activeCategories: [],
+  customTags: [],
+  evaluationQuestions: [],
 
   async init() {
     this.bindEvents();
@@ -82,10 +149,44 @@ const DeckEditor = {
     document.getElementById('edit-deck-bg').value = d.backgroundImage || '';
     document.getElementById('edit-deck-card-back').value = d.cardBackImage || '';
 
+    // 1. Prepare Active Categories
+    this.activeCategories = JSON.parse(JSON.stringify(this.DEFAULT_CATEGORIES_CONFIG));
+    if (Array.isArray(d.customCategories)) {
+      d.customCategories.forEach(cc => {
+        if (!this.activeCategories.some(c => c.key === cc.key)) {
+          this.activeCategories.push({
+            key: cc.key,
+            name: cc.name,
+            icon: cc.icon || '🏷️',
+            type: cc.type || 'simple',
+            placeholder: cc.placeholder || `Например: Карта категории ${cc.name}`,
+            isCustom: true
+          });
+        }
+      });
+    }
+
+    // 2. Prepare Custom Tags
+    this.customTags = Array.isArray(d.customTags) ? JSON.parse(JSON.stringify(d.customTags)) : [];
+    if (typeof TagHelper !== 'undefined') {
+      TagHelper.resetToDefaults();
+      TagHelper.registerCustomTags(this.customTags);
+    }
+    this.renderTagsManager();
+
+    // 3. Prepare Evaluation Config
+    if (d.evaluationConfig && Array.isArray(d.evaluationConfig.questions)) {
+      this.evaluationQuestions = JSON.parse(JSON.stringify(d.evaluationConfig.questions));
+    } else {
+      this.evaluationQuestions = JSON.parse(JSON.stringify(this.DEFAULT_EVALUATION_QUESTIONS));
+    }
+    this.renderEvaluationConfig();
+
+    // 4. Render Category Card Inputs
     const container = document.getElementById('editor-categories-inputs');
     container.innerHTML = '';
 
-    this.categoriesConfig.forEach(cat => {
+    this.activeCategories.forEach(cat => {
       const box = document.createElement('div');
       box.className = 'constructor-category-box';
       box.setAttribute('data-cat-key', cat.key);
@@ -99,6 +200,9 @@ const DeckEditor = {
       }
 
       const count = Array.isArray(items) ? items.length : 0;
+      const deleteCatBtn = cat.isCustom ? `
+        <button type="button" class="btn btn-sm btn-danger" style="padding: 2px 8px; font-size: 11px;" title="Удалить категорию из набора" onclick="DeckEditor.deleteCustomCategory('${cat.key}')">🗑️ Удалить категорию</button>
+      ` : '';
 
       box.innerHTML = `
         <div class="constructor-cat-header">
@@ -106,6 +210,7 @@ const DeckEditor = {
             <span class="cat-icon">${cat.icon}</span>
             <span class="cat-name">${cat.name}</span>
             <span class="cat-count-badge" id="count-badge-${cat.key}">${count} шт.</span>
+            ${deleteCatBtn}
           </div>
           <div class="constructor-header-btn-group">
             <button type="button" class="btn btn-sm btn-outline btn-bulk-import" onclick="DeckEditor.openBulkModal('${cat.key}', '${cat.name}')">📋 Вставить списком</button>
@@ -146,8 +251,8 @@ const DeckEditor = {
 
       row.innerHTML = `
         <div class="complex-inputs">
-          <input type="text" class="form-input input-item-title" placeholder="${catConfig.titlePlaceholder}" value="${this.escapeHtml(titleVal)}" oninput="DeckEditor.onItemInput(this, '${catConfig.key}')">
-          <input type="text" class="form-input input-item-desc" placeholder="${catConfig.descPlaceholder}" value="${this.escapeHtml(descVal)}" oninput="DeckEditor.onItemInput(this, '${catConfig.key}')">
+          <input type="text" class="form-input input-item-title" placeholder="${catConfig.titlePlaceholder || 'Заголовок'}" value="${this.escapeHtml(titleVal)}" oninput="DeckEditor.onItemInput(this, '${catConfig.key}')">
+          <input type="text" class="form-input input-item-desc" placeholder="${catConfig.descPlaceholder || 'Описание'}" value="${this.escapeHtml(descVal)}" oninput="DeckEditor.onItemInput(this, '${catConfig.key}')">
         </div>
         <button type="button" class="btn-delete-item" title="Удалить карту" onclick="DeckEditor.deleteItem(this, '${catConfig.key}')">🗑️</button>
       `;
@@ -181,7 +286,7 @@ const DeckEditor = {
       let textVal = typeof itemData === 'string' ? itemData : (itemData ? (itemData.text || itemData.name || JSON.stringify(itemData)) : '');
 
       row.innerHTML = `
-        <input type="text" class="form-input input-item-simple" placeholder="${catConfig.placeholder}" value="${this.escapeHtml(textVal)}" oninput="DeckEditor.onItemInput(this, '${catConfig.key}')">
+        <input type="text" class="form-input input-item-simple" placeholder="${catConfig.placeholder || 'Текст карты'}" value="${this.escapeHtml(textVal)}" oninput="DeckEditor.onItemInput(this, '${catConfig.key}')">
         <button type="button" class="btn-delete-item" title="Удалить карту" onclick="DeckEditor.deleteItem(this, '${catConfig.key}')">🗑️</button>
       `;
     }
@@ -191,7 +296,7 @@ const DeckEditor = {
   },
 
   addItem(catKey) {
-    const catConfig = this.categoriesConfig.find(c => c.key === catKey);
+    const catConfig = this.activeCategories.find(c => c.key === catKey);
     if (!catConfig) return;
 
     const listContainer = document.getElementById(`items-list-${catKey}`);
@@ -231,11 +336,347 @@ const DeckEditor = {
     this.updateLivePreview(catKey, inputElement.value);
   },
 
+  // --- CUSTOM CATEGORIES MANAGEMENT ---
+  openNewCategoryModal() {
+    const modal = document.getElementById('modal-new-category');
+    if (!modal) return;
+    document.getElementById('input-new-cat-name').value = '';
+    document.getElementById('input-new-cat-icon').value = '🦾';
+    document.getElementById('select-new-cat-type').value = 'simple';
+    modal.classList.remove('hidden');
+    document.getElementById('input-new-cat-name').focus();
+    App.playSound('click');
+  },
+
+  saveNewCategory() {
+    const nameInput = document.getElementById('input-new-cat-name');
+    const iconInput = document.getElementById('input-new-cat-icon');
+    const typeSelect = document.getElementById('select-new-cat-type');
+
+    const name = nameInput ? nameInput.value.trim() : '';
+    const icon = iconInput ? iconInput.value.trim() || '🏷️' : '🏷️';
+    const type = typeSelect ? typeSelect.value : 'simple';
+
+    if (!name) {
+      App.showToast('⚠️ Введите название категории!');
+      return;
+    }
+
+    const key = 'cat_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 100);
+
+    const newCat = {
+      key,
+      name,
+      icon,
+      type,
+      placeholder: `Например: Карта категории ${name}`,
+      isCustom: true
+    };
+
+    this.activeCategories.push(newCat);
+
+    // Append category box to UI
+    const container = document.getElementById('editor-categories-inputs');
+    if (container) {
+      const box = document.createElement('div');
+      box.className = 'constructor-category-box';
+      box.setAttribute('data-cat-key', key);
+      box.innerHTML = `
+        <div class="constructor-cat-header">
+          <div class="constructor-cat-title">
+            <span class="cat-icon">${newCat.icon}</span>
+            <span class="cat-name">${newCat.name}</span>
+            <span class="cat-count-badge" id="count-badge-${newCat.key}">0 шт.</span>
+            <button type="button" class="btn btn-sm btn-danger" style="padding: 2px 8px; font-size: 11px;" title="Удалить категорию" onclick="DeckEditor.deleteCustomCategory('${newCat.key}')">🗑️ Удалить</button>
+          </div>
+          <div class="constructor-header-btn-group">
+            <button type="button" class="btn btn-sm btn-outline btn-bulk-import" onclick="DeckEditor.openBulkModal('${newCat.key}', '${newCat.name}')">📋 Вставить списком</button>
+            <button type="button" class="btn btn-sm btn-primary btn-add-card" onclick="DeckEditor.addItem('${newCat.key}')">+ Добавить карту</button>
+          </div>
+        </div>
+        <div class="constructor-items-list" id="items-list-${newCat.key}"></div>
+      `;
+      container.appendChild(box);
+    }
+
+    document.getElementById('modal-new-category').classList.add('hidden');
+    App.showToast(`✅ Категория "${name}" успешно добавлена!`);
+    App.playSound('start');
+  },
+
+  deleteCustomCategory(catKey) {
+    if (!confirm('Удалить эту категорию и все заполненные в ней карты?')) return;
+    this.activeCategories = this.activeCategories.filter(c => c.key !== catKey);
+    const box = document.querySelector(`.constructor-category-box[data-cat-key="${catKey}"]`);
+    if (box) box.remove();
+    App.showToast('🗑️ Категория удалена');
+    App.playSound('click');
+  },
+
+  // --- CUSTOM TAGS MANAGEMENT ---
+  renderTagsManager() {
+    const container = document.getElementById('editor-tags-list-container');
+    if (!container) return;
+
+    const allTags = typeof TagHelper !== 'undefined' ? TagHelper.getAllTagsList() : [];
+
+    container.innerHTML = allTags.map(t => {
+      const isCustom = this.customTags.some(ct => ct.key === t.key);
+      const deleteBtn = isCustom ? `
+        <button type="button" class="btn-delete-chip-tag" title="Удалить тег" onclick="DeckEditor.deleteCustomTag('${t.key}')">✕</button>
+      ` : '';
+
+      return `
+        <div class="editor-tag-chip-card" style="border-color: ${t.color}40; background: ${t.bg}; color: ${t.color};">
+          <span class="tag-chip-icon">${t.icon}</span>
+          <span class="tag-chip-name">#${t.name}</span>
+          ${deleteBtn}
+        </div>
+      `;
+    }).join('');
+  },
+
+  openNewTagModal() {
+    const modal = document.getElementById('modal-new-tag');
+    if (!modal) return;
+    document.getElementById('input-new-tag-name').value = '';
+    document.getElementById('input-new-tag-icon').value = '☢️';
+    document.getElementById('input-new-tag-color').value = '#10b981';
+    document.getElementById('input-new-tag-aliases').value = '';
+    modal.classList.remove('hidden');
+    document.getElementById('input-new-tag-name').focus();
+    App.playSound('click');
+  },
+
+  saveNewTag() {
+    const name = (document.getElementById('input-new-tag-name')?.value || '').trim();
+    const icon = (document.getElementById('input-new-tag-icon')?.value || '🏷️').trim();
+    const color = (document.getElementById('input-new-tag-color')?.value || '#38bdf8').trim();
+    const aliasesRaw = (document.getElementById('input-new-tag-aliases')?.value || '').trim();
+
+    if (!name) {
+      App.showToast('⚠️ Укажите название тега!');
+      return;
+    }
+
+    const key = 'tag_' + name.toLowerCase().replace(/[^а-яa-z0-9]/gi, '_');
+    const aliases = aliasesRaw ? aliasesRaw.split(',').map(a => a.trim().toLowerCase()).filter(Boolean) : [name.toLowerCase()];
+
+    const tagObj = {
+      key,
+      name,
+      icon,
+      color,
+      bg: color + '22',
+      aliases
+    };
+
+    this.customTags = this.customTags.filter(t => t.key !== key);
+    this.customTags.push(tagObj);
+
+    if (typeof TagHelper !== 'undefined') {
+      TagHelper.registerCustomTags([tagObj]);
+    }
+
+    this.renderTagsManager();
+    document.getElementById('modal-new-tag').classList.add('hidden');
+    App.showToast(`✅ Тег #${name} успешно создан!`);
+    App.playSound('start');
+  },
+
+  deleteCustomTag(tagKey) {
+    this.customTags = this.customTags.filter(t => t.key !== tagKey);
+    if (typeof TagHelper !== 'undefined') {
+      TagHelper.resetToDefaults();
+      TagHelper.registerCustomTags(this.customTags);
+    }
+    this.renderTagsManager();
+    App.showToast('🗑️ Тег удален');
+    App.playSound('click');
+  },
+
+  // --- CUSTOM EVALUATION CONFIG MANAGEMENT ---
+  renderEvaluationConfig() {
+    const container = document.getElementById('editor-eval-questions-list');
+    if (!container) return;
+
+    const resourceOptions = [
+      { key: 'none', label: '— Без привязки к ресурсу —' },
+      { key: 'food', label: '🍞 Провизия/Вода' },
+      { key: 'medicine', label: '💊 Медицина' },
+      { key: 'engineering', label: '⚙️ Инженерия' },
+      { key: 'defense', label: '🛡️ Защита/Оборона' },
+      { key: 'psycho', label: '🧠 Психика/Сон' },
+      { key: 'fire', label: '🧯 Пожаротушение' },
+      { key: 'science', label: '🔬 Наука/Био' }
+    ];
+
+    // Add any custom tags as possible linked resources
+    this.customTags.forEach(ct => {
+      resourceOptions.push({ key: ct.key, label: `${ct.icon} ${ct.name}` });
+    });
+
+    container.innerHTML = this.evaluationQuestions.map((q, qIdx) => {
+      const resSelectHtml = resourceOptions.map(opt => `
+        <option value="${opt.key}" ${q.linkedResource === opt.key ? 'selected' : ''}>${opt.label}</option>
+      `).join('');
+
+      const optionsHtml = (q.options || []).map((opt, optIdx) => `
+        <div class="eval-editor-option-row">
+          <input type="number" class="form-input eval-opt-score" value="${opt.score || (optIdx + 1)}" min="1" max="10" title="Балл за вариант" style="width: 55px; text-align: center;">
+          <input type="text" class="form-input eval-opt-label" value="${this.escapeHtml(opt.label)}" placeholder="Текст варианта" style="flex: 1;">
+          <button type="button" class="btn-delete-item" title="Удалить вариант" onclick="DeckEditor.deleteEvalOption(${qIdx}, ${optIdx})">✕</button>
+        </div>
+      `).join('');
+
+      return `
+        <div class="eval-editor-question-card" data-qidx="${qIdx}">
+          <div class="eval-editor-q-header">
+            <span class="q-badge">Вопрос #${qIdx + 1}</span>
+            <input type="text" class="form-input eval-q-title-input" value="${this.escapeHtml(q.title)}" placeholder="Текст вопроса" style="flex: 1; font-weight: 700;">
+            <button type="button" class="btn btn-sm btn-danger" onclick="DeckEditor.deleteEvalQuestion(${qIdx})">🗑️</button>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 12px;">
+            <span style="color: var(--accent-cyan);">📊 Связанный ресурс команды:</span>
+            <select class="form-input eval-q-res-select" style="max-width: 250px; font-size: 12px; height: 30px;">
+              ${resSelectHtml}
+            </select>
+          </div>
+          <div class="eval-editor-options-container" id="eval-options-list-${qIdx}">
+            ${optionsHtml}
+          </div>
+          <button type="button" class="btn btn-sm btn-outline" style="margin-top: 6px; font-size: 11px;" onclick="DeckEditor.addEvalOption(${qIdx})">+ Добавить вариант ответа</button>
+        </div>
+      `;
+    }).join('');
+  },
+
+  addEvaluationQuestion() {
+    this.readCurrentEvalFromDOM();
+    const newIdx = this.evaluationQuestions.length + 1;
+    this.evaluationQuestions.push({
+      id: 'q_' + Date.now().toString(36),
+      title: `${newIdx}. Новый критерий выживаемости:`,
+      linkedResource: 'none',
+      options: [
+        { score: 1, label: '1 — Критический провал' },
+        { score: 2, label: '2 — Недостаточно' },
+        { score: 3, label: '3 — Средний уровень' },
+        { score: 4, label: '4 — Хорошо' },
+        { score: 5, label: '5 — Идеально' }
+      ]
+    });
+    this.renderEvaluationConfig();
+    App.playSound('click');
+  },
+
+  deleteEvalQuestion(qIdx) {
+    this.readCurrentEvalFromDOM();
+    if (this.evaluationQuestions.length <= 1) {
+      App.showToast('⚠️ В анкете должен оставаться хотя бы один вопрос!');
+      return;
+    }
+    this.evaluationQuestions.splice(qIdx, 1);
+    this.renderEvaluationConfig();
+    App.playSound('click');
+  },
+
+  addEvalOption(qIdx) {
+    this.readCurrentEvalFromDOM();
+    const q = this.evaluationQuestions[qIdx];
+    if (q) {
+      const nextScore = (q.options || []).length + 1;
+      q.options.push({ score: nextScore, label: `${nextScore} — Новый вариант ответа` });
+      this.renderEvaluationConfig();
+    }
+  },
+
+  deleteEvalOption(qIdx, optIdx) {
+    this.readCurrentEvalFromDOM();
+    const q = this.evaluationQuestions[qIdx];
+    if (q && q.options && q.options.length > 2) {
+      q.options.splice(optIdx, 1);
+      this.renderEvaluationConfig();
+    } else {
+      App.showToast('⚠️ В вопросе должно быть минимум 2 варианта ответа!');
+    }
+  },
+
+  resetEvaluationConfig() {
+    if (!confirm('Сбросить вопросы анкеты к стандартным 5 вопросам?')) return;
+    this.evaluationQuestions = JSON.parse(JSON.stringify(this.DEFAULT_EVALUATION_QUESTIONS));
+    this.renderEvaluationConfig();
+    App.showToast('↺ Вопросы анкеты сброшены к стандартным');
+    App.playSound('click');
+  },
+
+  readCurrentEvalFromDOM() {
+    const cards = document.querySelectorAll('.eval-editor-question-card');
+    cards.forEach((card, idx) => {
+      const q = this.evaluationQuestions[idx];
+      if (!q) return;
+      const titleInput = card.querySelector('.eval-q-title-input');
+      const resSelect = card.querySelector('.eval-q-res-select');
+      if (titleInput) q.title = titleInput.value.trim();
+      if (resSelect) q.linkedResource = resSelect.value;
+
+      const optRows = card.querySelectorAll('.eval-editor-option-row');
+      const options = [];
+      optRows.forEach(row => {
+        const score = parseInt(row.querySelector('.eval-opt-score')?.value, 10) || 1;
+        const label = row.querySelector('.eval-opt-label')?.value.trim() || '';
+        options.push({ score, label });
+      });
+      if (options.length > 0) q.options = options;
+    });
+  },
+
+  // --- IMAGE UPLOAD HELPER ---
+  async uploadImageFile(file, targetInputId, isBack = false) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      App.showToast('⚠️ Пожалуйста, выберите файл изображения (PNG, JPG, WEBP)!');
+      return;
+    }
+
+    App.showToast('⏳ Загрузка изображения на сервер...');
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const base64Data = e.target.result;
+        const res = await fetch('/api/upload_image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            data: base64Data,
+            filename: file.name
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Ошибка загрузки');
+
+        const input = document.getElementById(targetInputId);
+        if (input) {
+          input.value = data.url;
+        }
+
+        this.updateLivePreview();
+        App.showToast(`✅ Изображение "${file.name}" успешно загружено!`);
+        App.playSound('start');
+      } catch (err) {
+        App.showToast(`❌ Ошибка загрузки: ${err.message}`);
+      }
+    };
+    reader.readAsDataURL(file);
+  },
+
   // --- LIVE STATIC PREVIEW ---
   updateLivePreview(catKey = null, text = null) {
     const testInput = document.getElementById('prev-test-input');
     const rawText = text !== null ? text : (testInput ? testInput.value : 'Огнетушитель ОП-4 (#Пожаротушение[4])');
-    const cat = this.categoriesConfig.find(c => c.key === (catKey || 'small_inventory')) || this.categoriesConfig[3];
+    const cat = this.activeCategories.find(c => c.key === (catKey || 'small_inventory')) || this.activeCategories[3] || this.DEFAULT_CATEGORIES_CONFIG[0];
 
     const parsed = TagHelper.parse(rawText);
 
@@ -280,6 +721,18 @@ const DeckEditor = {
     if (!modal) return;
     document.getElementById('bulk-modal-title').textContent = `📋 Вставка списка карт: ${catName}`;
     document.getElementById('bulk-import-textarea').value = '';
+
+    // Render bulk tags helpers
+    const chipsBar = document.getElementById('bulk-tags-chips');
+    if (chipsBar && typeof TagHelper !== 'undefined') {
+      const allTags = TagHelper.getAllTagsList();
+      chipsBar.innerHTML = allTags.map(t => `
+        <button type="button" class="btn-tag-chip" onclick="DeckEditor.insertBulkTag('${t.defaultTag}')" style="border-color: ${t.color}60; color: ${t.color}; background: ${t.bg}; font-size: 11px; padding: 2px 7px; border-radius: 4px; cursor: pointer;">
+          + ${t.icon} ${t.defaultTag}
+        </button>
+      `).join('');
+    }
+
     modal.classList.remove('hidden');
     document.getElementById('bulk-import-textarea').focus();
     App.playSound('click');
@@ -307,7 +760,7 @@ const DeckEditor = {
       return;
     }
 
-    const catConfig = this.categoriesConfig.find(c => c.key === this.currentBulkCategory);
+    const catConfig = this.activeCategories.find(c => c.key === this.currentBulkCategory);
     const listContainer = document.getElementById(`items-list-${this.currentBulkCategory}`);
     if (catConfig && listContainer) {
       lines.forEach(line => {
@@ -401,6 +854,8 @@ const DeckEditor = {
   },
 
   gatherDeckData() {
+    this.readCurrentEvalFromDOM();
+
     const id = document.getElementById('edit-deck-id').value.trim();
     const name = document.getElementById('edit-deck-name').value.trim();
     const author = document.getElementById('edit-deck-author').value.trim();
@@ -412,16 +867,29 @@ const DeckEditor = {
       throw new Error('Укажите ID и название темы!');
     }
 
+    // Filter custom categories created by user
+    const customCats = this.activeCategories.filter(c => c.isCustom).map(c => ({
+      key: c.key,
+      name: c.name,
+      icon: c.icon,
+      type: c.type
+    }));
+
     const payload = {
       id,
       name,
       author: author || 'Бункер 3.1',
       description: desc,
       backgroundImage: bg || null,
-      cardBackImage: back || null
+      cardBackImage: back || null,
+      customCategories: customCats,
+      customTags: this.customTags,
+      evaluationConfig: {
+        questions: this.evaluationQuestions
+      }
     };
 
-    this.categoriesConfig.forEach(cat => {
+    this.activeCategories.forEach(cat => {
       const listContainer = document.getElementById(`items-list-${cat.key}`);
       if (!listContainer) return;
 
@@ -437,7 +905,7 @@ const DeckEditor = {
             } else if (cat.key === 'threats') {
               payload.threats.push({ title: title || 'Угроза бункера', description: description || '' });
             } else {
-              payload.bunker.push({ title: title || 'Условие бункера', description: description || '' });
+              payload[cat.key].push({ title: title || 'Условие бункера', description: description || '' });
             }
           }
         });
@@ -469,79 +937,142 @@ const DeckEditor = {
 
   bindEvents() {
     // Back to Lobby
-    document.getElementById('btn-editor-back').addEventListener('click', () => {
-      App.showScreen('screen-lobby');
-      Lobby.fetchDecks();
-      App.playSound('click');
-    });
+    const btnBack = document.getElementById('btn-editor-back');
+    if (btnBack) {
+      btnBack.addEventListener('click', () => {
+        App.showScreen('screen-lobby');
+        Lobby.fetchDecks();
+        App.playSound('click');
+      });
+    }
 
     // Create New Theme
-    document.getElementById('btn-editor-new').addEventListener('click', () => {
-      this.currentDeck = {
-        id: 'new_deck_' + Math.floor(Math.random() * 1000),
-        name: 'Новый авторский набор',
-        author: 'Мастер',
-        description: 'Описание нового набора карт',
-        backgroundImage: '',
-        cardBackImage: '',
-        disasters: [{ title: 'Новая катастрофа', goal: 'Выжить и перезапустить бункер' }],
-        bunker: [{ title: 'Автономный генератор', description: 'Обеспечивает бункер светом (#Инженерия[4])' }],
-        threats: [{ title: 'Задымление вентиляции', description: 'Требуется тушение (#Пожаротушение[4])' }],
-        professions: ['Инженер-электрик (#Инженерия[5])', 'Врач-хирург (#Медицина[5])', 'Пожарный спасатель (#Пожаротушение[4])'],
-        health: ['Идеальное здоровье (#Медицина[3])'],
-        biology: ['Мужчина, 28 лет, атлетичен'],
-        hobby: ['Кулинария и заготовки (#Еда[3])'],
-        traits: ['Хладнокровие (#Психика[4])'],
-        facts: ['Знает пароль от оружейной'],
-        small_inventory: ['Огнетушитель углекислотный (#Пожаротушение[4])', 'Аптечка первой помощи (#Медицина[3])'],
-        large_inventory: ['Дизельный генератор на 5 кВт (#Инженерия[5])', 'Ящик армейских пайков (#Еда[5])'],
-        special_cards: [
-          { text: '«Право Вето»: Отмените изгнание в этом раунде', action: 'exile_immunity' },
-          { text: '«Расширение убежища»: Добавьте +1 место в бункер', action: 'bunker_cap_plus' }
-        ]
-      };
-      this.renderConstructor();
-      App.playSound('click');
-    });
+    const btnNew = document.getElementById('btn-editor-new');
+    if (btnNew) {
+      btnNew.addEventListener('click', () => {
+        this.currentDeck = {
+          id: 'new_deck_' + Math.floor(Math.random() * 1000),
+          name: 'Новый авторский набор',
+          author: 'Мастер',
+          description: 'Описание нового набора карт',
+          backgroundImage: '',
+          cardBackImage: '',
+          customCategories: [],
+          customTags: [],
+          evaluationConfig: { questions: JSON.parse(JSON.stringify(this.DEFAULT_EVALUATION_QUESTIONS)) },
+          disasters: [{ title: 'Новая катастрофа', goal: 'Выжить и перезапустить бункер' }],
+          bunker: [{ title: 'Автономный генератор', description: 'Обеспечивает бункер светом (#Инженерия[4])' }],
+          threats: [{ title: 'Задымление вентиляции', description: 'Требуется тушение (#Пожаротушение[4])' }],
+          professions: ['Инженер-электрик (#Инженерия[5])', 'Врач-хирург (#Медицина[5])', 'Пожарный спасатель (#Пожаротушение[4])'],
+          health: ['Идеальное здоровье (#Медицина[3])'],
+          biology: ['Мужчина, 28 лет, атлетичен'],
+          hobby: ['Кулинария и заготовки (#Еда[3])'],
+          traits: ['Хладнокровие (#Психика[4])'],
+          facts: ['Знает пароль от оружейной'],
+          small_inventory: ['Огнетушитель углекислотный (#Пожаротушение[4])', 'Аптечка первой помощи (#Медицина[3])'],
+          large_inventory: ['Дизельный генератор на 5 кВт (#Инженерия[5])', 'Ящик армейских пайков (#Еда[5])'],
+          special_cards: [
+            { text: '«Право Вето»: Отмените изгнание в этом раунде', action: 'exile_immunity' },
+            { text: '«Расширение убежища»: Добавьте +1 место в бункер', action: 'bunker_cap_plus' }
+          ]
+        };
+        this.renderConstructor();
+        App.playSound('click');
+      });
+    }
 
     // Save Deck
-    document.getElementById('btn-editor-save').addEventListener('click', async () => {
-      try {
-        const payload = this.gatherDeckData();
-        const res = await fetch('/api/decks/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Ошибка сохранения');
+    const btnSave = document.getElementById('btn-editor-save');
+    if (btnSave) {
+      btnSave.addEventListener('click', async () => {
+        try {
+          const payload = this.gatherDeckData();
+          const res = await fetch('/api/decks/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Ошибка сохранения');
 
-        App.showToast(`💾 Набор "${payload.name}" успешно сохранен!`);
-        App.playSound('start');
-        await this.fetchDecks();
-      } catch (err) {
-        App.showToast(`❌ ${err.message}`);
-      }
-    });
+          App.showToast(`💾 Набор "${payload.name}" успешно сохранен!`);
+          App.playSound('start');
+          await this.fetchDecks();
+        } catch (err) {
+          App.showToast(`❌ ${err.message}`);
+        }
+      });
+    }
 
     // Delete Deck
-    document.getElementById('btn-editor-delete').addEventListener('click', async () => {
-      if (!this.currentDeck || !this.currentDeck.id) return;
-      if (!confirm(`Удалить набор карт "${this.currentDeck.name}"?`)) return;
+    const btnDelete = document.getElementById('btn-editor-delete');
+    if (btnDelete) {
+      btnDelete.addEventListener('click', async () => {
+        if (!this.currentDeck || !this.currentDeck.id) return;
+        if (!confirm(`Удалить набор карт "${this.currentDeck.name}"?`)) return;
 
-      try {
-        await fetch('/api/decks/delete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: this.currentDeck.id })
-        });
-        App.showToast('🗑️ Набор удален');
-        this.currentDeck = null;
-        await this.fetchDecks();
-      } catch (e) {
-        App.showToast(`Ошибка: ${e.message}`);
-      }
-    });
+        try {
+          await fetch('/api/decks/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: this.currentDeck.id })
+          });
+          App.showToast('🗑️ Набор удален');
+          this.currentDeck = null;
+          await this.fetchDecks();
+        } catch (e) {
+          App.showToast(`Ошибка: ${e.message}`);
+        }
+      });
+    }
+
+    // Upload Background Image
+    const btnUploadBg = document.getElementById('btn-upload-deck-bg');
+    const inputUploadBg = document.getElementById('input-file-deck-bg');
+    if (btnUploadBg && inputUploadBg) {
+      btnUploadBg.addEventListener('click', () => inputUploadBg.click());
+      inputUploadBg.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) this.uploadImageFile(file, 'edit-deck-bg');
+      });
+    }
+
+    // Upload Card Back Image
+    const btnUploadBack = document.getElementById('btn-upload-deck-back');
+    const inputUploadBack = document.getElementById('input-file-deck-back');
+    if (btnUploadBack && inputUploadBack) {
+      btnUploadBack.addEventListener('click', () => inputUploadBack.click());
+      inputUploadBack.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) this.uploadImageFile(file, 'edit-deck-card-back', true);
+      });
+    }
+
+    // Category modal events
+    const btnOpenCat = document.getElementById('btn-open-new-cat-modal');
+    if (btnOpenCat) btnOpenCat.addEventListener('click', () => this.openNewCategoryModal());
+    const btnCloseCat = document.getElementById('btn-close-new-cat-modal');
+    if (btnCloseCat) btnCloseCat.addEventListener('click', () => document.getElementById('modal-new-category').classList.add('hidden'));
+    const btnCancelCat = document.getElementById('btn-cancel-new-cat');
+    if (btnCancelCat) btnCancelCat.addEventListener('click', () => document.getElementById('modal-new-category').classList.add('hidden'));
+    const btnSaveCat = document.getElementById('btn-save-new-cat');
+    if (btnSaveCat) btnSaveCat.addEventListener('click', () => this.saveNewCategory());
+
+    // Tag modal events
+    const btnOpenTag = document.getElementById('btn-open-new-tag-modal');
+    if (btnOpenTag) btnOpenTag.addEventListener('click', () => this.openNewTagModal());
+    const btnCloseTag = document.getElementById('btn-close-new-tag-modal');
+    if (btnCloseTag) btnCloseTag.addEventListener('click', () => document.getElementById('modal-new-tag').classList.add('hidden'));
+    const btnCancelTag = document.getElementById('btn-cancel-new-tag');
+    if (btnCancelTag) btnCancelTag.addEventListener('click', () => document.getElementById('modal-new-tag').classList.add('hidden'));
+    const btnSaveTag = document.getElementById('btn-save-new-tag');
+    if (btnSaveTag) btnSaveTag.addEventListener('click', () => this.saveNewTag());
+
+    // Evaluation config buttons
+    const btnResetEval = document.getElementById('btn-reset-eval-config');
+    if (btnResetEval) btnResetEval.addEventListener('click', () => this.resetEvaluationConfig());
+    const btnAddEval = document.getElementById('btn-add-eval-question');
+    if (btnAddEval) btnAddEval.addEventListener('click', () => this.addEvaluationQuestion());
 
     // Export JSON
     const btnExport = document.getElementById('btn-editor-export-json');

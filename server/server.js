@@ -5,9 +5,17 @@ const url = require('url');
 const zlib = require('zlib');
 const { roomManager, CATEGORIES, getNetworkInfo } = require('./game_manager');
 const deckLoader = require('./deck_loader');
+const licenseGuard = require('./license_guard');
 
 const PORT = process.env.PORT || 3000;
 const CLIENT_DIR = path.join(__dirname, '..', 'client');
+
+// Initialize license guard and re-broadcast on status change
+licenseGuard.init((isLocked) => {
+  for (const room of roomManager.rooms.values()) {
+    broadcastRoom(room);
+  }
+});
 
 // Broadcast state to all SSE clients connected to a specific room
 function broadcastRoom(targetRoom) {
@@ -18,6 +26,8 @@ function broadcastRoom(targetRoom) {
       let state = stateCache.get(client.playerId);
       if (!state) {
         state = targetRoom.toClientState(client.playerId);
+        state.systemLocked = licenseGuard.isLocked();
+        state.systemLockReason = licenseGuard.getLockReason();
         stateCache.set(client.playerId, state);
       }
       client.res.write(`data: ${JSON.stringify(state)}\n\n`);
@@ -71,14 +81,14 @@ function sendJson(res, statusCode, data) {
   res.end(JSON.stringify(data));
 }
 
-function parseBody(req) {
+function parseBody(req, limit = 30 * 1024 * 1024) {
   return new Promise((resolve, reject) => {
     let body = '';
     req.on('data', chunk => {
       body += chunk.toString();
-      if (body.length > 1e6) {
+      if (body.length > limit) {
         req.destroy();
-        reject(new Error('Body too large'));
+        reject(new Error('Размер данных превышает лимит'));
       }
     });
     req.on('end', () => {
@@ -187,6 +197,9 @@ const server = http.createServer(async (req, res) => {
 
       // Actions
       if (pathname === '/api/action' && req.method === 'POST') {
+        if (licenseGuard.isLocked()) {
+          return sendJson(res, 403, { error: 'СЕРВЕР ЗАБЛОКИРОВАН: требуется авторизация копии игры в консоли сервера.' });
+        }
         const body = await parseBody(req);
         const targetGame = getGameFromReq(req, parsedUrl, body);
         const { action, playerId, payload } = body;
@@ -353,6 +366,45 @@ const server = http.createServer(async (req, res) => {
         const body = await parseBody(req);
         deckLoader.deleteDeck(body.id);
         return sendJson(res, 200, { success: true });
+      }
+
+      // Upload image endpoint (supports PNG, JPG, JPEG, WEBP, GIF up to 25MB)
+      if (pathname === '/api/upload_image' && req.method === 'POST') {
+        const body = await parseBody(req);
+        if (!body || !body.data) {
+          return sendJson(res, 400, { error: 'Данные изображения отсутствуют' });
+        }
+
+        const match = String(body.data).match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
+        if (!match) {
+          return sendJson(res, 400, { error: 'Неверный формат изображения (поддерживаются PNG, JPG, WEBP)' });
+        }
+
+        let ext = match[1].toLowerCase();
+        if (ext === 'jpeg') ext = 'jpg';
+        const base64Data = match[2];
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        const uploadsDir = path.join(CLIENT_DIR, 'uploads');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+
+        const cleanName = (body.filename || 'image').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 25);
+        const fileName = `${Date.now()}_${cleanName}.${ext}`;
+        const targetPath = path.join(uploadsDir, fileName);
+
+        fs.writeFileSync(targetPath, buffer);
+        const url = `/uploads/${fileName}`;
+        return sendJson(res, 200, { success: true, url, fileName });
+      }
+
+      // License status endpoint
+      if (pathname === '/api/license_status' && req.method === 'GET') {
+        return sendJson(res, 200, {
+          locked: licenseGuard.isLocked(),
+          reason: licenseGuard.getLockReason()
+        });
       }
 
       return sendJson(res, 404, { error: 'API endpoint not found' });

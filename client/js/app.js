@@ -429,9 +429,31 @@ const App = {
       if (state.status === 'playing') this.playSound('start');
     }
 
+    // Custom tags registration from active deck
+    if (state.customTags && typeof TagHelper !== 'undefined') {
+      TagHelper.registerCustomTags(state.customTags);
+    }
+
+    // System Lock Guardian Screen
+    const lockModal = document.getElementById('modal-system-lock');
+    if (lockModal) {
+      if (state.systemLocked) {
+        lockModal.classList.remove('hidden');
+        const reasonEl = document.getElementById('system-lock-reason');
+        if (reasonEl) reasonEl.textContent = state.systemLockReason || 'Сессия приостановлена для проверки лицензии.';
+      } else {
+        lockModal.classList.add('hidden');
+      }
+    }
+
     // Route screen
+    const currentActive = document.querySelector('.screen.active');
+    const isEditingDeck = currentActive && currentActive.id === 'screen-editor';
+
     if (state.status === 'lobby') {
-      this.showScreen('screen-lobby');
+      if (!isEditingDeck) {
+        this.showScreen('screen-lobby');
+      }
       if (typeof Lobby !== 'undefined') Lobby.render(state);
       const btnBackToResults = document.getElementById('btn-back-to-results');
       if (btnBackToResults) btnBackToResults.classList.add('hidden');
@@ -446,7 +468,6 @@ const App = {
       const btnBackToResults = document.getElementById('btn-back-to-results');
       if (btnBackToResults) btnBackToResults.classList.add('hidden');
     } else if (state.status === 'finished') {
-      const currentActive = document.querySelector('.screen.active');
       const isViewingTable = currentActive && currentActive.id === 'screen-game';
       const justFinished = prevState && prevState.status !== 'finished';
 

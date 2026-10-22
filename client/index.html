@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0">
   <title>БУНКЕР — Настольная игра на выживание</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <link rel="stylesheet" href="css/style.css?v=4.3">
+  <link rel="stylesheet" href="css/style.css?v=4.4">
 </head>
 <body class="theme-dark">
   <div id="app">
@@ -570,8 +570,12 @@
                 <div class="theme-style-title">🎨 Оформление игрового стола и карт:</div>
                 <div class="theme-inputs-grid">
                   <div class="form-group">
-                    <label>Фоновое изображение стола (URL):</label>
-                    <input type="text" id="edit-deck-bg" class="form-input" placeholder="https://... (или выберите пресет)">
+                    <label>Фоновое изображение стола (URL или файл):</label>
+                    <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                      <input type="text" id="edit-deck-bg" class="form-input" placeholder="https://... или загрузите файл">
+                      <button type="button" class="btn btn-sm btn-outline" id="btn-upload-deck-bg" title="Загрузить изображение с устройства">📁 Загрузить</button>
+                      <input type="file" id="input-file-deck-bg" accept="image/png,image/jpeg,image/webp" class="hidden">
+                    </div>
                     <div class="preset-links">
                       <span class="preset-label">Пресеты фона:</span>
                       <button type="button" class="btn-preset-link" onclick="DeckEditor.setBgPreset('bunker')">Бункер</button>
@@ -581,8 +585,12 @@
                     </div>
                   </div>
                   <div class="form-group">
-                    <label>Изображение рубашки карт (URL):</label>
-                    <input type="text" id="edit-deck-card-back" class="form-input" placeholder="https://... (или выберите пресет)">
+                    <label>Изображение рубашки карт (URL или файл):</label>
+                    <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                      <input type="text" id="edit-deck-card-back" class="form-input" placeholder="https://... или загрузите файл">
+                      <button type="button" class="btn btn-sm btn-outline" id="btn-upload-deck-back" title="Загрузить изображение с устройства">📁 Загрузить</button>
+                      <input type="file" id="input-file-deck-back" accept="image/png,image/jpeg,image/webp" class="hidden">
+                    </div>
                     <div class="preset-links">
                       <span class="preset-label">Пресеты рубашки:</span>
                       <button type="button" class="btn-preset-link" onclick="DeckEditor.setBackPreset('vault')">Люк</button>
@@ -592,6 +600,43 @@
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <!-- DECK CUSTOM TAGS / PARAMETERS -->
+              <div class="editor-tags-manager-box">
+                <div class="editor-section-header">
+                  <div class="section-title">🏷️ Настройка параметров выживания (тегов набора):</div>
+                  <button type="button" id="btn-open-new-tag-modal" class="btn btn-sm btn-primary">+ Создать свой тег</button>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                  Теги задают числовые бонусы картам (например: <code>#Пожаротушение[4]</code> или <code>#Радиация[3]</code>). Они суммируются у выживших и влияют на шанс спасения.
+                </p>
+                <div id="editor-tags-list-container" class="editor-tags-list-chips">
+                  <!-- Injected via JS -->
+                </div>
+              </div>
+
+              <!-- DECK CUSTOM EVALUATION QUESTIONS CONFIG -->
+              <div class="editor-eval-config-box">
+                <div class="editor-section-header">
+                  <div class="section-title">📋 Анкета оценки выживаемости (для финала Мастера):</div>
+                  <div style="display: flex; gap: 6px;">
+                    <button type="button" id="btn-reset-eval-config" class="btn btn-sm btn-outline" title="Вернуть стандартные 5 вопросов">↺ Сброс вопросов</button>
+                    <button type="button" id="btn-add-eval-question" class="btn btn-sm btn-primary">+ Добавить вопрос</button>
+                  </div>
+                </div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                  Настройте вопросы, которые Мастер заполняет в финале игры для расчета шанса выживания команды:
+                </p>
+                <div id="editor-eval-questions-list" class="editor-eval-questions-list">
+                  <!-- Injected via JS -->
+                </div>
+              </div>
+
+              <!-- CATEGORIES CONSTRUCTOR HEADER BAR -->
+              <div class="editor-categories-header-bar">
+                <div class="section-title">🃏 Категории карт набора:</div>
+                <button type="button" id="btn-open-new-cat-modal" class="btn btn-sm btn-primary">+ Создать категорию карт</button>
               </div>
 
               <!-- CATEGORIES CONSTRUCTOR -->
@@ -1077,15 +1122,101 @@
       </div>
     </div>
 
+    <!-- 8. MODAL: CREATE CUSTOM TAG -->
+    <div id="modal-new-tag" class="modal-backdrop hidden">
+      <div class="modal-card" style="max-width: 480px;">
+        <div class="modal-header">
+          <h3>🏷️ Новый тег параметра выживания</h3>
+          <button id="btn-close-new-tag-modal" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Название тега (например: Радиация или Магия):</label>
+            <input type="text" id="input-new-tag-name" class="form-input" placeholder="Радиация">
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+              <label>Иконка / Эмодзи:</label>
+              <input type="text" id="input-new-tag-icon" class="form-input" placeholder="☢️" value="☢️" maxlength="4">
+            </div>
+            <div class="form-group">
+              <label>Цвет подсветки:</label>
+              <input type="color" id="input-new-tag-color" class="form-input" value="#10b981" style="height: 38px; padding: 2px;">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Синонимы / Ключевые слова (через запятую):</label>
+            <input type="text" id="input-new-tag-aliases" class="form-input" placeholder="радиация, антирад, дозиметр, фон">
+            <small style="color: var(--text-dim); font-size: 11px;">При указании этих слов в тексте карты они автоматически свяжутся с данным параметром.</small>
+          </div>
+          <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
+            <button type="button" id="btn-cancel-new-tag" class="btn btn-outline">Отмена</button>
+            <button type="button" id="btn-save-new-tag" class="btn btn-success">+ Создать тег</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 9. MODAL: CREATE CUSTOM CATEGORY -->
+    <div id="modal-new-category" class="modal-backdrop hidden">
+      <div class="modal-card" style="max-width: 480px;">
+        <div class="modal-header">
+          <h3>🃏 Создание новой категории карт</h3>
+          <button id="btn-close-new-cat-modal" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Название категории (например: Киберимпланты):</label>
+            <input type="text" id="input-new-cat-name" class="form-input" placeholder="Киберимпланты">
+          </div>
+          <div class="form-group">
+            <label>Иконка / Эмодзи:</label>
+            <input type="text" id="input-new-cat-icon" class="form-input" placeholder="🦾" value="🦾" maxlength="4">
+          </div>
+          <div class="form-group">
+            <label>Тип карт в категории:</label>
+            <select id="select-new-cat-type" class="form-input">
+              <option value="simple">Простые карты (одно текстовое поле с тегами)</option>
+              <option value="complex">Сложные карты (заголовок + описание)</option>
+            </select>
+          </div>
+          <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
+            <button type="button" id="btn-cancel-new-cat" class="btn btn-outline">Отмена</button>
+            <button type="button" id="btn-save-new-cat" class="btn btn-primary">+ Добавить в набор</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 10. MODAL: SYSTEM SECURITY LOCK -->
+    <div id="modal-system-lock" class="modal-backdrop hidden" style="z-index: 99999; backdrop-filter: blur(15px); background: rgba(5, 7, 12, 0.94);">
+      <div class="modal-card" style="max-width: 520px; text-align: center; border: 2px solid var(--accent-red); box-shadow: 0 0 50px rgba(239, 68, 68, 0.4);">
+        <div style="font-size: 54px; margin-bottom: 12px; filter: drop-shadow(0 0 12px var(--accent-red));">🔒</div>
+        <h2 style="font-family: var(--font-display); color: var(--accent-red); font-size: 20px; margin-bottom: 10px; text-transform: uppercase;">
+          СЕАНС ПРИОСТАНОВЛЕН
+        </h2>
+        <p id="system-lock-reason" style="font-size: 14px; color: var(--text-main); margin-bottom: 16px; line-height: 1.5;">
+          Обнаружен запуск на неавторизованной рабочей станции. Требуется подтверждение в консоли запуска сервера.
+        </p>
+        <div style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; color: var(--text-muted); line-height: 1.4; text-align: left; margin-bottom: 16px;">
+          ℹ️ <strong>Инструкция для Мастера:</strong><br>
+          Откройте окно консоли (терминала), где запущен сервер Бункера, и введите ключевую фразу подтверждения. Доступ автоматически возобновится для всех участников.
+        </div>
+        <div style="display: flex; justify-content: center;">
+          <button type="button" class="btn btn-outline" onclick="location.reload()">🔄 Проверить статус разблокировки</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- SCRIPTS -->
-  <script src="js/qrcode.min.js?v=4.3"></script>
-  <script src="js/tag_helper.js?v=4.3"></script>
-  <script src="js/app.js?v=4.3"></script>
-  <script src="js/lobby.js?v=4.3"></script>
-  <script src="js/ugc_creator.js?v=4.3"></script>
-  <script src="js/game.js?v=4.3"></script>
-  <script src="js/deck_editor.js?v=4.3"></script>
+  <script src="js/qrcode.min.js?v=4.4"></script>
+  <script src="js/tag_helper.js?v=4.4"></script>
+  <script src="js/app.js?v=4.4"></script>
+  <script src="js/lobby.js?v=4.4"></script>
+  <script src="js/ugc_creator.js?v=4.4"></script>
+  <script src="js/game.js?v=4.4"></script>
+  <script src="js/deck_editor.js?v=4.4"></script>
 </body>
 </html>

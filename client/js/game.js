@@ -187,6 +187,15 @@ const GameBoard = {
         const defense = document.querySelector('input[name="eval-defense"]:checked')?.value || '3';
         const psychology = document.querySelector('input[name="eval-psychology"]:checked')?.value || '3';
 
+        const answers = {};
+        document.querySelectorAll('.eval-question-block').forEach((block, idx) => {
+          const qId = block.getAttribute('data-qid') || `q_${idx}`;
+          const checked = block.querySelector('input[type="radio"]:checked');
+          if (checked) {
+            answers[qId] = checked.value;
+          }
+        });
+
         const disasterCondition = document.querySelector('input[name="eval-disaster-condition"]:checked')?.value || 'ok';
 
         const bunkerStatuses = [];
@@ -209,6 +218,7 @@ const GameBoard = {
               specialists,
               defense,
               psychology,
+              answers,
               disasterCondition,
               bunkerStatuses,
               threatStatuses
@@ -432,27 +442,65 @@ const GameBoard = {
     // Resources to display: prefer finalTeamResources (all cards of survivors) or live teamResources
     const res = state.finalTeamResources || state.teamResources || {};
 
-    // 1. Per-Question Matching Resource Badges
-    const q1 = document.getElementById('eval-q-res-1');
-    if (q1) q1.innerHTML = `<span class="card-tag-chip" style="color: #f59e0b; background: rgba(245,158,11,0.12); border: 1px solid #f59e0b40; font-size: 11px;">🍞 Провизия команды: +${res.food || 0}</span>`;
+    const questionsCol = document.querySelector('.eval-questions-col');
+    if (questionsCol && state.evaluationConfig && Array.isArray(state.evaluationConfig.questions) && state.evaluationConfig.questions.length > 0) {
+      const questions = state.evaluationConfig.questions;
+      let qHtml = `
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+          Мастер отвечает на вопросы анкеты набора (${questions.length} шт.), оценивая готовность команды:
+        </p>
+      `;
+      questions.forEach((q, idx) => {
+        let resBadge = '';
+        if (q.linkedResource && q.linkedResource !== 'none') {
+          const def = (typeof TagHelper !== 'undefined') ? TagHelper.PARAM_DEFINITIONS[q.linkedResource] : null;
+          const val = res[q.linkedResource] || 0;
+          if (def) {
+            resBadge = `<span class="card-tag-chip" style="color: ${def.color}; background: ${def.bg}; border: 1px solid ${def.color}40; font-size: 11px;">${def.icon} ${def.name}: +${val}</span>`;
+          }
+        }
 
-    const q2 = document.getElementById('eval-q-res-2');
-    if (q2) q2.innerHTML = `<span class="card-tag-chip" style="color: #10b981; background: rgba(16,185,129,0.12); border: 1px solid #10b98140; font-size: 11px;">💊 Медицина команды: +${res.medicine || 0}</span>`;
+        const optsHtml = (q.options || []).map((opt, oIdx) => `
+          <label class="eval-opt">
+            <input type="radio" name="eval-custom-q-${idx}" value="${opt.score}" ${oIdx === Math.min(2, (q.options.length - 1)) ? 'checked' : ''}>
+            <span>${opt.label}</span>
+          </label>
+        `).join('');
 
-    const q3 = document.getElementById('eval-q-res-3');
-    if (q3) q3.innerHTML = `
-      <span class="card-tag-chip" style="color: #6366f1; background: rgba(99,102,241,0.12); border: 1px solid #6366f140; font-size: 11px;">⚙️ Инженерия: +${res.engineering || 0}</span>
-      <span class="card-tag-chip" style="color: #06b6d4; background: rgba(6,182,212,0.12); border: 1px solid #06b6d440; font-size: 11px;">🔬 Наука: +${res.science || 0}</span>
-    `;
+        qHtml += `
+          <div class="eval-question-block" data-qid="${q.id}">
+            <div class="eval-q-header">
+              <label class="eval-q-title">${q.title}</label>
+              <div class="eval-q-res-chip">${resBadge}</div>
+            </div>
+            <div class="eval-options-grid">${optsHtml}</div>
+          </div>
+        `;
+      });
+      questionsCol.innerHTML = qHtml;
+    } else {
+      // 1. Per-Question Matching Resource Badges for standard questions
+      const q1 = document.getElementById('eval-q-res-1');
+      if (q1) q1.innerHTML = `<span class="card-tag-chip" style="color: #f59e0b; background: rgba(245,158,11,0.12); border: 1px solid #f59e0b40; font-size: 11px;">🍞 Провизия команды: +${res.food || 0}</span>`;
 
-    const q4 = document.getElementById('eval-q-res-4');
-    if (q4) q4.innerHTML = `
-      <span class="card-tag-chip" style="color: #ef4444; background: rgba(239,68,68,0.12); border: 1px solid #ef444440; font-size: 11px;">🧯 Пожаротушение: +${res.fire || 0}</span>
-      <span class="card-tag-chip" style="color: #3b82f6; background: rgba(59,130,246,0.12); border: 1px solid #3b82f640; font-size: 11px;">🛡️ Оборона/Защита: +${res.defense || 0}</span>
-    `;
+      const q2 = document.getElementById('eval-q-res-2');
+      if (q2) q2.innerHTML = `<span class="card-tag-chip" style="color: #10b981; background: rgba(16,185,129,0.12); border: 1px solid #10b98140; font-size: 11px;">💊 Медицина команды: +${res.medicine || 0}</span>`;
 
-    const q5 = document.getElementById('eval-q-res-5');
-    if (q5) q5.innerHTML = `<span class="card-tag-chip" style="color: #a855f7; background: rgba(168,85,247,0.12); border: 1px solid #a855f740; font-size: 11px;">🧠 Психика и сон: +${res.psycho || 0}</span>`;
+      const q3 = document.getElementById('eval-q-res-3');
+      if (q3) q3.innerHTML = `
+        <span class="card-tag-chip" style="color: #6366f1; background: rgba(99,102,241,0.12); border: 1px solid #6366f140; font-size: 11px;">⚙️ Инженерия: +${res.engineering || 0}</span>
+        <span class="card-tag-chip" style="color: #06b6d4; background: rgba(6,182,212,0.12); border: 1px solid #06b6d440; font-size: 11px;">🔬 Наука: +${res.science || 0}</span>
+      `;
+
+      const q4 = document.getElementById('eval-q-res-4');
+      if (q4) q4.innerHTML = `
+        <span class="card-tag-chip" style="color: #ef4444; background: rgba(239,68,68,0.12); border: 1px solid #ef444440; font-size: 11px;">🧯 Пожаротушение: +${res.fire || 0}</span>
+        <span class="card-tag-chip" style="color: #3b82f6; background: rgba(59,130,246,0.12); border: 1px solid #3b82f640; font-size: 11px;">🛡️ Оборона/Защита: +${res.defense || 0}</span>
+      `;
+
+      const q5 = document.getElementById('eval-q-res-5');
+      if (q5) q5.innerHTML = `<span class="card-tag-chip" style="color: #a855f7; background: rgba(168,85,247,0.12); border: 1px solid #a855f740; font-size: 11px;">🧠 Психика и сон: +${res.psycho || 0}</span>`;
+    }
 
     // 2. Right Reference Column: Catastrophe
     const disTitle = document.getElementById('eval-ref-disaster-title');

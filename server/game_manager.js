@@ -872,6 +872,22 @@ class SingleGame {
     this.cardBackImage = options.cardBackImage || (primaryDeck && primaryDeck.cardBackImage) || null;
     this.deckAuthor = options.deckAuthor || (primaryDeck && primaryDeck.author) || (primaryDeck && primaryDeck.name) || 'Бункер 3.1';
 
+    // Merge custom categories from selected deck
+    if (primaryDeck && Array.isArray(primaryDeck.customCategories)) {
+      primaryDeck.customCategories.forEach(c => {
+        if (!this.categories.some(existing => existing.key === c.key)) {
+          this.categories.push({
+            key: c.key,
+            name: c.name,
+            icon: c.icon || '🏷️',
+            isSpecial: Boolean(c.isSpecial || c.type === 'special')
+          });
+        }
+      });
+    }
+    this.customTags = (primaryDeck && primaryDeck.customTags) || [];
+    this.evaluationConfig = (primaryDeck && primaryDeck.evaluationConfig) || null;
+
     // 3. Player Cards (STRICT 1 COPY PER CARD)
     this.categories.forEach(cat => {
       let sourceList = pool[cat.key] || [];
@@ -1229,20 +1245,41 @@ class SingleGame {
     const bunkerStatuses = Array.isArray(evaluation.bunkerStatuses) ? evaluation.bunkerStatuses : [];
     const threatStatuses = Array.isArray(evaluation.threatStatuses) ? evaluation.threatStatuses : [];
 
-    // Base score from Master's 5 questions (5 to 25 points -> 20% to 100%)
-    const totalEvalPoints = evalScores.supplies + evalScores.medicine + evalScores.specialists + evalScores.defense + evalScores.psychology;
-    let percentage = Math.round((totalEvalPoints / 25) * 100);
+    // Base score from Master's evaluation questions
+    let totalEvalPoints = 0;
+    let maxEvalPoints = 25;
 
-    // 1. Team Resources Bonus: up to +15%
+    if (evaluation.answers && typeof evaluation.answers === 'object') {
+      const answers = evaluation.answers;
+      const keys = Object.keys(answers);
+      if (keys.length > 0) {
+        totalEvalPoints = 0;
+        maxEvalPoints = keys.length * 5;
+        keys.forEach(k => {
+          const val = Math.max(1, Math.min(5, parseInt(answers[k], 10) || 3));
+          totalEvalPoints += val;
+        });
+      }
+    } else {
+      totalEvalPoints = evalScores.supplies + evalScores.medicine + evalScores.specialists + evalScores.defense + evalScores.psychology;
+    }
+    let percentage = Math.round((totalEvalPoints / maxEvalPoints) * 100);
+
+    // 1. Team Resources Bonus: up to +20% (including custom tags)
     const teamRes = this.calculateTeamResources(false);
-    const resourceBonus = Math.min(15, Math.round(
+    let customResSum = 0;
+    if (teamRes.custom) {
+      Object.values(teamRes.custom).forEach(v => { customResSum += (v || 0) * 1.5; });
+    }
+    const resourceBonus = Math.min(20, Math.round(
       (teamRes.fire * 1.5) +
       (teamRes.medicine * 2) +
       (teamRes.food * 2) +
       (teamRes.engineering * 2) +
       (teamRes.psycho * 1.5) +
       (teamRes.defense * 1.5) +
-      (teamRes.science * 1.5)
+      (teamRes.science * 1.5) +
+      customResSum
     ));
     percentage += resourceBonus;
 
@@ -1507,6 +1544,8 @@ class SingleGame {
       myId: this.players.has(forPlayerId) ? forPlayerId : null,
       players: playersList,
       categories: this.categories,
+      customTags: this.customTags || [],
+      evaluationConfig: this.evaluationConfig || null,
       logs: this.logs.slice(0, 35),
       roomId: this.roomId,
       network: getNetworkInfo(this.roomId)

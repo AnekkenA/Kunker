@@ -1,7 +1,7 @@
 // --- BUNKER TAG & PARAMETER HELPER ---
-// Standard survival parameters with aliases and visual styling
+// Standard survival parameters with aliases, visual styling, and custom tags extension
 const TagHelper = {
-  PARAM_DEFINITIONS: {
+  DEFAULT_PARAM_DEFINITIONS: {
     fire: {
       name: 'Пожаротушение',
       icon: '🧯',
@@ -53,9 +53,63 @@ const TagHelper = {
     }
   },
 
+  PARAM_DEFINITIONS: {},
+
+  init() {
+    this.resetToDefaults();
+  },
+
+  resetToDefaults() {
+    this.PARAM_DEFINITIONS = JSON.parse(JSON.stringify(this.DEFAULT_PARAM_DEFINITIONS));
+  },
+
+  registerCustomTags(customTagsList) {
+    if (!Array.isArray(customTagsList)) return;
+    customTagsList.forEach(t => {
+      if (!t || !t.key) return;
+      const key = String(t.key).trim().toLowerCase();
+      const name = t.name || key;
+      const icon = t.icon || '🏷️';
+      const color = t.color || '#38bdf8';
+      const bg = t.bg || (color + '26');
+      
+      let aliases = [key, name.toLowerCase()];
+      if (Array.isArray(t.aliases)) {
+        aliases.push(...t.aliases.map(a => String(a).trim().toLowerCase()));
+      } else if (typeof t.aliases === 'string') {
+        aliases.push(...t.aliases.split(',').map(a => a.trim().toLowerCase()).filter(Boolean));
+      }
+
+      this.PARAM_DEFINITIONS[key] = {
+        name,
+        icon,
+        color,
+        bg,
+        aliases: Array.from(new Set(aliases)),
+        isCustom: true
+      };
+    });
+  },
+
+  getAllTagsList() {
+    return Object.entries(this.PARAM_DEFINITIONS).map(([key, def]) => ({
+      key,
+      name: def.name,
+      icon: def.icon,
+      color: def.color,
+      bg: def.bg,
+      defaultTag: `#${def.name}[3]`
+    }));
+  },
+
   parse(rawText) {
     if (!rawText || typeof rawText !== 'string') {
       return { cleanText: String(rawText || ''), tags: [] };
+    }
+
+    // Ensure definitions exist
+    if (!this.PARAM_DEFINITIONS || Object.keys(this.PARAM_DEFINITIONS).length === 0) {
+      this.resetToDefaults();
     }
 
     const tags = [];
@@ -71,7 +125,7 @@ const TagHelper = {
 
       let matchedDefKey = null;
       for (const [key, def] of Object.entries(this.PARAM_DEFINITIONS)) {
-        if (def.aliases.some(alias => tagWord.includes(alias) || alias.includes(tagWord))) {
+        if (def.aliases && def.aliases.some(alias => tagWord === alias || tagWord.includes(alias) || alias.includes(tagWord))) {
           matchedDefKey = key;
           break;
         }
@@ -126,6 +180,8 @@ const TagHelper = {
     `).join('');
   }
 };
+
+TagHelper.init();
 
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = TagHelper;
