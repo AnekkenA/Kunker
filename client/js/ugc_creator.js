@@ -241,26 +241,116 @@ const UgcCreator = {
     }
   },
 
+  TAGS_DIRECTORY_INFO: {
+    food: {
+      desc: 'Запас еды, чистой воды и сухпайков. Защита бункера от голода, засухи и истощения.'
+    },
+    medicine: {
+      desc: 'Лекарства, хирургия, антибиотики и стерильность. Защита от эпидемий, заражений и ран.'
+    },
+    engineering: {
+      desc: 'Ремонт генераторов, проводки, вентиляции и помп. Восстановление систем бункера.'
+    },
+    defense: {
+      desc: 'Броня, оружие, укрепление гермодверей и караул. Защита от рейдеров, мародеров и мутантов.'
+    },
+    psycho: {
+      desc: 'Моральная стойкость, сон и порядок. Предотвращение паники, психоза и бунта выживших.'
+    },
+    fire: {
+      desc: 'Огнетушители, гидранты, песок и негорючие материалы. Спасение бункера от возгораний.'
+    },
+    science: {
+      desc: 'Лаборатории, дезактивация радиации, селекция семян и создание вакцин.'
+    }
+  },
+
   renderTagInsertBar() {
     const bar = document.getElementById('ugc-tag-helper-bar');
     if (!bar) return;
 
     if (!window.TagHelper || !TagHelper.PARAM_DEFINITIONS) return;
 
+    const allDefs = Object.entries(TagHelper.PARAM_DEFINITIONS);
+
+    const quickChipsHtml = allDefs.map(([key, def]) => `
+      <button type="button" class="btn-tag-chip" data-tag="#${def.name}[3]" title="Вставить #${def.name}[3] в активное поле" style="border-color: ${def.color}60; color: ${def.color}; background: ${def.bg}; font-size: 12px; padding: 4px 9px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
+        + ${def.icon} #${def.name}[3]
+      </button>
+    `).join('');
+
+    const detailedItemsHtml = allDefs.map(([key, def]) => {
+      const info = this.TAGS_DIRECTORY_INFO[key] || {
+        desc: def.aliases ? `Ключевые слова: ${def.aliases.join(', ')}` : 'Пользовательский параметр выживания'
+      };
+
+      return `
+        <div class="ugc-tag-guide-card" style="border-left: 3px solid ${def.color};">
+          <div class="ugc-tag-guide-header">
+            <div class="ugc-tag-guide-title" style="color: ${def.color};">
+              <span>${def.icon}</span>
+              <span>#${def.name}</span>
+            </div>
+            <div class="ugc-tag-quick-buttons">
+              <span style="font-size: 10px; color: var(--text-dim); margin-right: 2px;">Баллы:</span>
+              <button type="button" class="btn-score-tag" data-tag="#${def.name}[1]">+1</button>
+              <button type="button" class="btn-score-tag" data-tag="#${def.name}[2]">+2</button>
+              <button type="button" class="btn-score-tag" data-tag="#${def.name}[3]">+3</button>
+              <button type="button" class="btn-score-tag" data-tag="#${def.name}[4]">+4</button>
+              <button type="button" class="btn-score-tag" data-tag="#${def.name}[5]">+5</button>
+            </div>
+          </div>
+          <div class="ugc-tag-guide-desc">${info.desc}</div>
+        </div>
+      `;
+    }).join('');
+
     bar.innerHTML = `
-      <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 6px;">
-        💡 <strong>Быстрая вставка тегов параметров выживания</strong> (кликните в поле, затем нажмите нужный тег):
-      </div>
-      <div class="quick-tag-insert-bar" style="display: flex; flex-wrap: wrap; gap: 6px;">
-        ${Object.entries(TagHelper.PARAM_DEFINITIONS).map(([key, def]) => `
-          <button type="button" class="btn-tag-chip" data-tag="#${def.name}[3]" style="border-color: ${def.color}60; color: ${def.color}; background: ${def.bg}; font-size: 12px; padding: 3px 8px; border-radius: 6px; cursor: pointer;">
-            + ${def.icon} #${def.name}[3]
+      <div class="ugc-tags-directory-panel">
+        <div class="ugc-tags-dir-header">
+          <div class="ugc-tags-dir-title">
+            <span>🏷️</span>
+            <strong>Список всех существующих тегов выживания:</strong>
+            <span class="ugc-tag-count-badge">${allDefs.length} тегов</span>
+          </div>
+          <button type="button" id="btn-toggle-ugc-tags-guide" class="btn btn-xs btn-outline">
+            📖 Развернуть описание всех тегов
           </button>
-        `).join('')}
+        </div>
+
+        <p class="ugc-tags-dir-hint">
+          💡 <strong>Как использовать:</strong> кликните в любое поле карты и нажмите кнопку тега. В финале игры теги выживших суммируются и помогают спасти бункер!
+        </p>
+
+        <!-- QUICK CHIPS -->
+        <div class="quick-tag-insert-bar" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;">
+          ${quickChipsHtml}
+        </div>
+
+        <!-- DETAILED EXPANDABLE REFERENCE -->
+        <div id="ugc-tags-detailed-reference" class="ugc-tags-detailed-reference hidden">
+          <div class="ugc-tags-grid">
+            ${detailedItemsHtml}
+          </div>
+        </div>
       </div>
     `;
 
-    bar.querySelectorAll('.btn-tag-chip').forEach(btn => {
+    // Bind Toggle Button
+    const btnToggle = bar.querySelector('#btn-toggle-ugc-tags-guide');
+    const refContainer = bar.querySelector('#ugc-tags-detailed-reference');
+    if (btnToggle && refContainer) {
+      btnToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        const isHidden = refContainer.classList.contains('hidden');
+        refContainer.classList.toggle('hidden');
+        btnToggle.textContent = isHidden ? '🔼 Свернуть справочник тегов' : '📖 Развернуть описание всех тегов';
+        if (typeof App !== 'undefined') App.playSound('click');
+      });
+    }
+
+    // Bind Quick Chips and Detailed Buttons
+    bar.querySelectorAll('[data-tag]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         const tag = btn.getAttribute('data-tag');
@@ -272,22 +362,39 @@ const UgcCreator = {
   insertTagIntoActiveInput(tag) {
     let input = this.lastFocusedInput;
     if (!input || !document.body.contains(input)) {
-      input = document.querySelector('.ugc-input');
+      input = document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('ugc-input')
+        ? document.activeElement
+        : document.querySelector('.ugc-input');
     }
-    if (!input) return;
+    if (!input) {
+      if (typeof App !== 'undefined') App.showToast('⚠️ Сначала нажмите в поле карты, куда вставить тег!');
+      return;
+    }
 
-    const val = input.value;
-    if (val.trim()) {
-      input.value = `${val.trim()} (${tag})`;
-    } else {
+    const val = input.value.trim();
+    if (!val) {
       input.value = tag;
+    } else if (val.endsWith(')')) {
+      input.value = val.slice(0, -1).trim() + `, ${tag})`;
+    } else {
+      input.value = `${val} (${tag})`;
     }
+
     input.focus();
-    App.showToast(`Вставлен тег ${tag}`);
+    if (typeof App !== 'undefined') {
+      App.playSound('click');
+      App.showToast(`✅ Вставлен: ${tag}`);
+    }
   },
 
   render(state) {
     this.categories = state.categories || [];
+    if (typeof TagHelper !== 'undefined') {
+      TagHelper.resetToDefaults();
+      if (Array.isArray(state.customTags)) {
+        TagHelper.registerCustomTags(state.customTags);
+      }
+    }
     this.renderTagInsertBar();
 
     // 1. Render World Section: Bunker Inputs (5 pairs)

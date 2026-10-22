@@ -131,13 +131,43 @@ const Lobby = {
       });
     }
 
+    // Setup Lobby Emoji Picker for custom category
+    const lobbyEmojiGrid = document.getElementById('lobby-category-emoji-grid');
+    const lobbyIconInput = document.getElementById('input-lobby-new-cat-icon') || document.getElementById('input-new-cat-icon');
+    if (lobbyEmojiGrid && lobbyIconInput) {
+      const emojis = (typeof DeckEditor !== 'undefined' && DeckEditor.CURATED_EMOJIS) || [
+        '☣️', '☢️', '🌋', '⚠️', '🔥', '🧯',
+        '💊', '💉', '🩺', '🧬', '❤️', '🧠',
+        '🍞', '🥫', '💧', '🥩', '🌾', '🍳',
+        '⚙️', '🔧', '🔋', '⚡', '💻', '💡',
+        '🛡️', '🗡️', '🔫', '🪓', '🪖', '🏹',
+        '🎒', '📦', '📻', '🗝️', '🦾', '📜'
+      ];
+      lobbyEmojiGrid.innerHTML = emojis.map(em => `
+        <button type="button" class="btn-emoji-pick ${lobbyIconInput.value === em ? 'selected' : ''}" data-emoji="${em}" style="font-size: 14px; height: 28px;">
+          ${em}
+        </button>
+      `).join('');
+
+      lobbyEmojiGrid.querySelectorAll('.btn-emoji-pick').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const em = btn.getAttribute('data-emoji');
+          lobbyIconInput.value = em;
+          lobbyEmojiGrid.querySelectorAll('.btn-emoji-pick').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          App.playSound('click');
+        });
+      });
+    }
+
     // Add custom category button
     const btnAddCat = document.getElementById('btn-add-custom-cat');
     if (btnAddCat) {
       btnAddCat.addEventListener('click', () => {
-        const nameInput = document.getElementById('input-new-cat-name');
-        const iconInput = document.getElementById('input-new-cat-icon');
-        const cardsInput = document.getElementById('input-new-cat-cards');
+        const nameInput = document.getElementById('input-lobby-new-cat-name') || document.getElementById('input-new-cat-name');
+        const iconInput = document.getElementById('input-lobby-new-cat-icon') || document.getElementById('input-new-cat-icon');
+        const cardsInput = document.getElementById('input-lobby-new-cat-cards') || document.getElementById('input-new-cat-cards');
 
         const name = nameInput ? nameInput.value.trim() : '';
         const icon = iconInput && iconInput.value.trim() ? iconInput.value.trim() : '🃏';
@@ -162,7 +192,7 @@ const Lobby = {
         });
 
         if (nameInput) nameInput.value = '';
-        if (iconInput) iconInput.value = '';
+        if (iconInput) iconInput.value = '🏷️';
         if (cardsInput) cardsInput.value = '';
 
         this.renderCategoriesUI();

@@ -2969,11 +2969,188 @@ body {
   background: rgba(6, 182, 212, 0.15);
 }
 
-.ugc-tags-helper-bar {
-  background: rgba(6, 182, 212, 0.05);
-  border: 1px dashed var(--accent-cyan);
-  padding: 10px 14px;
+/* EMOJI PICKER GRID (36 CURATED THEMATIC EMOJIS) */
+.emoji-picker-container {
+  margin-top: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.emoji-picker-label {
+  font-size: 12px;
+  color: var(--accent-cyan);
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.emoji-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 6px;
+}
+
+@media (max-width: 600px) {
+  .emoji-picker-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+.btn-emoji-pick {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  font-size: 18px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  padding: 0;
+}
+
+.btn-emoji-pick:hover {
+  background: rgba(6, 182, 212, 0.2);
+  border-color: var(--accent-cyan);
+  transform: translateY(-2px);
+  filter: brightness(1.2);
+}
+
+.btn-emoji-pick.selected {
+  background: rgba(6, 182, 212, 0.35);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+  transform: scale(1.08);
+}
+
+/* UGC TAGS DIRECTORY & REFERENCE GUIDE */
+.ugc-tags-directory-panel {
+  background: rgba(19, 27, 38, 0.9);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-top: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.ugc-tags-dir-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ugc-tags-dir-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--accent-cyan);
+}
+
+.ugc-tag-count-badge {
+  font-size: 11px;
+  background: rgba(6, 182, 212, 0.15);
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  color: var(--accent-cyan);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.ugc-tags-dir-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 10px 0;
+  line-height: 1.45;
+}
+
+.ugc-tags-detailed-reference {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+}
+
+.ugc-tags-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.ugc-tag-guide-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform 0.15s, background 0.15s;
+}
+
+.ugc-tag-guide-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-1px);
+}
+
+.ugc-tag-guide-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.ugc-tag-guide-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ugc-tag-quick-buttons {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.btn-score-tag {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: var(--text-main);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-score-tag:hover {
+  background: var(--accent-cyan);
+  color: #0f172a;
+  border-color: var(--accent-cyan);
+  transform: scale(1.1);
+}
+
+.ugc-tag-guide-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.ugc-tag-helper-bar {
+  background: transparent;
+  border: none;
+  padding: 0;
   margin-bottom: 16px;
 }
 

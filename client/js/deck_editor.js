@@ -19,6 +19,48 @@ const DeckEditor = {
     { key: 'special_cards', name: 'Спец-карты', icon: '⚡', type: 'special', scope: 'player', placeholder: 'Например: «Право Вето»: Отмените изгнание в этом раунде' }
   ],
 
+  // 36 curated thematic survival / bunker emojis
+  CURATED_EMOJIS: [
+    '☣️', '☢️', '🌋', '⚠️', '🔥', '🧯',
+    '💊', '💉', '🩺', '🧬', '❤️', '🧠',
+    '🍞', '🥫', '💧', '🥩', '🌾', '🍳',
+    '⚙️', '🔧', '🔋', '⚡', '💻', '💡',
+    '🛡️', '🗡️', '🔫', '🪓', '🪖', '🏹',
+    '🎒', '📦', '📻', '🗝️', '🦾', '📜'
+  ],
+
+  setupEmojiPicker(gridId, targetInputId, defaultEmoji = '') {
+    const grid = document.getElementById(gridId);
+    const input = document.getElementById(targetInputId);
+    if (!grid || !input) return;
+
+    const currentVal = (input.value || defaultEmoji).trim();
+
+    grid.innerHTML = this.CURATED_EMOJIS.map(em => `
+      <button type="button" class="btn-emoji-pick ${currentVal === em ? 'selected' : ''}" data-emoji="${em}" title="Выбрать ${em}">
+        ${em}
+      </button>
+    `).join('');
+
+    grid.querySelectorAll('.btn-emoji-pick').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const em = btn.getAttribute('data-emoji');
+        input.value = em;
+        grid.querySelectorAll('.btn-emoji-pick').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        if (typeof App !== 'undefined') App.playSound('click');
+      });
+    });
+
+    input.oninput = () => {
+      const val = input.value.trim();
+      grid.querySelectorAll('.btn-emoji-pick').forEach(b => {
+        b.classList.toggle('selected', b.getAttribute('data-emoji') === val);
+      });
+    };
+  },
+
   DEFAULT_EVALUATION_QUESTIONS: [
     {
       id: 'supplies',
@@ -382,18 +424,22 @@ const DeckEditor = {
   openNewCategoryModal() {
     const modal = document.getElementById('modal-new-category');
     if (!modal) return;
-    document.getElementById('input-new-cat-name').value = '';
-    document.getElementById('input-new-cat-icon').value = '🦾';
-    document.getElementById('select-new-cat-type').value = 'simple';
+    const nameInput = document.getElementById('input-modal-new-cat-name') || document.getElementById('input-new-cat-name');
+    const iconInput = document.getElementById('input-modal-new-cat-icon') || document.getElementById('input-new-cat-icon');
+    const typeSelect = document.getElementById('select-modal-new-cat-type') || document.getElementById('select-new-cat-type');
+    if (nameInput) nameInput.value = '';
+    if (iconInput) iconInput.value = '🦾';
+    if (typeSelect) typeSelect.value = 'simple';
+    this.setupEmojiPicker('category-emoji-grid', (iconInput ? iconInput.id : 'input-modal-new-cat-icon'), '🦾');
     modal.classList.remove('hidden');
-    document.getElementById('input-new-cat-name').focus();
+    if (nameInput) nameInput.focus();
     App.playSound('click');
   },
 
   saveNewCategory() {
-    const nameInput = document.getElementById('input-new-cat-name');
-    const iconInput = document.getElementById('input-new-cat-icon');
-    const typeSelect = document.getElementById('select-new-cat-type');
+    const nameInput = document.getElementById('input-modal-new-cat-name') || document.getElementById('input-new-cat-name');
+    const iconInput = document.getElementById('input-modal-new-cat-icon') || document.getElementById('input-new-cat-icon');
+    const typeSelect = document.getElementById('select-modal-new-cat-type') || document.getElementById('select-new-cat-type');
 
     const name = nameInput ? nameInput.value.trim() : '';
     const icon = iconInput ? iconInput.value.trim() || '🏷️' : '🏷️';
@@ -483,6 +529,7 @@ const DeckEditor = {
     document.getElementById('input-new-tag-icon').value = '☢️';
     document.getElementById('input-new-tag-color').value = '#10b981';
     document.getElementById('input-new-tag-aliases').value = '';
+    this.setupEmojiPicker('tag-emoji-grid', 'input-new-tag-icon', '☢️');
     modal.classList.remove('hidden');
     document.getElementById('input-new-tag-name').focus();
     App.playSound('click');

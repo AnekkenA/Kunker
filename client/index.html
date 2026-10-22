@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0">
   <title>БУНКЕР — Настольная игра на выживание</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <link rel="stylesheet" href="css/style.css?v=4.6">
+  <link rel="stylesheet" href="css/style.css?v=4.7">
 </head>
 <body class="theme-dark">
   <div id="app">
@@ -192,10 +192,14 @@
                 <div style="border-top: 1px solid var(--border-color); padding-top: 8px;">
                   <div style="font-size: 11px; font-weight: 700; margin-bottom: 6px; color: var(--accent-cyan);">+ Добавить категорию (например: Знак зодиака, Фобия):</div>
                   <div style="display: flex; gap: 6px; margin-bottom: 6px;">
-                    <input type="text" id="input-new-cat-icon" placeholder="Эмодзи (♈)" maxlength="4" class="form-input" style="width: 75px; padding: 4px 6px; font-size: 12px;">
-                    <input type="text" id="input-new-cat-name" placeholder="Название (Знак зодиака)" class="form-input" style="flex: 1; padding: 4px 6px; font-size: 12px;">
+                    <input type="text" id="input-lobby-new-cat-icon" placeholder="Эмодзи" value="🏷️" maxlength="4" class="form-input" style="width: 75px; padding: 4px 6px; font-size: 12px; text-align: center;">
+                    <input type="text" id="input-lobby-new-cat-name" placeholder="Название (Знак зодиака)" class="form-input" style="flex: 1; padding: 4px 6px; font-size: 12px;">
                   </div>
-                  <input type="text" id="input-new-cat-cards" placeholder="Варианты через запятую (Овен, Телец, Близнецы...)" class="form-input" style="width: 100%; padding: 4px 6px; font-size: 11px; margin-bottom: 6px;">
+                  <div class="emoji-picker-container" style="margin-bottom: 6px; padding: 6px 8px;">
+                    <div class="emoji-picker-label" style="font-size: 10px; margin-bottom: 4px;">Быстрый выбор иконки:</div>
+                    <div id="lobby-category-emoji-grid" class="emoji-picker-grid" style="gap: 4px;"></div>
+                  </div>
+                  <input type="text" id="input-lobby-new-cat-cards" placeholder="Варианты через запятую (Овен, Телец, Близнецы...)" class="form-input" style="width: 100%; padding: 4px 6px; font-size: 11px; margin-bottom: 6px;">
                   <button type="button" id="btn-add-custom-cat" class="btn btn-sm btn-primary btn-block">+ Добавить категорию в игру</button>
                 </div>
               </div>
@@ -1155,14 +1159,21 @@
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <div class="form-group">
               <label>Иконка / Эмодзи:</label>
-              <input type="text" id="input-new-tag-icon" class="form-input" placeholder="☢️" value="☢️" maxlength="4">
+              <input type="text" id="input-new-tag-icon" class="form-input" placeholder="☢️" value="☢️" maxlength="4" style="text-align: center; font-size: 16px;">
             </div>
             <div class="form-group">
               <label>Цвет подсветки:</label>
               <input type="color" id="input-new-tag-color" class="form-input" value="#10b981" style="height: 38px; padding: 2px;">
             </div>
           </div>
-          <div class="form-group">
+          
+          <!-- EMOJI PICKER FOR TAG -->
+          <div class="emoji-picker-container">
+            <div class="emoji-picker-label">🎨 Выберите подходящую иконку (36 тематических значков):</div>
+            <div id="tag-emoji-grid" class="emoji-picker-grid"></div>
+          </div>
+
+          <div class="form-group" style="margin-top: 10px;">
             <label>Синонимы / Ключевые слова (через запятую):</label>
             <input type="text" id="input-new-tag-aliases" class="form-input" placeholder="радиация, антирад, дозиметр, фон">
             <small style="color: var(--text-dim); font-size: 11px;">При указании этих слов в тексте карты они автоматически свяжутся с данным параметром.</small>
@@ -1185,15 +1196,22 @@
         <div class="modal-body">
           <div class="form-group">
             <label>Название категории (например: Киберимпланты):</label>
-            <input type="text" id="input-new-cat-name" class="form-input" placeholder="Киберимпланты">
+            <input type="text" id="input-modal-new-cat-name" class="form-input" placeholder="Киберимпланты">
           </div>
           <div class="form-group">
             <label>Иконка / Эмодзи:</label>
-            <input type="text" id="input-new-cat-icon" class="form-input" placeholder="🦾" value="🦾" maxlength="4">
+            <input type="text" id="input-modal-new-cat-icon" class="form-input" placeholder="🦾" value="🦾" maxlength="4" style="text-align: center; font-size: 16px;">
           </div>
-          <div class="form-group">
+
+          <!-- EMOJI PICKER FOR CATEGORY -->
+          <div class="emoji-picker-container">
+            <div class="emoji-picker-label">🎨 Выберите подходящую иконку (36 тематических значков):</div>
+            <div id="category-emoji-grid" class="emoji-picker-grid"></div>
+          </div>
+
+          <div class="form-group" style="margin-top: 10px;">
             <label>Тип карт в категории:</label>
-            <select id="select-new-cat-type" class="form-input">
+            <select id="select-modal-new-cat-type" class="form-input">
               <option value="simple">Простые карты (одно текстовое поле с тегами)</option>
               <option value="complex">Сложные карты (заголовок + описание)</option>
             </select>
@@ -1231,12 +1249,12 @@
   </div>
 
   <!-- SCRIPTS -->
-  <script src="js/qrcode.min.js?v=4.6"></script>
-  <script src="js/tag_helper.js?v=4.6"></script>
-  <script src="js/app.js?v=4.6"></script>
-  <script src="js/lobby.js?v=4.6"></script>
-  <script src="js/ugc_creator.js?v=4.6"></script>
-  <script src="js/game.js?v=4.6"></script>
-  <script src="js/deck_editor.js?v=4.6"></script>
+  <script src="js/qrcode.min.js?v=4.7"></script>
+  <script src="js/tag_helper.js?v=4.7"></script>
+  <script src="js/app.js?v=4.7"></script>
+  <script src="js/lobby.js?v=4.7"></script>
+  <script src="js/ugc_creator.js?v=4.7"></script>
+  <script src="js/game.js?v=4.7"></script>
+  <script src="js/deck_editor.js?v=4.7"></script>
 </body>
 </html>
