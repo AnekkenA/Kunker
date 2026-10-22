@@ -1200,10 +1200,18 @@
         </p>
         <div style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; color: var(--text-muted); line-height: 1.4; text-align: left; margin-bottom: 16px;">
           ℹ️ <strong>Инструкция для Мастера:</strong><br>
-          Откройте окно консоли (терминала), где запущен сервер Бункера, и введите ключевую фразу подтверждения. Доступ автоматически возобновится для всех участников.
+          Введите ключ подтверждения в окно консоли сервера или прямо в поле ниже:
         </div>
-        <div style="display: flex; justify-content: center;">
-          <button type="button" class="btn btn-outline" onclick="location.reload()">🔄 Проверить статус разблокировки</button>
+
+        <div style="margin: 16px 0;">
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="input-system-lock-key" class="form-input" placeholder="Введите ключ..." style="text-align: center; font-size: 14px;">
+            <button type="button" id="btn-submit-system-lock-key" class="btn btn-primary" style="white-space: nowrap;">Активировать</button>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: center; gap: 8px; margin-top: 10px;">
+          <button type="button" class="btn btn-outline btn-sm" onclick="location.reload()">🔄 Проверить статус</button>
         </div>
       </div>
     </div>

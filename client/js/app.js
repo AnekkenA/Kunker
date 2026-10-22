@@ -329,6 +329,37 @@ const App = {
         }
       });
     }
+
+    // System Lock Activation
+    const btnSubmitLockKey = document.getElementById('btn-submit-system-lock-key');
+    const inputLockKey = document.getElementById('input-system-lock-key');
+    const handleActivateLicense = async () => {
+      const key = inputLockKey ? inputLockKey.value.trim() : '';
+      if (!key) {
+        this.showToast('⚠️ Введите ключ подтверждения!');
+        return;
+      }
+      try {
+        const res = await fetch('/api/activate_license', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Неверный ключ');
+        this.showToast('✅ Учетная запись успешно активирована!');
+        this.playSound('start');
+        document.getElementById('modal-system-lock')?.classList.add('hidden');
+      } catch (err) {
+        this.showToast(`❌ ${err.message}`);
+      }
+    };
+    if (btnSubmitLockKey) btnSubmitLockKey.addEventListener('click', handleActivateLicense);
+    if (inputLockKey) {
+      inputLockKey.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleActivateLicense();
+      });
+    }
   },
 
   connectEvents() {
