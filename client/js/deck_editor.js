@@ -5,18 +5,18 @@ const DeckEditor = {
   currentBulkCategory: null,
 
   DEFAULT_CATEGORIES_CONFIG: [
-    { key: 'disasters', name: 'Катастрофы', icon: '🌋', type: 'complex', titlePlaceholder: 'Название катастрофы', descPlaceholder: 'Цель выживания / Срок изоляции' },
-    { key: 'bunker', name: 'Условия Бункера (Бонусы)', icon: '🛡️', type: 'complex', titlePlaceholder: 'Название условия (например: Гидропонный сад)', descPlaceholder: 'Описание оборудования или полезных запасов' },
-    { key: 'threats', name: 'Угрозы Бункера (Опасности)', icon: '⚠️', type: 'complex', titlePlaceholder: 'Название угрозы (например: Затопление)', descPlaceholder: 'Описание опасности или аварии' },
-    { key: 'professions', name: 'Профессии', icon: '💼', type: 'simple', placeholder: 'Например: Врач-хирург (#Медицина[5], #Психика[2])' },
-    { key: 'health', name: 'Здоровье', icon: '❤️', type: 'simple', placeholder: 'Например: Идеальное зрение (#Медицина[3])' },
-    { key: 'biology', name: 'Биология', icon: '🧬', type: 'simple', placeholder: 'Например: Мужчина, 28 лет, атлетичен, фертилен' },
-    { key: 'hobby', name: 'Хобби', icon: '🎨', type: 'simple', placeholder: 'Например: Пожарное дело (#Пожаротушение[3])' },
-    { key: 'traits', name: 'Черты характера', icon: '🧠', type: 'simple', placeholder: 'Например: Хладнокровие (#Психика[4])' },
-    { key: 'facts', name: 'Дополнительные сведения', icon: '📜', type: 'simple', placeholder: 'Например: Знает пароль от аварийного генератора' },
-    { key: 'small_inventory', name: 'Малый инвентарь', icon: '🎒', type: 'simple', placeholder: 'Например: Огнетушитель углекислотный (#Пожаротушение[4])' },
-    { key: 'large_inventory', name: 'Крупный инвентарь', icon: '📦', type: 'simple', placeholder: 'Например: Дизельный генератор на 5 кВт (#Инженерия[5])' },
-    { key: 'special_cards', name: 'Спец-карты', icon: '⚡', type: 'special', placeholder: 'Например: «Право Вето»: Отмените изгнание в этом раунде' }
+    { key: 'disasters', name: 'Катастрофы', icon: '🌋', type: 'complex', scope: 'world', titlePlaceholder: 'Название катастрофы', descPlaceholder: 'Цель выживания / Срок изоляции' },
+    { key: 'bunker', name: 'Условия Бункера (Бонусы)', icon: '🛡️', type: 'complex', scope: 'world', titlePlaceholder: 'Название условия (например: Гидропонный сад)', descPlaceholder: 'Описание оборудования или полезных запасов' },
+    { key: 'threats', name: 'Угрозы Бункера (Опасности)', icon: '⚠️', type: 'complex', scope: 'world', titlePlaceholder: 'Название угрозы (например: Затопление)', descPlaceholder: 'Описание опасности или аварии' },
+    { key: 'professions', name: 'Профессии', icon: '💼', type: 'simple', scope: 'player', placeholder: 'Например: Врач-хирург (#Медицина[5], #Психика[2])' },
+    { key: 'health', name: 'Здоровье', icon: '❤️', type: 'simple', scope: 'player', placeholder: 'Например: Идеальное зрение (#Медицина[3])' },
+    { key: 'biology', name: 'Биология', icon: '🧬', type: 'simple', scope: 'player', placeholder: 'Например: Мужчина, 28 лет, атлетичен, фертилен' },
+    { key: 'hobby', name: 'Хобби', icon: '🎨', type: 'simple', scope: 'player', placeholder: 'Например: Пожарное дело (#Пожаротушение[3])' },
+    { key: 'traits', name: 'Черты характера', icon: '🧠', type: 'simple', scope: 'player', placeholder: 'Например: Хладнокровие (#Психика[4])' },
+    { key: 'facts', name: 'Дополнительные сведения', icon: '📜', type: 'simple', scope: 'player', placeholder: 'Например: Знает пароль от аварийного генератора' },
+    { key: 'small_inventory', name: 'Малый инвентарь', icon: '🎒', type: 'simple', scope: 'player', placeholder: 'Например: Огнетушитель углекислотный (#Пожаротушение[4])' },
+    { key: 'large_inventory', name: 'Крупный инвентарь', icon: '📦', type: 'simple', scope: 'player', placeholder: 'Например: Дизельный генератор на 5 кВт (#Инженерия[5])' },
+    { key: 'special_cards', name: 'Спец-карты', icon: '⚡', type: 'special', scope: 'player', placeholder: 'Например: «Право Вето»: Отмените изгнание в этом раунде' }
   ],
 
   DEFAULT_EVALUATION_QUESTIONS: [
@@ -150,20 +150,50 @@ const DeckEditor = {
     document.getElementById('edit-deck-card-back').value = d.cardBackImage || '';
 
     // 1. Prepare Active Categories
-    this.activeCategories = JSON.parse(JSON.stringify(this.DEFAULT_CATEGORIES_CONFIG));
-    if (Array.isArray(d.customCategories)) {
-      d.customCategories.forEach(cc => {
-        if (!this.activeCategories.some(c => c.key === cc.key)) {
-          this.activeCategories.push({
-            key: cc.key,
-            name: cc.name,
-            icon: cc.icon || '🏷️',
-            type: cc.type || 'simple',
-            placeholder: cc.placeholder || `Например: Карта категории ${cc.name}`,
-            isCustom: true
-          });
-        }
+    this.activeCategories = [];
+
+    // Always include World Categories (scope: 'world')
+    const worldCats = this.DEFAULT_CATEGORIES_CONFIG.filter(c => c.scope === 'world');
+    worldCats.forEach(wc => {
+      this.activeCategories.push(JSON.parse(JSON.stringify(wc)));
+    });
+
+    // Player categories
+    if (Array.isArray(d.playerCategories) && d.playerCategories.length > 0) {
+      d.playerCategories.forEach(pc => {
+        this.activeCategories.push({
+          key: pc.key,
+          name: pc.name,
+          icon: pc.icon || '🏷️',
+          type: pc.type || 'simple',
+          placeholder: pc.placeholder || `Например: Карта категории ${pc.name}`,
+          scope: 'player',
+          isCustom: Boolean(pc.isCustom)
+        });
       });
+    } else {
+      // Default player categories
+      const defPlayerCats = this.DEFAULT_CATEGORIES_CONFIG.filter(c => c.scope === 'player');
+      defPlayerCats.forEach(pc => {
+        this.activeCategories.push(JSON.parse(JSON.stringify(pc)));
+      });
+
+      // Plus any customCategories defined in the deck
+      if (Array.isArray(d.customCategories)) {
+        d.customCategories.forEach(cc => {
+          if (!this.activeCategories.some(c => c.key === cc.key)) {
+            this.activeCategories.push({
+              key: cc.key,
+              name: cc.name,
+              icon: cc.icon || '🏷️',
+              type: cc.type || 'simple',
+              placeholder: cc.placeholder || `Например: Карта категории ${cc.name}`,
+              scope: 'player',
+              isCustom: true
+            });
+          }
+        });
+      }
     }
 
     // 2. Prepare Custom Tags
@@ -182,9 +212,14 @@ const DeckEditor = {
     }
     this.renderEvaluationConfig();
 
-    // 4. Render Category Card Inputs
-    const container = document.getElementById('editor-categories-inputs');
-    container.innerHTML = '';
+    // 4. Render Category Card Inputs (Separated: World & Player categories)
+    const worldContainer = document.getElementById('editor-world-categories');
+    const playerContainer = document.getElementById('editor-player-categories');
+    const fallbackContainer = document.getElementById('editor-categories-inputs');
+
+    if (worldContainer) worldContainer.innerHTML = '';
+    if (playerContainer) playerContainer.innerHTML = '';
+    if (fallbackContainer && !worldContainer) fallbackContainer.innerHTML = '';
 
     this.activeCategories.forEach(cat => {
       const box = document.createElement('div');
@@ -200,8 +235,9 @@ const DeckEditor = {
       }
 
       const count = Array.isArray(items) ? items.length : 0;
-      const deleteCatBtn = cat.isCustom ? `
-        <button type="button" class="btn btn-sm btn-danger" style="padding: 2px 8px; font-size: 11px;" title="Удалить категорию из набора" onclick="DeckEditor.deleteCustomCategory('${cat.key}')">🗑️ Удалить категорию</button>
+      // Any player category can be removed, but world categories cannot be deleted
+      const deleteCatBtn = (cat.scope === 'player') ? `
+        <button type="button" class="btn btn-sm btn-danger" style="padding: 2px 8px; font-size: 11px;" title="Удалить категорию из набора" onclick="DeckEditor.deleteCategory('${cat.key}')">🗑️ Удалить категорию</button>
       ` : '';
 
       box.innerHTML = `
@@ -220,7 +256,13 @@ const DeckEditor = {
         <div class="constructor-items-list" id="items-list-${cat.key}"></div>
       `;
 
-      container.appendChild(box);
+      if (cat.scope === 'world' && worldContainer) {
+        worldContainer.appendChild(box);
+      } else if (playerContainer) {
+        playerContainer.appendChild(box);
+      } else if (fallbackContainer) {
+        fallbackContainer.appendChild(box);
+      }
 
       const itemsListContainer = box.querySelector(`#items-list-${cat.key}`);
       if (Array.isArray(items)) {
@@ -252,7 +294,7 @@ const DeckEditor = {
       row.innerHTML = `
         <div class="complex-inputs">
           <input type="text" class="form-input input-item-title" placeholder="${catConfig.titlePlaceholder || 'Заголовок'}" value="${this.escapeHtml(titleVal)}" oninput="DeckEditor.onItemInput(this, '${catConfig.key}')">
-          <input type="text" class="form-input input-item-desc" placeholder="${catConfig.descPlaceholder || 'Описание'}" value="${this.escapeHtml(descVal)}" oninput="DeckEditor.onItemInput(this, '${catConfig.key}')">
+          <textarea class="form-input input-item-desc" rows="2" placeholder="${catConfig.descPlaceholder || 'Описание / условия'}" oninput="DeckEditor.onItemInput(this, '${catConfig.key}')">${this.escapeHtml(descVal)}</textarea>
         </div>
         <button type="button" class="btn-delete-item" title="Удалить карту" onclick="DeckEditor.deleteItem(this, '${catConfig.key}')">🗑️</button>
       `;
@@ -370,47 +412,45 @@ const DeckEditor = {
       icon,
       type,
       placeholder: `Например: Карта категории ${name}`,
+      scope: 'player',
       isCustom: true
     };
 
     this.activeCategories.push(newCat);
-
-    // Append category box to UI
-    const container = document.getElementById('editor-categories-inputs');
-    if (container) {
-      const box = document.createElement('div');
-      box.className = 'constructor-category-box';
-      box.setAttribute('data-cat-key', key);
-      box.innerHTML = `
-        <div class="constructor-cat-header">
-          <div class="constructor-cat-title">
-            <span class="cat-icon">${newCat.icon}</span>
-            <span class="cat-name">${newCat.name}</span>
-            <span class="cat-count-badge" id="count-badge-${newCat.key}">0 шт.</span>
-            <button type="button" class="btn btn-sm btn-danger" style="padding: 2px 8px; font-size: 11px;" title="Удалить категорию" onclick="DeckEditor.deleteCustomCategory('${newCat.key}')">🗑️ Удалить</button>
-          </div>
-          <div class="constructor-header-btn-group">
-            <button type="button" class="btn btn-sm btn-outline btn-bulk-import" onclick="DeckEditor.openBulkModal('${newCat.key}', '${newCat.name}')">📋 Вставить списком</button>
-            <button type="button" class="btn btn-sm btn-primary btn-add-card" onclick="DeckEditor.addItem('${newCat.key}')">+ Добавить карту</button>
-          </div>
-        </div>
-        <div class="constructor-items-list" id="items-list-${newCat.key}"></div>
-      `;
-      container.appendChild(box);
-    }
+    this.renderConstructor();
 
     document.getElementById('modal-new-category').classList.add('hidden');
     App.showToast(`✅ Категория "${name}" успешно добавлена!`);
     App.playSound('start');
   },
 
-  deleteCustomCategory(catKey) {
-    if (!confirm('Удалить эту категорию и все заполненные в ней карты?')) return;
+  deleteCategory(catKey) {
+    const cat = this.activeCategories.find(c => c.key === catKey);
+    if (!cat) return;
+    if (cat.scope === 'world') {
+      App.showToast('⚠️ Обязательные карты мира и бункера нельзя удалять!');
+      return;
+    }
+    if (!confirm(`Удалить категорию "${cat.name}" и все заполненные в ней карты?`)) return;
+
     this.activeCategories = this.activeCategories.filter(c => c.key !== catKey);
-    const box = document.querySelector(`.constructor-category-box[data-cat-key="${catKey}"]`);
-    if (box) box.remove();
-    App.showToast('🗑️ Категория удалена');
+    if (this.currentDeck) {
+      delete this.currentDeck[catKey];
+      delete this.currentDeck[catKey + 's'];
+      if (Array.isArray(this.currentDeck.customCategories)) {
+        this.currentDeck.customCategories = this.currentDeck.customCategories.filter(c => c.key !== catKey);
+      }
+      if (Array.isArray(this.currentDeck.playerCategories)) {
+        this.currentDeck.playerCategories = this.currentDeck.playerCategories.filter(c => c.key !== catKey);
+      }
+    }
+    this.renderConstructor();
+    App.showToast(`🗑️ Категория "${cat.name}" удалена`);
     App.playSound('click');
+  },
+
+  deleteCustomCategory(catKey) {
+    this.deleteCategory(catKey);
   },
 
   // --- CUSTOM TAGS MANAGEMENT ---
@@ -536,9 +576,9 @@ const DeckEditor = {
             <input type="text" class="form-input eval-q-title-input" value="${this.escapeHtml(q.title)}" placeholder="Текст вопроса" style="flex: 1; font-weight: 700;">
             <button type="button" class="btn btn-sm btn-danger" onclick="DeckEditor.deleteEvalQuestion(${qIdx})">🗑️</button>
           </div>
-          <div style="display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 12px;">
-            <span style="color: var(--accent-cyan);">📊 Связанный ресурс команды:</span>
-            <select class="form-input eval-q-res-select" style="max-width: 250px; font-size: 12px; height: 30px;">
+          <div class="eval-q-res-row">
+            <span class="eval-q-res-label">📊 Связанный ресурс команды:</span>
+            <select class="form-input eval-q-res-select">
               ${resSelectHtml}
             </select>
           </div>
@@ -867,8 +907,9 @@ const DeckEditor = {
       throw new Error('Укажите ID и название темы!');
     }
 
-    // Filter custom categories created by user
-    const customCats = this.activeCategories.filter(c => c.isCustom).map(c => ({
+    // Filter player categories
+    const playerCats = this.activeCategories.filter(c => c.scope === 'player');
+    const customCats = playerCats.filter(c => c.isCustom).map(c => ({
       key: c.key,
       name: c.name,
       icon: c.icon,
@@ -882,6 +923,14 @@ const DeckEditor = {
       description: desc,
       backgroundImage: bg || null,
       cardBackImage: back || null,
+      playerCategories: playerCats.map(c => ({
+        key: c.key,
+        name: c.name,
+        icon: c.icon,
+        type: c.type,
+        scope: 'player',
+        isCustom: Boolean(c.isCustom)
+      })),
       customCategories: customCats,
       customTags: this.customTags,
       evaluationConfig: {

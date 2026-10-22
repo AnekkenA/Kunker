@@ -872,15 +872,16 @@ class SingleGame {
     this.cardBackImage = options.cardBackImage || (primaryDeck && primaryDeck.cardBackImage) || null;
     this.deckAuthor = options.deckAuthor || (primaryDeck && primaryDeck.author) || (primaryDeck && primaryDeck.name) || 'Бункер 3.1';
 
-    // Merge custom categories from selected deck
-    if (primaryDeck && Array.isArray(primaryDeck.customCategories)) {
-      primaryDeck.customCategories.forEach(c => {
+    // Merge custom or specialized player categories from selected deck
+    const deckCats = (primaryDeck && (primaryDeck.playerCategories || primaryDeck.customCategories)) || [];
+    if (Array.isArray(deckCats) && deckCats.length > 0) {
+      deckCats.forEach(c => {
         if (!this.categories.some(existing => existing.key === c.key)) {
           this.categories.push({
             key: c.key,
             name: c.name,
             icon: c.icon || '🏷️',
-            isSpecial: Boolean(c.isSpecial || c.type === 'special')
+            isSpecial: Boolean(c.isSpecial || c.type === 'special' || c.key === 'special_cards')
           });
         }
       });
@@ -1245,7 +1246,7 @@ class SingleGame {
     const bunkerStatuses = Array.isArray(evaluation.bunkerStatuses) ? evaluation.bunkerStatuses : [];
     const threatStatuses = Array.isArray(evaluation.threatStatuses) ? evaluation.threatStatuses : [];
 
-    // Base score from Master's evaluation questions
+    // 1. Base score from Master's evaluation questions
     let totalEvalPoints = 0;
     let maxEvalPoints = 25;
 
@@ -1265,61 +1266,41 @@ class SingleGame {
     }
     let percentage = Math.round((totalEvalPoints / maxEvalPoints) * 100);
 
-    // 1. Team Resources Bonus: up to +20% (including custom tags)
-    const teamRes = this.calculateTeamResources(false);
-    let customResSum = 0;
-    if (teamRes.custom) {
-      Object.values(teamRes.custom).forEach(v => { customResSum += (v || 0) * 1.5; });
-    }
-    const resourceBonus = Math.min(20, Math.round(
-      (teamRes.fire * 1.5) +
-      (teamRes.medicine * 2) +
-      (teamRes.food * 2) +
-      (teamRes.engineering * 2) +
-      (teamRes.psycho * 1.5) +
-      (teamRes.defense * 1.5) +
-      (teamRes.science * 1.5) +
-      customResSum
-    ));
-    percentage += resourceBonus;
-
     // 2. Disaster Conditions (penalty 2-3x higher than other threats: -30%)
+    // Conditions and threats do NOT give positive bonuses; only penalties if failed/active
     let disasterImpactText = '';
     if (!disasterOk) {
       percentage -= 30;
-      disasterImpactText = '❌ Условия катастрофы НЕ СОБЛЮДЕНЫ (тяжелый штраф: -30%)';
+      disasterImpactText = '❌ Условия катастрофы: НЕ СОБЛЮДЕНЫ (тяжелый штраф: -30%)';
     } else {
-      percentage += 5;
-      disasterImpactText = '✅ Условия катастрофы соблюдены (+5%)';
+      disasterImpactText = '✅ Условия катастрофы: соблюдены (0%)';
     }
 
-    // 3. Bunker compartments bonuses / penalties
+    // 3. Bunker compartments bonuses / penalties (0% for working, -10% per broken compartment)
     let workingBunkers = 0;
     let failedBunkers = 0;
     bunkerStatuses.forEach(st => {
       if (st === 'ok') {
         workingBunkers++;
-        percentage += 4;
       } else {
         failedBunkers++;
-        percentage -= 3;
+        percentage -= 10;
       }
     });
 
-    // 4. Threats bonuses / penalties
+    // 4. Threats: NO positive bonuses (+0% if resolved, -15% per active threat)
     let activeThreats = 0;
     let resolvedThreats = 0;
     threatStatuses.forEach(st => {
       if (st === 'active') {
         activeThreats++;
-        percentage -= 12; // -12% per unresolved active threat
+        percentage -= 15;
       } else {
         resolvedThreats++;
-        percentage += 2;
       }
     });
 
-    // 5. Overpopulation penalty
+    // 5. Overpopulation penalty (-20% per excess player above capacity)
     let overpopPenalty = 0;
     const excess = Math.max(0, survivorsCount - capacity);
     if (excess > 0) {
@@ -1375,19 +1356,18 @@ class SingleGame {
     }
 
     const bunkerDetailLine = (bunkerStatuses.length > 0)
-      ? `• Отсеки бункера: ${workingBunkers} раб. (+${workingBunkers * 4}%), ${failedBunkers} поврежд. (-${failedBunkers * 3}%)\n`
+      ? `• Отсеки бункера: ${workingBunkers} раб. (0%), ${failedBunkers} поврежд. (-${failedBunkers * 10}%)\n`
       : '';
     const threatsDetailLine = (threatStatuses.length > 0)
-      ? `• Угрозы бункеру: ${resolvedThreats} устранено (+${resolvedThreats * 2}%), ${activeThreats} активных (-${activeThreats * 12}%)\n`
+      ? `• Угрозы бункеру: ${resolvedThreats} устранено (0%), ${activeThreats} активных (-${activeThreats * 15}%)\n`
       : '';
 
     const resLine = `\n\n📌 Факторы расчета выживаемости:\n` +
-      `• Оценка анкеты Мастера: ${totalEvalPoints} из 25 б.\n` +
+      `• Оценка анкеты Мастера: ${totalEvalPoints} из ${maxEvalPoints} б. (Базовый шанс: ${Math.round((totalEvalPoints / maxEvalPoints) * 100)}%)\n` +
       `• ${disasterImpactText}\n` +
       bunkerDetailLine +
       threatsDetailLine +
       (excess > 0 ? `• ⚠️ Перенаселение (+${excess} чел.): штраф -${overpopPenalty}%\n` : '') +
-      `• 📊 Бонус полезных ресурсов команды: +${resourceBonus}%\n` +
       `🎲 Бросок кубика судьбы: ${diceRoll} из 100 (при шансе ${percentage}%) ➔ ${outcomeText}!`;
     epilogue += resLine;
 

@@ -145,9 +145,30 @@ const App = {
       target.classList.add('active');
       target.style.setProperty('display', 'flex', 'important');
     }
+
+    // Header Back to Lobby Button
+    const btnBack = document.getElementById('btn-header-back-to-lobby');
+    if (btnBack) {
+      if (screenId === 'screen-editor') {
+        btnBack.classList.remove('hidden');
+        btnBack.style.display = 'inline-flex';
+      } else {
+        btnBack.classList.add('hidden');
+        btnBack.style.display = 'none';
+      }
+    }
   },
 
   bindGlobalEvents() {
+    // Header Back to Lobby Button
+    const btnHeaderBack = document.getElementById('btn-header-back-to-lobby');
+    if (btnHeaderBack) {
+      btnHeaderBack.addEventListener('click', () => {
+        this.showScreen('screen-lobby');
+        this.playSound('click');
+      });
+    }
+
     // Sound Toggle Button
     const btnSound = document.getElementById('btn-sound-toggle');
     if (btnSound) {

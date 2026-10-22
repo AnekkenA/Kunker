@@ -769,7 +769,7 @@ const GameBoard = {
       const cardCells = categories.map(cat => {
         const card = (player.cards && player.cards[cat.key]) || { text: '', revealed: false, canReveal: false };
         return `
-          <td>
+          <td class="cell-card">
             ${this.renderCardHtml(player.id, player.name, cat, card, isSelf, isMaster)}
           </td>
         `;
@@ -808,7 +808,7 @@ const GameBoard = {
             </div>
           </td>
           ${cardCells}
-          <td style="min-width: 90px; text-align: center; vertical-align: top !important;">
+          <td class="cell-actions" style="min-width: 130px; text-align: center; vertical-align: top !important;">
             ${masterActionsHtml}
           </td>
         </tr>

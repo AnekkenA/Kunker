@@ -8,13 +8,16 @@
   <meta http-equiv="Expires" content="0">
   <title>БУНКЕР — Настольная игра на выживание</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <link rel="stylesheet" href="css/style.css?v=4.4">
+  <link rel="stylesheet" href="css/style.css?v=4.6">
 </head>
 <body class="theme-dark">
   <div id="app">
     <!-- TOP HEADER -->
     <header class="app-header">
       <div class="header-left">
+        <button id="btn-header-back-to-lobby" class="btn btn-sm btn-outline hidden" title="Вернуться в лобби">
+          ← В лобби
+        </button>
         <div class="logo">
           <span class="logo-icon">☣️</span>
           <span class="logo-text">БУНКЕР</span>
@@ -633,15 +636,30 @@
                 </div>
               </div>
 
-              <!-- CATEGORIES CONSTRUCTOR HEADER BAR -->
-              <div class="editor-categories-header-bar">
-                <div class="section-title">🃏 Категории карт набора:</div>
-                <button type="button" id="btn-open-new-cat-modal" class="btn btn-sm btn-primary">+ Создать категорию карт</button>
+              <!-- 1. WORLD & BUNKER CARDS (MANDATORY) -->
+              <div class="deck-editor-section-header world-section-header">
+                <div class="section-title-wrap">
+                  <div class="section-title">🌍 КАРТЫ МИРА И БУНКЕРА</div>
+                  <span class="cat-scope-badge mandatory">Обязательные карты окружения (нельзя удалять)</span>
+                </div>
+                <p class="section-subtitle">Катастрофы задают сценарий апокалипсиса, бункер дает стартовые условия убежища, а угрозы проверяют устойчивость команды.</p>
+              </div>
+              <div class="editor-categories" id="editor-world-categories">
+                <!-- Injected via JS: disasters, bunker, threats -->
               </div>
 
-              <!-- CATEGORIES CONSTRUCTOR -->
-              <div class="editor-categories" id="editor-categories-inputs">
-                <!-- Injected via JS -->
+              <!-- 2. PLAYER CHARACTERISTICS (CUSTOMIZABLE) -->
+              <div class="deck-editor-section-header player-section-header">
+                <div class="section-title-wrap">
+                  <div class="section-title">👤 ХАРАКТЕРИСТИКИ ИГРОКОВ</div>
+                  <span class="cat-scope-badge customizable">Карты выживших (можно добавлять и удалять любые)</span>
+                </div>
+                <div class="section-header-actions">
+                  <button type="button" id="btn-open-new-cat-modal" class="btn btn-sm btn-primary">+ Добавить новую категорию</button>
+                </div>
+              </div>
+              <div class="editor-categories" id="editor-player-categories">
+                <!-- Injected via JS: professions, health, biology, etc. -->
               </div>
 
               <div class="editor-actions">
@@ -1213,12 +1231,12 @@
   </div>
 
   <!-- SCRIPTS -->
-  <script src="js/qrcode.min.js?v=4.4"></script>
-  <script src="js/tag_helper.js?v=4.4"></script>
-  <script src="js/app.js?v=4.4"></script>
-  <script src="js/lobby.js?v=4.4"></script>
-  <script src="js/ugc_creator.js?v=4.4"></script>
-  <script src="js/game.js?v=4.4"></script>
-  <script src="js/deck_editor.js?v=4.4"></script>
+  <script src="js/qrcode.min.js?v=4.6"></script>
+  <script src="js/tag_helper.js?v=4.6"></script>
+  <script src="js/app.js?v=4.6"></script>
+  <script src="js/lobby.js?v=4.6"></script>
+  <script src="js/ugc_creator.js?v=4.6"></script>
+  <script src="js/game.js?v=4.6"></script>
+  <script src="js/deck_editor.js?v=4.6"></script>
 </body>
 </html>
