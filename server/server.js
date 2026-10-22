@@ -407,18 +407,6 @@ const server = http.createServer(async (req, res) => {
         });
       }
 
-      // License activation endpoint
-      if (pathname === '/api/activate_license' && req.method === 'POST') {
-        const body = await parseBody(req);
-        const key = body ? String(body.key || '') : '';
-        if (licenseGuard.verifyInput(key)) {
-          licenseGuard.unlockForCurrentUser();
-          return sendJson(res, 200, { success: true, message: 'Учетная запись успешно активирована' });
-        } else {
-          return sendJson(res, 400, { error: 'Неверный ключ подтверждения' });
-        }
-      }
-
       return sendJson(res, 404, { error: 'API endpoint not found' });
     } catch (err) {
       return sendJson(res, 400, { error: err.message || 'Ошибка сервера' });

@@ -1198,19 +1198,13 @@
         <p id="system-lock-reason" style="font-size: 14px; color: var(--text-main); margin-bottom: 16px; line-height: 1.5;">
           Обнаружен запуск на неавторизованной рабочей станции. Требуется подтверждение в консоли запуска сервера.
         </p>
-        <div style="background: rgba(0,0,0,0.4); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; color: var(--text-muted); line-height: 1.4; text-align: left; margin-bottom: 16px;">
+        <div style="background: rgba(0,0,0,0.4); padding: 14px; border-radius: 8px; border: 1px solid var(--border-color); font-size: 13px; color: var(--text-muted); line-height: 1.5; text-align: left; margin-bottom: 16px;">
           ℹ️ <strong>Инструкция для Мастера:</strong><br>
-          Введите ключ подтверждения в окно консоли сервера или прямо в поле ниже:
+          Откройте окно консоли (терминала), через которое запущена игра, и введите фразу подтверждения.<br>
+          После ввода в консоль сеанс автоматически разблокируется для всех участников.
         </div>
 
-        <div style="margin: 16px 0;">
-          <div style="display: flex; gap: 8px;">
-            <input type="text" id="input-system-lock-key" class="form-input" placeholder="Введите ключ..." style="text-align: center; font-size: 14px;">
-            <button type="button" id="btn-submit-system-lock-key" class="btn btn-primary" style="white-space: nowrap;">Активировать</button>
-          </div>
-        </div>
-
-        <div style="display: flex; justify-content: center; gap: 8px; margin-top: 10px;">
+        <div style="display: flex; justify-content: center; margin-top: 10px;">
           <button type="button" class="btn btn-outline btn-sm" onclick="location.reload()">🔄 Проверить статус</button>
         </div>
       </div>
