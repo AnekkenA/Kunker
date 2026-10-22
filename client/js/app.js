@@ -117,6 +117,42 @@ const App = {
       gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
       osc.start(now);
       osc.stop(now + 0.25);
+    } else if (type === 'timer_alarm') {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.setValueAtTime(0, now + 0.1);
+      osc.frequency.setValueAtTime(880, now + 0.15);
+      osc.frequency.setValueAtTime(0, now + 0.25);
+      osc.frequency.setValueAtTime(880, now + 0.3);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+      osc.start(now);
+      osc.stop(now + 0.5);
+    } else if (type === 'roulette_tick') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(600 + Math.random() * 200, now);
+      gain.gain.setValueAtTime(0.05, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+      osc.start(now);
+      osc.stop(now + 0.04);
+    } else if (type === 'fanfare') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.setValueAtTime(554.37, now + 0.12);
+      osc.frequency.setValueAtTime(659.25, now + 0.24);
+      osc.frequency.setValueAtTime(880, now + 0.36);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+      osc.start(now);
+      osc.stop(now + 0.8);
+    } else if (type === 'fail_horn') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(200, now);
+      osc.frequency.linearRampToValueAtTime(90, now + 0.6);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.6);
+      osc.start(now);
+      osc.stop(now + 0.6);
     }
   },
 

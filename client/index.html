@@ -8,7 +8,7 @@
   <meta http-equiv="Expires" content="0">
   <title>БУНКЕР — Настольная игра на выживание</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <link rel="stylesheet" href="css/style.css?v=4.7">
+  <link rel="stylesheet" href="css/style.css?v=4.8">
 </head>
 <body class="theme-dark">
   <div id="app">
@@ -27,6 +27,24 @@
         </button>
       </div>
       <div class="header-right">
+        <!-- SPEAKER / DEBATE TIMER WIDGET -->
+        <div id="header-timer-widget" class="header-timer-widget">
+          <div id="timer-idle-controls" class="timer-idle-controls">
+            <button type="button" id="btn-timer-trigger" class="btn btn-xs btn-outline timer-btn" title="Включить таймер на речь спикера">
+              ⏱️ Таймер ▾
+            </button>
+            <div id="timer-presets-menu" class="timer-presets-menu hidden">
+              <button type="button" class="btn-preset-time" data-seconds="15">⚡ 15 сек</button>
+              <button type="button" class="btn-preset-time" data-seconds="30">⏳ 30 сек</button>
+              <button type="button" class="btn-preset-time" data-seconds="60">⌛ 60 сек</button>
+            </div>
+          </div>
+          <div id="timer-active-display" class="timer-active-display hidden">
+            <span id="timer-countdown-text" class="timer-countdown-text">⏱️ 0:30</span>
+            <button type="button" id="btn-timer-stop" class="btn-timer-stop" title="Остановить таймер">⏹️</button>
+          </div>
+        </div>
+
         <div id="user-profile" class="user-profile hidden">
           <span id="user-role-badge" class="role-badge">Игрок</span>
           <span id="user-display-name" class="user-name">...</span>
@@ -481,9 +499,11 @@
             </div>
 
             <div class="toolbar-actions">
+              <button id="btn-open-voting-modal" class="btn btn-sm btn-warning hidden" title="Открыть окно голосования на изгнание">🗳️ Голосование</button>
               <button id="btn-back-to-results" class="btn btn-sm btn-success hidden" title="Вернуться на экран с итогами выживания">🏆 К итогам выживания</button>
               <button id="btn-toggle-logs" class="btn btn-sm btn-outline">📜 Журнал</button>
               <div id="master-game-controls" class="master-controls hidden">
+                <button id="btn-master-start-voting" class="btn btn-sm btn-warning" title="Запустить голосование среди выживших">🗳️ Начать голосование</button>
                 <button id="btn-open-reveal-modal" class="btn btn-sm btn-primary">👁️ Открыть чужую карту</button>
                 <button id="btn-open-shuffle-modal" class="btn btn-sm btn-outline">🔀 Перемешать выбранные</button>
                 <button id="btn-open-replace-modal" class="btn btn-sm btn-warning">🎲 Заменить на случайную</button>
@@ -730,6 +750,31 @@
               <span class="results-trophy-icon">🏆</span>
               <h1 class="results-page-title">ИТОГИ ВЫЖИВАНИЯ БУНКЕРА</h1>
               <div id="results-disaster-title" class="results-disaster-subtitle"></div>
+            </div>
+
+            <!-- FINALE ROULETTE (WHITE ROUNDED CUBE WITH REVERSED PROBABILITY ROLL) -->
+            <div id="results-roulette-section" class="results-roulette-section">
+              <div class="roulette-chance-display">
+                <div class="roulette-chance-title">Шанс на спасение бункера:</div>
+                <div class="roulette-chance-big"><span id="roulette-chance-val">0</span>%</div>
+                <div class="roulette-threshold-hint" id="roulette-threshold-hint">
+                  🎯 Для победы требуется выпадение числа от <strong><span id="roulette-threshold-val">0</span></strong> до <strong>100</strong> (подсчет от большего)
+                </div>
+              </div>
+
+              <div class="roulette-cube-wrapper">
+                <div id="roulette-cube" class="roulette-cube">
+                  <span id="roulette-number" class="roulette-number">🎲</span>
+                </div>
+              </div>
+
+              <div class="roulette-action-box">
+                <button type="button" id="btn-spin-roulette" class="btn btn-warning btn-lg btn-spin-roulette">
+                  🎲 ИСПЫТАТЬ СУДЬБУ (ПРОВЕРИТЬ)
+                </button>
+              </div>
+
+              <div id="roulette-outcome-banner" class="roulette-outcome-banner hidden"></div>
             </div>
 
             <div id="results-verdict-box" class="results-badge-verdict">
@@ -1246,15 +1291,76 @@
       </div>
     </div>
 
+    <!-- 11. MODAL: CARD ZOOM (ПОЛНЫЙ РАЗМЕР КАРТЫ С ТЕГАМИ И ДЕЙСТВИЯМИ) -->
+    <div id="modal-card-zoom" class="modal-backdrop hidden">
+      <div class="modal-card modal-card-zoom-card">
+        <div class="modal-header">
+          <div class="zoom-card-player" id="zoom-card-player">👤 Карточка игрока</div>
+          <button id="btn-close-zoom-modal" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="zoom-card-display" id="zoom-card-display">
+            <div class="zoom-card-header">
+              <div class="zoom-cat-info">
+                <span class="zoom-cat-icon" id="zoom-cat-icon">💼</span>
+                <span class="zoom-cat-name" id="zoom-cat-name">Профессия</span>
+              </div>
+              <span class="zoom-status-badge" id="zoom-status-badge">👁️ Открыта</span>
+            </div>
+            <div class="zoom-card-text" id="zoom-card-text">Текст карты...</div>
+            <div class="zoom-card-tags" id="zoom-card-tags"></div>
+            <div class="zoom-card-footer">
+              <span class="zoom-card-author" id="zoom-card-author">✍️ Автор: Бункер</span>
+            </div>
+          </div>
+          <div class="zoom-card-actions" id="zoom-card-actions">
+            <!-- Buttons dynamically populated by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 12. MODAL: EXPULSION VOTING (ГОЛОСОВАНИЕ НА ИЗГНАНИЕ И ПЕРЕГОЛОСОВАНИЕ ПРИ НИЧЬЕЙ) -->
+    <div id="modal-voting" class="modal-backdrop hidden">
+      <div class="modal-card modal-voting-card" style="max-width: 600px;">
+        <div class="modal-header">
+          <h3 id="voting-modal-title">🗳️ Голосование на изгнание</h3>
+          <button id="btn-close-voting-modal" class="btn-icon">✕</button>
+        </div>
+        <div class="modal-body">
+          <div id="voting-tie-banner" class="voting-tie-banner hidden">
+            ⚖️ <strong>НИЧЬЯ ПО ГОЛОСАМ!</strong> Запущено переголосование ТОЛЬКО среди кандидатов, набравших равное максимальное число голосов:
+          </div>
+          <p class="voting-modal-desc" id="voting-modal-desc">
+            Выберите игрока, против которого вы отдаете свой голос на изгнание:
+          </p>
+
+          <div id="voting-candidates-grid" class="voting-candidates-grid">
+            <!-- Rendered by JS -->
+          </div>
+
+          <div id="voting-my-status" class="voting-my-status">
+            <!-- Your vote status rendered by JS -->
+          </div>
+
+          <!-- MASTER VOTING CONTROLS -->
+          <div id="voting-master-panel" class="voting-master-panel hidden">
+            <button type="button" id="btn-end-voting-now" class="btn btn-danger btn-block">🏁 ПОДВЕСТИ ИТОГИ ГОЛОСОВАНИЯ</button>
+            <button type="button" id="btn-cancel-voting" class="btn btn-outline">Отменить</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- SCRIPTS -->
-  <script src="js/qrcode.min.js?v=4.7"></script>
-  <script src="js/tag_helper.js?v=4.7"></script>
-  <script src="js/app.js?v=4.7"></script>
-  <script src="js/lobby.js?v=4.7"></script>
-  <script src="js/ugc_creator.js?v=4.7"></script>
-  <script src="js/game.js?v=4.7"></script>
-  <script src="js/deck_editor.js?v=4.7"></script>
+  <script src="js/qrcode.min.js?v=4.8"></script>
+  <script src="js/tag_helper.js?v=4.8"></script>
+  <script src="js/app.js?v=4.8"></script>
+  <script src="js/lobby.js?v=4.8"></script>
+  <script src="js/ugc_creator.js?v=4.8"></script>
+  <script src="js/game.js?v=4.8"></script>
+  <script src="js/deck_editor.js?v=4.8"></script>
 </body>
 </html>

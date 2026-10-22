@@ -303,6 +303,130 @@ const GameBoard = {
         await this.confirmSpecialAction();
       });
     }
+
+    // 9. SPEAKER / DEBATE TIMER CONTROLS
+    const btnTimerTrigger = document.getElementById('btn-timer-trigger');
+    const timerMenu = document.getElementById('timer-presets-menu');
+    if (btnTimerTrigger && timerMenu) {
+      btnTimerTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        timerMenu.classList.toggle('hidden');
+      });
+      document.addEventListener('click', () => {
+        timerMenu.classList.add('hidden');
+      });
+      document.querySelectorAll('.btn-preset-time').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          timerMenu.classList.add('hidden');
+          const secs = parseInt(btn.getAttribute('data-seconds'), 10) || 30;
+          try {
+            await App.sendAction('start_speaker_timer', { seconds: secs });
+            App.playSound('click');
+          } catch (err) {
+            App.showToast(`Ошибка: ${err.message}`);
+          }
+        });
+      });
+    }
+
+    const btnTimerStop = document.getElementById('btn-timer-stop');
+    if (btnTimerStop) {
+      btnTimerStop.addEventListener('click', async () => {
+        try {
+          await App.sendAction('stop_speaker_timer');
+          App.playSound('click');
+        } catch (err) {}
+      });
+    }
+
+    // 10. EXPULSION VOTING CONTROLS
+    const btnOpenVoting = document.getElementById('btn-open-voting-modal');
+    if (btnOpenVoting) {
+      btnOpenVoting.addEventListener('click', () => {
+        const modal = document.getElementById('modal-voting');
+        if (modal) {
+          modal.classList.remove('hidden');
+          if (App.state && App.state.voting) {
+            this.renderVotingModalContent(App.state.voting, App.state);
+          }
+        }
+      });
+    }
+
+    const btnMasterStartVoting = document.getElementById('btn-master-start-voting');
+    if (btnMasterStartVoting) {
+      btnMasterStartVoting.addEventListener('click', async () => {
+        if (!confirm('Объявить голосование на изгнание из бункера среди всех активных выживших?')) return;
+        try {
+          await App.sendAction('start_voting');
+          const modal = document.getElementById('modal-voting');
+          if (modal) {
+            modal.classList.remove('hidden');
+            if (App.state && App.state.voting) {
+              this.renderVotingModalContent(App.state.voting, App.state);
+            }
+          }
+          App.playSound('start');
+        } catch (err) {
+          App.showToast(`Ошибка: ${err.message}`);
+        }
+      });
+    }
+
+    const btnCloseVoting = document.getElementById('btn-close-voting-modal');
+    if (btnCloseVoting) {
+      btnCloseVoting.addEventListener('click', () => {
+        document.getElementById('modal-voting').classList.add('hidden');
+      });
+    }
+
+    const btnEndVoting = document.getElementById('btn-end-voting-now');
+    if (btnEndVoting) {
+      btnEndVoting.addEventListener('click', async () => {
+        if (!confirm('Подвести итоги текущего голосования и исключить набравшего большинство?')) return;
+        try {
+          await App.sendAction('end_voting');
+          App.playSound('flip');
+        } catch (err) {
+          App.showToast(`Ошибка: ${err.message}`);
+        }
+      });
+    }
+
+    const btnCancelVoting = document.getElementById('btn-cancel-voting');
+    if (btnCancelVoting) {
+      btnCancelVoting.addEventListener('click', async () => {
+        if (!confirm('Отменить голосование?')) return;
+        try {
+          await App.sendAction('cancel_voting');
+          document.getElementById('modal-voting').classList.add('hidden');
+          App.playSound('click');
+        } catch (err) {}
+      });
+    }
+
+    // 11. CARD ZOOM MODAL EVENTS
+    const btnCloseZoom = document.getElementById('btn-close-zoom-modal');
+    if (btnCloseZoom) {
+      btnCloseZoom.addEventListener('click', () => {
+        document.getElementById('modal-card-zoom').classList.add('hidden');
+      });
+    }
+    const modalZoom = document.getElementById('modal-card-zoom');
+    if (modalZoom) {
+      modalZoom.addEventListener('click', (e) => {
+        if (e.target === modalZoom) modalZoom.classList.add('hidden');
+      });
+    }
+
+    // 12. FINALE ROULETTE SPIN
+    const btnSpinRoulette = document.getElementById('btn-spin-roulette');
+    if (btnSpinRoulette) {
+      btnSpinRoulette.addEventListener('click', () => {
+        this.spinRouletteAnimation();
+      });
+    }
   },
 
   // --- MODAL OPENERS ---
@@ -587,10 +711,331 @@ const GameBoard = {
     App.playSound('click');
   },
 
+  // --- CARD ZOOM MODAL (УВЕЛИЧЕНИЕ КАРТЫ ПО КЛИКУ) ---
+  openCardZoom(playerId, categoryKey) {
+    const player = (App.state && App.state.players || []).find(p => p.id === playerId);
+    if (!player) return;
+    const card = player.cards && player.cards[categoryKey];
+    if (!card) return;
+
+    const catObj = (App.state && App.state.categories || []).find(c => c.key === categoryKey) || { icon: '🏷️', name: categoryKey };
+    const isSelf = playerId === App.state.myId;
+    const isMaster = App.isHost;
+    const isRevealed = card.revealed;
+
+    // If card is completely hidden and viewer is neither owner nor master, nothing to inspect
+    if (!isRevealed && !isSelf && App.state.status !== 'finished') {
+      if (isMaster) {
+        this.confirmMasterReveal(playerId, categoryKey, catObj.name, player.name);
+      }
+      return;
+    }
+
+    const modal = document.getElementById('modal-card-zoom');
+    if (!modal) return;
+
+    const playerEl = document.getElementById('zoom-card-player');
+    if (playerEl) {
+      playerEl.innerHTML = `${player.isHost ? '👑' : '👤'} Карточка игрока: <strong>${player.name}</strong> ${isSelf ? '<span class="role-badge" style="font-size: 10px;">(Вы)</span>' : ''}`;
+    }
+
+    document.getElementById('zoom-cat-icon').textContent = catObj.icon || '🏷️';
+    document.getElementById('zoom-cat-name').textContent = catObj.name || categoryKey;
+
+    const statusBadge = document.getElementById('zoom-status-badge');
+    if (statusBadge) {
+      if (isRevealed) {
+        statusBadge.textContent = '👁️ Открыта для всех';
+        statusBadge.className = 'zoom-status-badge revealed';
+      } else {
+        statusBadge.textContent = '🔒 Ваша скрытая карта';
+        statusBadge.className = 'zoom-status-badge hidden-self';
+      }
+    }
+
+    const parsed = (typeof TagHelper !== 'undefined') ? TagHelper.parse(card.text) : { cleanText: card.text, tags: [] };
+    document.getElementById('zoom-card-text').textContent = parsed.cleanText || '—';
+
+    const tagsContainer = document.getElementById('zoom-card-tags');
+    if (tagsContainer) {
+      tagsContainer.innerHTML = (typeof TagHelper !== 'undefined') ? TagHelper.renderTagsHtml(parsed.tags) : '';
+    }
+
+    const authorEl = document.getElementById('zoom-card-author');
+    if (authorEl) {
+      authorEl.textContent = card.author ? `✍️ Автор: ${card.author}` : `✍️ Бункер`;
+    }
+
+    // Action buttons inside zoom modal
+    const actionsEl = document.getElementById('zoom-card-actions');
+    if (actionsEl) {
+      let actionsHtml = '';
+      const isSpecial = catObj.isSpecial || categoryKey === 'special_cards';
+
+      if (isSelf && !isRevealed) {
+        if (isSpecial) {
+          actionsHtml += `
+            <button class="btn btn-warning btn-block" onclick="document.getElementById('modal-card-zoom').classList.add('hidden'); GameBoard.handleCardClick('${playerId}', '${categoryKey}', '${card.action || 'custom'}', true);">
+              ⚡ РАЗЫГРАТЬ СПЕЦ-КАРТУ
+            </button>
+          `;
+        } else {
+          actionsHtml += `
+            <button class="btn btn-primary btn-block" onclick="document.getElementById('modal-card-zoom').classList.add('hidden'); GameBoard.handleCardClick('${playerId}', '${categoryKey}', '', false);">
+              👁️ ПОКАЗАТЬ ВСЕМ УЧАСТНИКАМ
+            </button>
+          `;
+        }
+      }
+
+      if (isMaster) {
+        actionsHtml += `
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-sm btn-warning" style="flex: 1;" onclick="document.getElementById('modal-card-zoom').classList.add('hidden'); GameBoard.openReplaceForCard('${playerId}', '${categoryKey}');">
+              🎲 Заменить карту
+            </button>
+            ${!isRevealed ? `
+              <button class="btn btn-sm btn-primary" style="flex: 1;" onclick="document.getElementById('modal-card-zoom').classList.add('hidden'); GameBoard.toggleCard('${playerId}', '${categoryKey}');">
+                👁️ Вскрыть для всех
+              </button>
+            ` : ''}
+          </div>
+        `;
+      }
+
+      actionsEl.innerHTML = actionsHtml;
+    }
+
+    modal.classList.remove('hidden');
+    App.playSound('flip');
+  },
+
+  openReplaceForCard(playerId, categoryKey) {
+    this.openReplaceCardModal();
+    const pSelect = document.getElementById('select-replace-player');
+    const cSelect = document.getElementById('select-replace-cat');
+    if (pSelect) pSelect.value = playerId;
+    if (cSelect) cSelect.value = categoryKey;
+  },
+
+  // --- SPEAKER TIMER UI ---
+  updateSpeakerTimerUI(speakerTimer) {
+    const idleBox = document.getElementById('timer-idle-controls');
+    const activeBox = document.getElementById('timer-active-display');
+    const countText = document.getElementById('timer-countdown-text');
+    if (!idleBox || !activeBox || !countText) return;
+
+    if (speakerTimer && speakerTimer.active) {
+      idleBox.classList.add('hidden');
+      activeBox.classList.remove('hidden');
+      const secs = speakerTimer.secondsLeft || 0;
+      const m = Math.floor(secs / 60);
+      const s = secs % 60;
+      countText.textContent = `⏱️ ${m}:${s.toString().padStart(2, '0')}`;
+      this.timerAlarmPlayed = false;
+    } else if (speakerTimer && speakerTimer.timeRanOut) {
+      idleBox.classList.add('hidden');
+      activeBox.classList.remove('hidden');
+      countText.textContent = `🔔 0:00 (ВРЕМЯ!)`;
+      if (!this.timerAlarmPlayed) {
+        this.timerAlarmPlayed = true;
+        App.playSound('timer_alarm');
+        App.showToast(`🔔 ВРЕМЯ НА ВЫСТУПЛЕНИЕ (${speakerTimer.totalSeconds}с) ВЫШЛО!`);
+      }
+    } else {
+      idleBox.classList.remove('hidden');
+      activeBox.classList.add('hidden');
+      this.timerAlarmPlayed = false;
+    }
+  },
+
+  // --- EXPULSION VOTING UI ---
+  updateVotingUI(voting, state) {
+    const btnOpenVoting = document.getElementById('btn-open-voting-modal');
+    const modal = document.getElementById('modal-voting');
+    if (!btnOpenVoting) return;
+
+    if (voting && voting.active) {
+      btnOpenVoting.classList.remove('hidden');
+      if (modal && !modal.classList.contains('hidden')) {
+        this.renderVotingModalContent(voting, state);
+      }
+    } else {
+      btnOpenVoting.classList.add('hidden');
+      if (modal && !modal.classList.contains('hidden') && this.votingWasActive) {
+        modal.classList.add('hidden');
+      }
+    }
+    this.votingWasActive = Boolean(voting && voting.active);
+  },
+
+  renderVotingModalContent(voting, state) {
+    if (!voting) return;
+    const isMaster = App.isHost;
+    const myId = state.myId;
+    const myVote = voting.myVote;
+
+    const tieBanner = document.getElementById('voting-tie-banner');
+    if (tieBanner) {
+      if (voting.isRevote) tieBanner.classList.remove('hidden');
+      else tieBanner.classList.add('hidden');
+    }
+
+    const titleEl = document.getElementById('voting-modal-title');
+    if (titleEl) {
+      titleEl.textContent = voting.isRevote ? '⚖️ ПЕРЕГОЛОСОВАНИЕ (НИЧЬЯ)' : '🗳️ Голосование на изгнание';
+    }
+
+    const grid = document.getElementById('voting-candidates-grid');
+    if (grid) {
+      const candidates = voting.candidates || [];
+      grid.innerHTML = candidates.map(cId => {
+        const p = (state.players || []).find(pl => pl.id === cId) || { name: cId, id: cId };
+        const isMyPick = (myVote === cId);
+        const votesForCand = (voting.votes) ? Object.values(voting.votes).filter(t => t === cId).length : null;
+
+        return `
+          <div class="voting-candidate-card ${isMyPick ? 'my-vote' : ''}" onclick="GameBoard.castVote('${cId}')">
+            <div class="cand-left">
+              <span class="cand-avatar">${p.isHost ? '👑' : '👤'}</span>
+              <div>
+                <div class="cand-name">${p.name}</div>
+                ${isMyPick ? '<small style="color: var(--accent-red); font-weight: 700;">✓ Ваш голос</small>' : ''}
+              </div>
+            </div>
+            ${(isMaster && votesForCand !== null) ? `<span class="cand-votes-chip">${votesForCand} гол.</span>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    const statusEl = document.getElementById('voting-my-status');
+    if (statusEl) {
+      if (myVote) {
+        const targetPl = (state.players || []).find(pl => pl.id === myVote);
+        statusEl.innerHTML = `<span style="color: var(--accent-green); font-weight: 700;">✓ Вы проголосовали против: ${targetPl ? targetPl.name : 'кандидата'}.</span> <span style="color: var(--text-dim); font-size: 11px;">(Кликните по другому кандидату, чтобы изменить свой голос)</span>`;
+      } else {
+        statusEl.innerHTML = `<span style="color: var(--accent-amber); font-weight: 700;">⏳ Вы еще не отдали голос. Выберите кандидата из списка выше!</span>`;
+      }
+    }
+
+    const masterPanel = document.getElementById('voting-master-panel');
+    if (masterPanel) {
+      if (isMaster) masterPanel.classList.remove('hidden');
+      else masterPanel.classList.add('hidden');
+    }
+  },
+
+  async castVote(candidateId) {
+    try {
+      App.playSound('click');
+      await App.sendAction('cast_vote', { targetPlayerId: candidateId });
+      App.showToast('🗳️ Ваш голос учтен!');
+    } catch (e) {
+      App.showToast(`Ошибка: ${e.message}`);
+    }
+  },
+
+  // --- FINALE ROULETTE LOGIC ---
+  setupRoulette(results) {
+    if (!results) return;
+    this.resultsCache = results;
+
+    const chanceVal = document.getElementById('roulette-chance-val');
+    if (chanceVal) chanceVal.textContent = results.percentage;
+
+    const thresholdVal = document.getElementById('roulette-threshold-val');
+    const threshold = results.threshold !== undefined ? results.threshold : (101 - results.percentage);
+    if (thresholdVal) thresholdVal.textContent = threshold;
+
+    const cube = document.getElementById('roulette-cube');
+    const numEl = document.getElementById('roulette-number');
+    const btnSpin = document.getElementById('btn-spin-roulette');
+    const banner = document.getElementById('roulette-outcome-banner');
+
+    if (cube) cube.className = 'roulette-cube';
+    if (numEl) numEl.textContent = '🎲';
+    if (btnSpin) {
+      btnSpin.disabled = false;
+      btnSpin.textContent = '🎲 ИСПЫТАТЬ СУДЬБУ (ПРОВЕРИТЬ)';
+    }
+    if (banner) {
+      banner.className = 'roulette-outcome-banner hidden';
+      banner.textContent = '';
+    }
+  },
+
+  async spinRouletteAnimation() {
+    const results = this.resultsCache || (App.state && App.state.results);
+    if (!results) return;
+
+    const btnSpin = document.getElementById('btn-spin-roulette');
+    const cube = document.getElementById('roulette-cube');
+    const numEl = document.getElementById('roulette-number');
+    const banner = document.getElementById('roulette-outcome-banner');
+
+    if (btnSpin) {
+      btnSpin.disabled = true;
+      btnSpin.textContent = '⏳ СУДЬБА ВЕРШИТСЯ...';
+    }
+    if (cube) cube.className = 'roulette-cube spinning';
+    if (banner) banner.classList.add('hidden');
+
+    // Delays increasing from fast up to 1.5s
+    const delays = [40, 45, 50, 55, 65, 80, 100, 130, 170, 220, 290, 390, 520, 700, 950, 1250, 1500];
+
+    for (let i = 0; i < delays.length; i++) {
+      await new Promise(resolve => setTimeout(resolve, delays[i]));
+      const fakeNum = Math.floor(Math.random() * 100) + 1;
+      if (numEl) numEl.textContent = fakeNum;
+      App.playSound('roulette_tick');
+    }
+
+    // Final Stop on real diceRoll
+    const finalRoll = results.diceRoll;
+    const threshold = results.threshold !== undefined ? results.threshold : (101 - results.percentage);
+    const isSuccess = Boolean(results.isSuccess);
+
+    if (numEl) numEl.textContent = finalRoll;
+
+    if (cube) {
+      cube.className = `roulette-cube ${isSuccess ? 'winner' : 'loser'}`;
+    }
+
+    if (banner) {
+      banner.classList.remove('hidden');
+      if (isSuccess) {
+        banner.className = 'roulette-outcome-banner success';
+        banner.innerHTML = `🎉 ПОБЕДА! Выпало число <strong>${finalRoll}</strong> (требовалось ≥ <strong>${threshold}</strong>). БУНКЕР ВЫЖИЛ!`;
+        App.playSound('fanfare');
+      } else {
+        banner.className = 'roulette-outcome-banner danger';
+        banner.innerHTML = `💀 ПОРАЖЕНИЕ! Выпало число <strong>${finalRoll}</strong> (требовалось ≥ <strong>${threshold}</strong>). БУНКЕР ПОГИБ!`;
+        App.playSound('fail_horn');
+      }
+    }
+
+    if (btnSpin) {
+      btnSpin.disabled = false;
+      btnSpin.textContent = '🔄 ПОВТОРИТЬ ПРОВЕРКУ КУБИКА';
+    }
+
+    const verdictBox = document.getElementById('results-verdict-box');
+    if (verdictBox) {
+      verdictBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  },
+
   // --- STATE RENDERER ---
 
   render(state) {
     const isMaster = state.isHost;
+
+    // 0a. Speaker Timer UI
+    this.updateSpeakerTimerUI(state.speakerTimer);
+
+    // 0b. Voting UI
+    this.updateVotingUI(state.voting, state);
 
     // 0. Theme Background
     const gameContainer = document.querySelector('.game-container');
@@ -837,7 +1282,7 @@ const GameBoard = {
     // CASE 1: Card is Revealed to Everyone (Front face displayed)
     if (isRevealed) {
       return `
-        <div class="card-container" onclick="${isMaster ? `GameBoard.toggleCard('${playerId}', '${category.key}')` : ''}">
+        <div class="card-container cursor-pointer" onclick="GameBoard.openCardZoom('${playerId}', '${category.key}')">
           <div class="bunker-card revealed">
             <div class="card-face card-back" ${backCoverStyle}>
               <div class="card-back-icon">${category.icon}</div>
@@ -854,7 +1299,7 @@ const GameBoard = {
               ${tagsHtml ? `<div class="card-tags-badges">${tagsHtml}</div>` : ''}
               <div class="card-footer">
                 ${authorHtml}
-                <span style="font-size: 9px; color: var(--accent-cyan); margin-left: auto;">👁️ Открыта</span>
+                <span style="font-size: 9px; color: var(--accent-cyan); margin-left: auto;">🔍 Увеличить</span>
               </div>
             </div>
           </div>
@@ -866,7 +1311,7 @@ const GameBoard = {
     if (isSelf && hasText) {
       const revealBtnText = isSpecial ? '⚡ РАЗЫГРАТЬ' : '👁️ ПОКАЗАТЬ ВСЕМ';
       return `
-        <div class="card-container">
+        <div class="card-container cursor-pointer" onclick="GameBoard.openCardZoom('${playerId}', '${category.key}')">
           <div class="bunker-card">
             <div class="card-face card-front" style="transform: rotateY(0deg);">
               <div class="card-header">
@@ -1144,6 +1589,88 @@ const GameBoard = {
         }
         break;
 
+      case 'vote_plus_one':
+        controls.innerHTML = `
+          <div style="font-size: 13px; color: var(--text-main); line-height: 1.5;">
+            🗳️ <strong>Веское слово:</strong> На следующем голосовании ваш голос автоматически будет считаться за <strong>два (+1 доп. голос)</strong>!
+          </div>
+        `;
+        break;
+
+      case 'vote_exiled_power': {
+        const exCount = (state.players || []).filter(p => p.isExiled).length;
+        controls.innerHTML = `
+          <div style="font-size: 13px; color: var(--text-main); line-height: 1.5;">
+            💀 <strong>Голос павших:</strong> Ваш голос в голосовании усилится на число всех изгнанных игроков бункера (сейчас: <strong>+${exCount}</strong> доп. голосов)!
+          </div>
+        `;
+        break;
+      }
+
+      case 'steal_inventory':
+        controls.innerHTML = `
+          <div class="form-group">
+            <label>У какого игрока украсть предмет инвентаря:</label>
+            <select id="select-special-target" class="form-input">
+              ${otherPlayers.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Какой инвентарь украсть:</label>
+            <select id="select-special-cat" class="form-input">
+              <option value="small_inventory">🎒 Малый инвентарь</option>
+              <option value="large_inventory">📦 Крупный инвентарь</option>
+            </select>
+          </div>
+          <div style="font-size: 11.5px; color: var(--accent-cyan); line-height: 1.4;">
+            💡 Текст украденного предмета будет добавлен в вашу карту, а все его теги и параметры спасения перейдут к вам и бункеру!
+          </div>
+        `;
+        break;
+
+      case 'steal_voter_card': {
+        const votes = (state.lastVotingHistory) ? state.lastVotingHistory.votes : {};
+        const votersAgainstMe = Object.entries(votes || {})
+          .filter(([voterId, targetId]) => targetId === state.myId)
+          .map(([voterId]) => voterId);
+        const targetVoterPlayers = (state.players || []).filter(p => votersAgainstMe.includes(p.id));
+
+        if (targetVoterPlayers.length === 0) {
+          controls.innerHTML = `<div style="font-size: 13px; color: var(--accent-amber);">⚠️ В последнем раунде против вас никто не голосовал (или голосования еще не было). Вы можете приберечь эту карту!</div>`;
+        } else {
+          controls.innerHTML = `
+            <div class="form-group">
+              <label>У кого из голосовавших против вас украсть инвентарь:</label>
+              <select id="select-special-target" class="form-input">
+                ${targetVoterPlayers.map(p => `<option value="${p.id}">🗳️ ${p.name}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Какую карту инвентаря украсть:</label>
+              <select id="select-special-cat" class="form-input">
+                <option value="small_inventory">🎒 Малый инвентарь</option>
+                <option value="large_inventory">📦 Крупный инвентарь</option>
+              </select>
+            </div>
+          `;
+        }
+        break;
+      }
+
+      case 'shuffle_category':
+        controls.innerHTML = `
+          <div class="form-group">
+            <label>Какую категорию карт перемешать между всеми выжившими:</label>
+            <select id="select-special-cat" class="form-input">
+              ${categories.map(c => `<option value="${c.key}">${c.icon} ${c.name}</option>`).join('')}
+            </select>
+          </div>
+          <div style="font-size: 11.5px; color: var(--accent-amber); line-height: 1.4;">
+            🔀 Сервер перемешает карты этой категории у всех не изгнанных участников и раздаст их заново случайным образом!
+          </div>
+        `;
+        break;
+
       default:
         controls.innerHTML = `<div style="font-size: 13px; color: var(--text-main);">Подтвердите розыгрыш карты для стола.</div>`;
         break;
@@ -1214,6 +1741,8 @@ const GameBoard = {
   showResultsPage(results) {
     if (!results) return;
 
+    this.setupRoulette(results);
+
     const disasterTitle = document.getElementById('results-disaster-title');
     if (disasterTitle) {
       disasterTitle.textContent = `Катастрофа: ${results.disaster || 'Глобальный катаклизм'}`;
@@ -1222,13 +1751,14 @@ const GameBoard = {
     const verdictBox = document.getElementById('results-verdict-box');
     if (verdictBox) {
       const isSuccess = Boolean(results.isSuccess);
+      const threshold = results.threshold !== undefined ? results.threshold : (101 - results.percentage);
 
       const outcomeBadge = isSuccess
         ? `<div class="results-badge-pill success">✅ УСПЕШНО (БУНКЕР ВЫЖИЛ)</div>`
         : `<div class="results-badge-pill danger">❌ ПРОВАЛ (БУНКЕР ПОГИБ)</div>`;
 
       const rollInfo = (results.diceRoll !== undefined)
-        ? `<div class="results-roll-info">🎲 Бросок кубика судьбы: <strong>${results.diceRoll}</strong> из 100 (для выживания требовалось ≤ ${results.percentage}%)</div>`
+        ? `<div class="results-roll-info">🎲 Результат проверки судьбы: <strong>${results.diceRoll}</strong> из 100 (для выживания требовалось ≥ ${threshold} при шансе ${results.percentage}%)</div>`
         : '';
 
       verdictBox.innerHTML = `

@@ -310,6 +310,34 @@ const server = http.createServer(async (req, res) => {
             targetGame.stealPlayerCard(payload.fromPlayerId, payload.toPlayerId, payload.categoryKey, playerId);
             break;
 
+          case 'steal_inventory':
+            targetGame.stealInventory(playerId, payload.targetPlayerId, payload.categoryKey);
+            break;
+
+          case 'start_speaker_timer':
+            targetGame.startSpeakerTimer(payload ? payload.seconds : 30, playerId);
+            break;
+
+          case 'stop_speaker_timer':
+            targetGame.stopSpeakerTimer(false);
+            break;
+
+          case 'start_voting':
+            targetGame.startVoting(playerId, payload ? payload.candidates : null);
+            break;
+
+          case 'cast_vote':
+            targetGame.castVote(playerId, payload.targetPlayerId);
+            break;
+
+          case 'end_voting':
+            targetGame.endVoting(playerId);
+            break;
+
+          case 'cancel_voting':
+            targetGame.cancelVoting(playerId);
+            break;
+
           case 'finish_game':
             if (payload && payload.evaluation) {
               targetGame.submitSurvivalEvaluation(payload.evaluation, playerId);

@@ -89,6 +89,21 @@ function getRandomItem(array, fallback = '—') {
 function detectSpecialAction(text) {
   if (!text) return 'custom';
   const t = text.toLowerCase();
+  if ((t.includes('голос') && (t.includes('+1') || t.includes('два голос') || t.includes('двойной') || t.includes('дополнительн'))) || t.includes('веское слово')) {
+    return 'vote_plus_one';
+  }
+  if (t.includes('изгнанн') && (t.includes('голос') || t.includes('мертв') || t.includes('павших'))) {
+    return 'vote_exiled_power';
+  }
+  if ((t.includes('краж') || t.includes('украс') || t.includes('забер') || t.includes('отобрать')) && (t.includes('проголос') || t.includes('голосовавш') || t.includes('обвинител'))) {
+    return 'steal_voter_card';
+  }
+  if (t.includes('краж') || t.includes('украс') || t.includes('забрать инвентар') || t.includes('своровать') || t.includes('ловкие пальцы')) {
+    return 'steal_inventory';
+  }
+  if (t.includes('перемешать') || t.includes('хаос') || t.includes('перемешивание')) {
+    return 'shuffle_category';
+  }
   if (t.includes('+1') || t.includes('увеличит') || t.includes('увеличива') || t.includes('расширение убежищ') || (t.includes('вместимост') && t.includes('+'))) {
     return 'bunker_cap_plus';
   }
@@ -137,6 +152,7 @@ class SingleGame {
 
   resetGame() {
     this.stopThreatTimer();
+    this.stopSpeakerTimer();
 
     this.password = '';
     this.hostId = null;
@@ -144,6 +160,14 @@ class SingleGame {
     this.mode = 'preset'; // 'preset' | 'ugc'
     this.selectedDecks = ['classic'];
     this.bunkerCapacity = 3;
+
+    // Speaker / Debate Timer
+    this.speakerTimer = null;
+    this.speakerTimerHandle = null;
+
+    // Voting state & history
+    this.voting = null;
+    this.lastVotingHistory = null;
 
     // Threat / Bunker opening settings
     this.threatMode = 'threshold'; // 'threshold' | 'timer'
@@ -323,6 +347,56 @@ class SingleGame {
         targetPlayer.isExiled = false;
         this.addLog(`⚡ ${player.name} сыграл «Возвращение»: вернул изгнанного игрока ${targetPlayer.name} обратно в бункер!`);
         this.checkRoundMilestoneTriggers();
+        break;
+      }
+
+      case 'vote_plus_one': {
+        player.votingBonus = (player.votingBonus || 0) + 1;
+        this.addLog(`⚡ ${player.name} сыграл спец-карту «${cardTitle}»: Получен +1 дополнительный голос на ближайшем голосовании!`);
+        break;
+      }
+
+      case 'vote_exiled_power': {
+        player.voteExiledPower = true;
+        const exCount = Array.from(this.players.values()).filter(p => p.isExiled).length;
+        this.addLog(`⚡ ${player.name} сыграл спец-карту «${cardTitle}»: Голос в голосовании будет усилен на число изгнанных игроков (+${exCount} гол.)!`);
+        break;
+      }
+
+      case 'steal_inventory': {
+        const catKey = params.categoryKey || 'small_inventory';
+        this.stealInventory(requesterId, params.targetPlayerId, catKey);
+        break;
+      }
+
+      case 'steal_voter_card': {
+        const votes = this.lastVotingHistory ? this.lastVotingHistory.votes : {};
+        const votersAgainstMe = Object.entries(votes || {})
+          .filter(([voterId, targetId]) => targetId === requesterId)
+          .map(([voterId]) => voterId);
+
+        if (votersAgainstMe.length === 0) {
+          throw new Error('В последнем голосовании против вас никто не голосовал (или голосования еще не было).');
+        }
+
+        const targetId = params.targetPlayerId || votersAgainstMe[0];
+        if (!votersAgainstMe.includes(targetId)) {
+          throw new Error('Вы можете красть карту только у того игрока, кто голосовал против вас в последнем раунде!');
+        }
+
+        const catKey = params.categoryKey || 'small_inventory';
+        this.stealInventory(requesterId, targetId, catKey);
+        break;
+      }
+
+      case 'shuffle_category': {
+        const catKey = params.categoryKey || 'hobby';
+        const activeIds = Array.from(this.players.values()).filter(p => !p.isExiled).map(p => p.id);
+        if (activeIds.length >= 2) {
+          this.shuffleSelectedCards(catKey, activeIds, this.hostId);
+        } else {
+          this.addLog(`⚡ ${player.name} сыграл «Командный хаос» (недостаточно активных игроков для перемешивания).`);
+        }
         break;
       }
 
@@ -770,6 +844,295 @@ class SingleGame {
       clearInterval(this.threatTimerHandle);
       this.threatTimerHandle = null;
     }
+  }
+
+  // --- SPEAKER / DEBATE TIMER (15s, 30s, 60s) ---
+  startSpeakerTimer(seconds, requesterId) {
+    this.stopSpeakerTimer();
+    const validSecs = Math.max(5, Math.min(300, parseInt(seconds, 10) || 30));
+    const player = this.players.get(requesterId);
+    const starterName = player ? player.name : 'Мастер';
+
+    this.speakerTimer = {
+      active: true,
+      secondsLeft: validSecs,
+      totalSeconds: validSecs,
+      startedBy: starterName,
+      timeRanOut: false
+    };
+
+    this.addLog(`⏱️ ${starterName} включил таймер на речь: ${validSecs} сек.`);
+    this.notifyBroadcast();
+
+    this.speakerTimerHandle = setInterval(() => {
+      if (!this.speakerTimer || !this.speakerTimer.active) {
+        this.stopSpeakerTimer();
+        return;
+      }
+      this.speakerTimer.secondsLeft--;
+      if (this.speakerTimer.secondsLeft <= 0) {
+        this.stopSpeakerTimer(true);
+      } else {
+        this.notifyBroadcast();
+      }
+    }, 1000);
+  }
+
+  stopSpeakerTimer(timeRanOut = false) {
+    if (this.speakerTimerHandle) {
+      clearInterval(this.speakerTimerHandle);
+      this.speakerTimerHandle = null;
+    }
+    if (this.speakerTimer) {
+      if (timeRanOut) {
+        this.speakerTimer.active = false;
+        this.speakerTimer.secondsLeft = 0;
+        this.speakerTimer.timeRanOut = true;
+        this.addLog(`🔔 ВРЕМЯ НА ВЫСТУПЛЕНИЕ (${this.speakerTimer.totalSeconds}с) ВЫШЛО!`);
+        this.notifyBroadcast();
+      } else {
+        this.speakerTimer = null;
+        this.addLog('⏹️ Таймер на речь остановлен.');
+        this.notifyBroadcast();
+      }
+    }
+  }
+
+  // --- EXPULSION VOTING SYSTEM (NO TIMER, MAJORITY VOTE, TIE-BREAKER REVOTE) ---
+  startVoting(requesterId, candidatesList = null) {
+    const activePlayers = Array.from(this.players.values()).filter(p => !p.isExiled);
+    if (activePlayers.length < 2) {
+      throw new Error('Для голосования нужно как минимум 2 активных игрока в бункере.');
+    }
+
+    let candidates = [];
+    if (Array.isArray(candidatesList) && candidatesList.length >= 2) {
+      candidates = candidatesList.filter(id => this.players.has(id));
+    } else {
+      candidates = activePlayers.map(p => p.id);
+    }
+
+    const isRevote = Boolean(candidatesList && candidatesList.length > 0 && candidatesList.length < activePlayers.length);
+
+    this.voting = {
+      active: true,
+      isRevote,
+      candidates,
+      votes: {}, // voterId -> targetPlayerId
+      revoteRound: isRevote ? ((this.voting && this.voting.revoteRound) ? this.voting.revoteRound + 1 : 1) : 0
+    };
+
+    const candidateNames = candidates.map(id => this.players.get(id)?.name || id).join(', ');
+    if (isRevote) {
+      this.addLog(`⚖️ ПЕРЕГОЛОСОВАНИЕ: Кандидаты с равным числом голосов (${candidateNames}). Голосуйте!`);
+    } else {
+      this.addLog(`🗳️ ОБЪЯВЛЕНО ГОЛОСОВАНИЕ на изгнание из бункера! Кандидаты: ${candidateNames}`);
+    }
+
+    this.notifyBroadcast();
+    return this.voting;
+  }
+
+  castVote(voterId, targetPlayerId) {
+    if (!this.voting || !this.voting.active) {
+      throw new Error('Голосование в данный момент не проводится.');
+    }
+    const voter = this.players.get(voterId);
+    if (!voter) throw new Error('Игрок не найден.');
+    if (voter.isExiled) throw new Error('Изгнанные игроки не могут голосовать.');
+
+    if (!this.voting.candidates.includes(targetPlayerId)) {
+      throw new Error('Этот игрок не входит в список кандидатов на изгнание.');
+    }
+
+    this.voting.votes[voterId] = targetPlayerId;
+    const target = this.players.get(targetPlayerId);
+    this.addLog(`🗳️ ${voter.name} отдал свой голос против игрока ${target ? target.name : 'кандидата'}.`);
+
+    // Check if all active non-exiled players have voted
+    const activePlayers = Array.from(this.players.values()).filter(p => !p.isExiled);
+    const allVoted = activePlayers.every(p => Boolean(this.voting.votes[p.id]));
+
+    if (allVoted) {
+      // Automatically end voting when everyone has cast their vote!
+      this.endVoting(this.hostId);
+    } else {
+      this.notifyBroadcast();
+    }
+
+    return true;
+  }
+
+  endVoting(requesterId) {
+    if (!this.voting || !this.voting.active) {
+      throw new Error('Нет активного голосования.');
+    }
+
+    const exiledCount = Array.from(this.players.values()).filter(p => p.isExiled).length;
+
+    // Calculate vote weights
+    const tally = {};
+    this.voting.candidates.forEach(cId => { tally[cId] = 0; });
+
+    const voterDetails = {}; // voterId -> { targetId, weight, voterName }
+
+    Object.entries(this.voting.votes).forEach(([voterId, targetId]) => {
+      if (!this.voting.candidates.includes(targetId)) return;
+      const voter = this.players.get(voterId);
+      if (!voter || voter.isExiled) return;
+
+      let weight = 1;
+      if (voter.votingBonus) {
+        weight += voter.votingBonus;
+        voter.votingBonus = 0; // consumed
+      }
+      if (voter.voteExiledPower) {
+        weight += exiledCount;
+        voter.voteExiledPower = false; // consumed
+      }
+
+      tally[targetId] = (tally[targetId] || 0) + weight;
+      voterDetails[voterId] = { targetId, weight, voterName: voter.name };
+    });
+
+    // Save history of who voted for whom
+    this.lastVotingHistory = {
+      votes: { ...this.voting.votes },
+      voterDetails,
+      candidates: [...this.voting.candidates],
+      tally: { ...tally }
+    };
+
+    let maxVotes = -1;
+    this.voting.candidates.forEach(cId => {
+      const v = tally[cId] || 0;
+      if (v > maxVotes) maxVotes = v;
+    });
+
+    if (maxVotes <= 0) {
+      this.addLog('ℹ️ В голосовании не было отдано голосов. Никто не изгнан.');
+      this.voting = null;
+      this.notifyBroadcast();
+      return { outcome: 'none' };
+    }
+
+    const leaders = this.voting.candidates.filter(cId => (tally[cId] || 0) === maxVotes);
+
+    if (leaders.length === 1) {
+      const expelledId = leaders[0];
+      const expelledPlayer = this.players.get(expelledId);
+
+      // Check immunity
+      if (expelledPlayer && expelledPlayer.exileImmunity) {
+        expelledPlayer.exileImmunity = false;
+        this.addLog(`🛡️ ${expelledPlayer.name} активировал ИММУНИТЕТ и избежал изгнания! Никто не покинул бункер.`);
+        this.voting = null;
+        this.notifyBroadcast();
+        return { outcome: 'immunity', player: expelledPlayer };
+      }
+
+      if (expelledPlayer) {
+        expelledPlayer.isExiled = true;
+        this.addLog(`🚫 ПО ИТОГАМ ГОЛОСОВАНИЯ ИЗГНАН ИГРОК: ${expelledPlayer.name} (${maxVotes} гол.)!`);
+        this.checkRoundMilestoneTriggers();
+      }
+      this.lastVotingHistory.expelledId = expelledId;
+      this.voting = null;
+      this.notifyBroadcast();
+      return { outcome: 'expelled', player: expelledPlayer, votes: maxVotes };
+    } else {
+      // TIE! Launch revote ONLY among leaders
+      const leaderNames = leaders.map(id => this.players.get(id)?.name || id).join(', ');
+      this.addLog(`⚖️ НИЧЬЯ: кандидаты (${leaderNames}) набрали равное число голосов (${maxVotes})! Запускается переголосование ТОЛЬКО среди них.`);
+      this.startVoting(requesterId, leaders);
+      return { outcome: 'tie', leaders };
+    }
+  }
+
+  cancelVoting(requesterId) {
+    if (requesterId !== this.hostId) {
+      throw new Error('Только Мастер игры может отменить голосование.');
+    }
+    this.voting = null;
+    this.addLog('🚫 Мастер отменил текущее голосование.');
+    this.notifyBroadcast();
+    return true;
+  }
+
+  // --- INVENTORY THEFT & SWAP MECHANICS ---
+  stealInventory(requesterId, targetPlayerId, categoryKey = 'small_inventory') {
+    const thief = this.players.get(requesterId);
+    const victim = this.players.get(targetPlayerId);
+    if (!thief || !victim) throw new Error('Игрок не найден.');
+    if (thief.id === victim.id) throw new Error('Нельзя украсть карту у самого себя.');
+
+    const victimCard = victim.cards[categoryKey];
+    if (!victimCard || !victimCard.text || victimCard.text.startsWith('[Украдено игроком')) {
+      throw new Error(`У игрока ${victim.name} нет доступного предмета в категории "${categoryKey}".`);
+    }
+
+    const stolenRawText = victimCard.text;
+    const stolenClean = victimCard.cleanText || stolenRawText;
+
+    // Mark victim's card:
+    victim.cards[categoryKey] = {
+      text: `[Украдено игроком ${thief.name}]`,
+      cleanText: `[Украдено игроком ${thief.name}]`,
+      tags: [],
+      author: victimCard.author,
+      action: null,
+      revealed: true
+    };
+
+    // Append to thief's card:
+    const thiefCurrent = thief.cards[categoryKey];
+    let combinedText = '';
+    if (thiefCurrent && thiefCurrent.text && !thiefCurrent.text.startsWith('[Украдено игроком')) {
+      combinedText = `${thiefCurrent.text};\n[Украдено у ${victim.name}]: ${stolenRawText}`;
+    } else {
+      combinedText = `[Украдено у ${victim.name}]: ${stolenRawText}`;
+    }
+
+    const parsedThief = TagHelper.parse(combinedText);
+    thief.cards[categoryKey] = {
+      text: combinedText,
+      cleanText: parsedThief.cleanText,
+      tags: parsedThief.tags,
+      author: thiefCurrent?.author || thief.name,
+      action: null,
+      revealed: true // Marked revealed so tags immediately count for team resources/threats
+    };
+
+    const catObj = this.categories.find(c => c.key === categoryKey);
+    const catName = catObj ? catObj.name : categoryKey;
+    this.addLog(`⚡ ${thief.name} УКРАЛ [${catName}] у игрока ${victim.name}: "${stolenClean}"! Все параметры и теги предмета перешли к нему и защищают бункер.`);
+    return { success: true };
+  }
+
+  swapPlayerCards(player1Id, player2Id, categoryKey, requesterId) {
+    if (requesterId !== this.hostId) {
+      throw new Error('Только Мастер игры может обменивать карты между игроками.');
+    }
+    const p1 = this.players.get(player1Id);
+    const p2 = this.players.get(player2Id);
+    if (!p1 || !p2) throw new Error('Игроки не найдены.');
+
+    const card1 = p1.cards[categoryKey];
+    const card2 = p2.cards[categoryKey];
+    if (!card1 || !card2) throw new Error('Категория не найдена.');
+
+    const temp = { ...card1 };
+    p1.cards[categoryKey] = { ...card2 };
+    p2.cards[categoryKey] = temp;
+
+    const catObj = this.categories.find(c => c.key === categoryKey);
+    const catName = catObj ? catObj.name : categoryKey;
+    this.addLog(`🔄 Мастер ОБМЕНЯЛ карты [${catName}] между игроками ${p1.name} и ${p2.name}!`);
+    return true;
+  }
+
+  stealPlayerCard(fromPlayerId, toPlayerId, categoryKey, requesterId) {
+    return this.stealInventory(toPlayerId, fromPlayerId, categoryKey);
   }
 
   // --- START GAME (PRESET) ---
@@ -1315,10 +1678,12 @@ class SingleGame {
       percentage = Math.max(1, Math.min(99, percentage));
     }
 
-    // 6. RANDOMIZER (Бросок кубика судьбы от 1 до 100)
-    // 1 to percentage => УСПЕХ, percentage+1 to 100 => ПРОВАЛ
+    // 6. RANDOMIZER (Рулетка судьбы от 1 до 100 с подсчетом от большего к меньшему)
+    // Шанс 20% => победа при выпадении 81..100 (порог = 101 - 20 = 81)
+    // Шанс 60% => победа при выпадении 41..100 (порог = 101 - 60 = 41)
+    const threshold = (survivorsCount === 0 || percentage <= 0) ? 101 : Math.max(1, Math.min(101, 101 - percentage));
     const diceRoll = Math.floor(Math.random() * 100) + 1;
-    const isSuccess = (survivorsCount > 0) && (diceRoll <= percentage);
+    const isSuccess = (survivorsCount > 0) && (percentage > 0) && (diceRoll >= threshold);
     const outcomeText = isSuccess ? 'УСПЕШНО' : 'ПРОВАЛ';
 
     let verdict = '';
@@ -1328,8 +1693,8 @@ class SingleGame {
       verdict = '💀 ВСЕ ИЗГНАНЫ. БУНКЕР ПУСТ.';
       epilogue = 'Все кандидаты были изгнаны на поверхность. В убежище никто не вошел. Замкнутые системы отключились одна за другой, и человечество в этом регионе прекратило свое существование.';
     } else if (isSuccess) {
-      verdict = `🎉 УСПЕШНО: БУНКЕР ВЫЖИЛ! (Шанс: ${percentage}%, Кубик: ${diceRoll} ➔ ВЫЖИВАНИЕ)`;
-      epilogue = `Кубик судьбы выпал на ${diceRoll} (требовалось ≤ ${percentage}% для победы). Выжившие преодолели суровые испытания и смогли наладить устойчивый быт в бункере! `;
+      verdict = `🎉 УСПЕШНО: БУНКЕР ВЫЖИЛ! (Шанс: ${percentage}%, Выпало: ${diceRoll} ≥ ${threshold} ➔ ВЫЖИВАНИЕ)`;
+      epilogue = `Кубик судьбы выпал на ${diceRoll} (для победы требовалось от ${threshold} до 100 при шансе ${percentage}%). Выжившие преодолели суровые испытания и смогли наладить устойчивый быт в бункере! `;
       if (excess > 0) {
         epilogue += `Команда пожертвовала комфортом и психическим здоровьем из-за перенаселения (+${excess} чел., штраф -${overpopPenalty}%), но выдержка людей помогла преодолеть кризис. `;
       }
@@ -1341,8 +1706,8 @@ class SingleGame {
       }
       epilogue += `Спустя годы гермодверь убежища распахнулась, и спасшиеся начали возрождать новый мир.`;
     } else {
-      verdict = `💀 ПРОВАЛ: БУНКЕР ПОГИБ! (Шанс: ${percentage}%, Кубик: ${diceRoll} ➔ ПОРАЖЕНИЕ)`;
-      epilogue = `Кубик судьбы выпал на ${diceRoll} (при шансе ${percentage}% требовалось ≤ ${percentage}). `;
+      verdict = `💀 ПРОВАЛ: БУНКЕР ПОГИБ! (Шанс: ${percentage}%, Выпало: ${diceRoll} < ${threshold} ➔ ПОРАЖЕНИЕ)`;
+      epilogue = `Кубик судьбы выпал на ${diceRoll} (при шансе ${percentage}% для спасения требовалось число от ${threshold} до 100). `;
       if (!disasterOk) {
         epilogue += `Несоблюдение условий глобальной катастрофы нанесло сокрушительный удар по обитателям бункера. `;
       }
@@ -1368,12 +1733,13 @@ class SingleGame {
       bunkerDetailLine +
       threatsDetailLine +
       (excess > 0 ? `• ⚠️ Перенаселение (+${excess} чел.): штраф -${overpopPenalty}%\n` : '') +
-      `🎲 Бросок кубика судьбы: ${diceRoll} из 100 (при шансе ${percentage}%) ➔ ${outcomeText}!`;
+      `🎲 Рулетка судьбы: ${diceRoll} из 100 (для выживания требовалось ≥ ${threshold}) ➔ ${outcomeText}!`;
     epilogue += resLine;
 
     this.results = {
       isSuccess,
       percentage,
+      threshold,
       diceRoll,
       outcomeText,
       verdict,
@@ -1520,6 +1886,17 @@ class SingleGame {
       revealedThreatCards: this.revealedThreatCards,
 
       results: this.results,
+      speakerTimer: this.speakerTimer,
+      voting: this.voting ? {
+        active: this.voting.active,
+        isRevote: this.voting.isRevote,
+        revoteRound: this.voting.revoteRound,
+        candidates: this.voting.candidates,
+        myVote: (this.voting.votes && this.voting.votes[forPlayerId]) || null,
+        votesCount: Object.keys(this.voting.votes || {}).length,
+        votes: (isMaster || isFinished) ? this.voting.votes : null
+      } : null,
+      lastVotingHistory: this.lastVotingHistory,
       isHost: isMaster,
       myId: this.players.has(forPlayerId) ? forPlayerId : null,
       players: playersList,
