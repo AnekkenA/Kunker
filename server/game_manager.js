@@ -1392,9 +1392,16 @@ class SingleGame {
     return { allReady };
   }
 
-  startUgcGame(requesterId, saveAsThemeName = null) {
+  startUgcGame(requesterId, saveAsThemeName = null, options = {}) {
     if (requesterId !== this.hostId) {
       throw new Error('Только Мастер игры может запустить игру.');
+    }
+
+    if (options && options.backgroundImage) {
+      this.backgroundImage = options.backgroundImage;
+    }
+    if (options && options.cardBackImage) {
+      this.cardBackImage = options.cardBackImage;
     }
 
     const pool = {

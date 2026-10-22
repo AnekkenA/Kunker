@@ -456,6 +456,52 @@
               </div>
             </div>
 
+            <!-- MASTER THEME VISUAL CUSTOMIZATION (BACKGROUND & CARD BACK) -->
+            <div id="ugc-master-styling-box" class="ugc-category-box ugc-master-styling-box hidden" style="border: 1px solid var(--accent-amber); background: rgba(245, 158, 11, 0.05); margin-top: 14px; margin-bottom: 16px;">
+              <div class="ugc-category-title" style="color: var(--accent-amber); display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span>🎨</span>
+                  <span>Оформление игрового стола и карт (настройки Мастера бункера):</span>
+                </div>
+                <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); font-size: 10px;">Только для Мастера</span>
+              </div>
+              <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+                💡 Выберите атмосферный фон стола и рубашку карт. Они отобразятся у всех игроков после запуска игры!
+              </p>
+              <div class="theme-inputs-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+                <div class="form-group">
+                  <label style="font-size: 12px; font-weight: 700; color: var(--text-main);">Фоновое изображение стола (URL или файл):</label>
+                  <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                    <input type="text" id="input-ugc-bg" class="form-input" placeholder="https://... или выберите пресет">
+                    <button type="button" class="btn btn-sm btn-outline" id="btn-upload-ugc-bg" title="Загрузить изображение">📁 Загрузить</button>
+                    <input type="file" id="input-file-ugc-bg" accept="image/png,image/jpeg,image/webp" class="hidden">
+                  </div>
+                  <div class="preset-links">
+                    <span class="preset-label">Пресеты фона:</span>
+                    <button type="button" class="btn-preset-link" onclick="UgcCreator.setBgPreset('bunker')">Бункер</button>
+                    <button type="button" class="btn-preset-link" onclick="UgcCreator.setBgPreset('ruins')">Руины</button>
+                    <button type="button" class="btn-preset-link" onclick="UgcCreator.setBgPreset('space')">Космос</button>
+                    <button type="button" class="btn-preset-link" onclick="UgcCreator.setBgPreset('none')">Сброс</button>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label style="font-size: 12px; font-weight: 700; color: var(--text-main);">Изображение рубашки карт (URL или файл):</label>
+                  <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                    <input type="text" id="input-ugc-card-back" class="form-input" placeholder="https://... или выберите пресет">
+                    <button type="button" class="btn btn-sm btn-outline" id="btn-upload-ugc-card-back" title="Загрузить изображение">📁 Загрузить</button>
+                    <input type="file" id="input-file-ugc-card-back" accept="image/png,image/jpeg,image/webp" class="hidden">
+                  </div>
+                  <div class="preset-links">
+                    <span class="preset-label">Пресеты рубашки:</span>
+                    <button type="button" class="btn-preset-link" onclick="UgcCreator.setBackPreset('vault')">Люк</button>
+                    <button type="button" class="btn-preset-link" onclick="UgcCreator.setBackPreset('biohazard')">Радиация</button>
+                    <button type="button" class="btn-preset-link" onclick="UgcCreator.setBackPreset('cyber')">Кибер</button>
+                    <button type="button" class="btn-preset-link" onclick="UgcCreator.setBackPreset('none')">Сброс</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- 1. WORLD SECTIONS (DISASTER, BUNKER, THREATS) -->
             <div class="ugc-world-sections-container">
               

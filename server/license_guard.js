@@ -48,7 +48,7 @@ class LicenseGuard {
       if (fs.existsSync(LICENSE_FILE)) {
         const content = fs.readFileSync(LICENSE_FILE, 'utf8').trim();
         const json = JSON.parse(content);
-        if (json && json.token) {
+        if (json && json.token && typeof json.token === 'string' && json.token.trim() !== '') {
           return this.decodeUser(json.token);
         }
       }

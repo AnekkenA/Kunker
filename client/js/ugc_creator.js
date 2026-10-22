@@ -196,9 +196,16 @@ const UgcCreator = {
         }
       }
 
+      const bgInput = document.getElementById('input-ugc-bg');
+      const backInput = document.getElementById('input-ugc-card-back');
+      const backgroundImage = bgInput ? bgInput.value.trim() : null;
+      const cardBackImage = backInput ? backInput.value.trim() : null;
+
       try {
         await App.sendAction('start_ugc_game', {
-          saveThemeName: themeName || null
+          saveThemeName: themeName || null,
+          backgroundImage: backgroundImage || null,
+          cardBackImage: cardBackImage || null
         });
         App.playSound('start');
       } catch (e) {
@@ -211,6 +218,27 @@ const UgcCreator = {
 
     const btnStartBottom = document.getElementById('btn-ugc-start-game-bottom');
     if (btnStartBottom) btnStartBottom.addEventListener('click', handleMasterStart);
+
+    // Background and Card Back upload for Master in UGC
+    const btnUploadBg = document.getElementById('btn-upload-ugc-bg');
+    const inputUploadBg = document.getElementById('input-file-ugc-bg');
+    if (btnUploadBg && inputUploadBg) {
+      btnUploadBg.addEventListener('click', () => inputUploadBg.click());
+      inputUploadBg.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) this.uploadImageFile(file, 'input-ugc-bg', false);
+      });
+    }
+
+    const btnUploadBack = document.getElementById('btn-upload-ugc-card-back');
+    const inputUploadBack = document.getElementById('input-file-ugc-card-back');
+    if (btnUploadBack && inputUploadBack) {
+      btnUploadBack.addEventListener('click', () => inputUploadBack.click());
+      inputUploadBack.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) this.uploadImageFile(file, 'input-ugc-card-back', true);
+      });
+    }
 
     // 4. Claim Master Buttons
     const handleClaimMaster = async () => {
@@ -228,6 +256,85 @@ const UgcCreator = {
 
     const btnClaimBottom = document.getElementById('btn-ugc-claim-bottom');
     if (btnClaimBottom) btnClaimBottom.addEventListener('click', handleClaimMaster);
+  },
+
+  setBgPreset(type) {
+    const input = document.getElementById('input-ugc-bg');
+    if (!input) return;
+    const presets = {
+      bunker: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=1600&q=80',
+      ruins: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1600&q=80',
+      space: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=1600&q=80',
+      none: ''
+    };
+    input.value = presets[type] !== undefined ? presets[type] : '';
+    const screenUgc = document.getElementById('screen-ugc');
+    if (screenUgc) {
+      if (input.value) {
+        screenUgc.style.backgroundImage = `linear-gradient(rgba(11, 15, 23, 0.5), rgba(11, 15, 23, 0.5)), url('${input.value}'), radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%)`;
+        screenUgc.style.backgroundSize = 'cover';
+        screenUgc.style.backgroundPosition = 'center';
+        screenUgc.style.backgroundAttachment = 'fixed';
+      } else {
+        screenUgc.style.backgroundImage = '';
+      }
+    }
+    const names = { bunker: 'Бункер', ruins: 'Руины', space: 'Космос', none: 'Сброс' };
+    App.showToast(`Пресет фона стола "${names[type] || type}" выбран!`);
+    App.playSound('click');
+  },
+
+  setBackPreset(type) {
+    const input = document.getElementById('input-ugc-card-back');
+    if (!input) return;
+    const presets = {
+      vault: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&w=400&q=80',
+      biohazard: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=400&q=80',
+      cyber: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=400&q=80',
+      none: ''
+    };
+    input.value = presets[type] !== undefined ? presets[type] : '';
+    const names = { vault: 'Люк', biohazard: 'Радиация', cyber: 'Кибер', none: 'Сброс' };
+    App.showToast(`Пресет рубашки карт "${names[type] || type}" выбран!`);
+    App.playSound('click');
+  },
+
+  async uploadImageFile(file, targetInputId, isBack = false) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      App.showToast('⚠️ Выберите файл изображения (PNG, JPG, WEBP)!');
+      return;
+    }
+    App.showToast('⏳ Загрузка изображения...');
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const base64Data = e.target.result;
+        const res = await fetch('/api/upload_image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: base64Data, filename: file.name })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Ошибка загрузки');
+        const input = document.getElementById(targetInputId);
+        if (input) input.value = data.url;
+        if (!isBack) {
+          const screenUgc = document.getElementById('screen-ugc');
+          if (screenUgc) {
+            screenUgc.style.backgroundImage = `linear-gradient(rgba(11, 15, 23, 0.5), rgba(11, 15, 23, 0.5)), url('${data.url}')`;
+            screenUgc.style.backgroundSize = 'cover';
+            screenUgc.style.backgroundPosition = 'center';
+            screenUgc.style.backgroundAttachment = 'fixed';
+          }
+        }
+        App.showToast(`✅ Изображение "${file.name}" загружено!`);
+        App.playSound('start');
+      } catch (err) {
+        App.showToast(`❌ Ошибка загрузки: ${err.message}`);
+      }
+    };
+    reader.readAsDataURL(file);
   },
 
   updateSubmitButtonUI(isReady) {
@@ -500,12 +607,14 @@ const UgcCreator = {
     `).join('');
 
     const playerBottomClaim = document.getElementById('ugc-player-bottom-claim');
+    const masterStylingBox = document.getElementById('ugc-master-styling-box');
 
     if (state.isHost) {
       if (masterTopBar) masterTopBar.classList.remove('hidden');
       if (playerTopBar) playerTopBar.classList.add('hidden');
       if (masterBottomLaunch) masterBottomLaunch.classList.remove('hidden');
       if (playerBottomClaim) playerBottomClaim.classList.add('hidden');
+      if (masterStylingBox) masterStylingBox.classList.remove('hidden');
 
       const hostStatusText = document.getElementById('ugc-host-status-text');
       if (hostStatusText) {
@@ -519,6 +628,7 @@ const UgcCreator = {
       if (playerTopBar) playerTopBar.classList.remove('hidden');
       if (masterBottomLaunch) masterBottomLaunch.classList.add('hidden');
       if (playerBottomClaim) playerBottomClaim.classList.remove('hidden');
+      if (masterStylingBox) masterStylingBox.classList.add('hidden');
 
       const playerChipsBar = document.getElementById('ugc-player-chips-bar');
       if (playerChipsBar) playerChipsBar.innerHTML = playerChipsHtml;

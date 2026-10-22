@@ -298,7 +298,10 @@ const server = http.createServer(async (req, res) => {
             break;
 
           case 'start_ugc_game':
-            targetGame.startUgcGame(playerId, payload ? payload.saveThemeName : null);
+            targetGame.startUgcGame(playerId, payload ? payload.saveThemeName : null, {
+              backgroundImage: payload ? payload.backgroundImage : null,
+              cardBackImage: payload ? payload.cardBackImage : null
+            });
             break;
 
           case 'replace_card':
