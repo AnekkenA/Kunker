@@ -776,19 +776,19 @@ body {
 
 .ugc-world-card-pair {
   display: grid;
-  grid-template-columns: 85px 1fr 1.6fr;
-  gap: 8px;
-  align-items: center;
-  background: rgba(0, 0, 0, 0.15);
-  padding: 8px 10px;
+  grid-template-columns: 90px 1fr 1.6fr;
+  gap: 10px;
+  align-items: stretch;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px 12px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 @media (max-width: 768px) {
   .ugc-world-card-pair {
     grid-template-columns: 1fr;
-    gap: 6px;
+    gap: 8px;
   }
 }
 
@@ -797,6 +797,27 @@ body {
   font-weight: 700;
   color: var(--text-dim);
   text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  text-align: center;
+}
+
+.ugc-textarea, textarea.ugc-input {
+  min-height: 54px;
+  height: 54px;
+  line-height: 1.35;
+  padding: 7px 10px;
+  font-size: 12.5px;
+  resize: vertical;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-sizing: border-box;
+  font-family: inherit;
 }
 
 .ugc-category-box {
@@ -819,7 +840,7 @@ body {
 
 .ugc-inputs-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 10px;
 }
 
@@ -3529,10 +3550,14 @@ body {
 
 .roulette-number {
   font-family: var(--font-display);
-  font-size: 60px;
+  font-size: 56px;
   font-weight: 900;
   color: #0f172a;
   letter-spacing: -1px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .roulette-cube.spinning {

@@ -138,9 +138,23 @@ const UgcCreator = {
 
   init() {
     this.bindEvents();
+    if (typeof TagHelper !== 'undefined') {
+      TagHelper.init();
+    }
+    this.renderTagInsertBar();
   },
 
   bindEvents() {
+    // Track active input via focusin delegation so tag insertions always target the last active field
+    const screenUgc = document.getElementById('screen-ugc');
+    if (screenUgc) {
+      screenUgc.addEventListener('focusin', (e) => {
+        if (e.target && e.target.classList && e.target.classList.contains('ugc-input')) {
+          this.lastFocusedInput = e.target;
+        }
+      });
+    }
+
     // 1. Autofill button
     const btnAutofill = document.getElementById('btn-ugc-autofill');
     if (btnAutofill) {
@@ -287,7 +301,7 @@ const UgcCreator = {
       return `
         <div class="ugc-tag-guide-card" style="border-left: 3px solid ${def.color};">
           <div class="ugc-tag-guide-header">
-            <div class="ugc-tag-guide-title" style="color: ${def.color};">
+            <div class="ugc-tag-guide-title" data-tag="#${def.name}[3]" title="Нажмите, чтобы вставить #${def.name}[3]" style="color: ${def.color}; cursor: pointer;">
               <span>${def.icon}</span>
               <span>#${def.name}</span>
             </div>
@@ -314,21 +328,21 @@ const UgcCreator = {
             <span class="ugc-tag-count-badge">${allDefs.length} тегов</span>
           </div>
           <button type="button" id="btn-toggle-ugc-tags-guide" class="btn btn-xs btn-outline">
-            📖 Развернуть описание всех тегов
+            🔼 Свернуть описание всех тегов
           </button>
         </div>
 
         <p class="ugc-tags-dir-hint">
-          💡 <strong>Как использовать:</strong> кликните в любое поле карты и нажмите кнопку тега. В финале игры теги выживших суммируются и помогают спасти бункер!
+          💡 <strong>Как использовать:</strong> кликните в любое поле карты ниже и выберите нужный тег или балл (+1..+5) — тег сразу вставится в текст. В финале игры теги выживших суммируются и помогают спасти бункер!
         </p>
 
         <!-- QUICK CHIPS -->
-        <div class="quick-tag-insert-bar" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;">
+        <div class="quick-tag-insert-bar" style="display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 12px 0;">
           ${quickChipsHtml}
         </div>
 
-        <!-- DETAILED EXPANDABLE REFERENCE -->
-        <div id="ugc-tags-detailed-reference" class="ugc-tags-detailed-reference hidden">
+        <!-- DETAILED EXPANDABLE REFERENCE (SHOWN BY DEFAULT) -->
+        <div id="ugc-tags-detailed-reference" class="ugc-tags-detailed-reference">
           <div class="ugc-tags-grid">
             ${detailedItemsHtml}
           </div>
@@ -344,7 +358,7 @@ const UgcCreator = {
         e.preventDefault();
         const isHidden = refContainer.classList.contains('hidden');
         refContainer.classList.toggle('hidden');
-        btnToggle.textContent = isHidden ? '🔼 Свернуть справочник тегов' : '📖 Развернуть описание всех тегов';
+        btnToggle.textContent = isHidden ? '🔼 Свернуть описание всех тегов' : '📖 Развернуть описание всех тегов';
         if (typeof App !== 'undefined') App.playSound('click');
       });
     }
@@ -403,8 +417,8 @@ const UgcCreator = {
       bunkerContainer.innerHTML = [1, 2, 3, 4, 5].map(i => `
         <div class="ugc-world-card-pair">
           <span class="ugc-card-pair-badge">Отсек ${i}:</span>
-          <input type="text" class="form-input ugc-input" data-world="bunker" data-field="title" data-index="${i - 1}" placeholder="Название отсека (например: Автономный медблок)">
-          <input type="text" class="form-input ugc-input" data-world="bunker" data-field="desc" data-index="${i - 1}" placeholder="Описание бонуса (например: Запас лекарств на 5 лет)">
+          <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="bunker" data-field="title" data-index="${i - 1}" placeholder="Название отсека (например: Автономный медблок)"></textarea>
+          <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="bunker" data-field="desc" data-index="${i - 1}" placeholder="Описание бонуса (например: Запас лекарств на 5 лет)"></textarea>
         </div>
       `).join('');
     }
@@ -415,8 +429,8 @@ const UgcCreator = {
       threatsContainer.innerHTML = [1, 2, 3, 4, 5].map(i => `
         <div class="ugc-world-card-pair">
           <span class="ugc-card-pair-badge">Угроза ${i}:</span>
-          <input type="text" class="form-input ugc-input" data-world="threats" data-field="title" data-index="${i - 1}" placeholder="Название опасности (например: Утечка ядовитого газа)">
-          <input type="text" class="form-input ugc-input" data-world="threats" data-field="desc" data-index="${i - 1}" placeholder="Описание угрозы (например: Риск удушья, требуется химзащита)">
+          <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="threats" data-field="title" data-index="${i - 1}" placeholder="Название опасности (например: Утечка ядовитого газа)"></textarea>
+          <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="threats" data-field="desc" data-index="${i - 1}" placeholder="Описание угрозы (например: Риск удушья, требуется химзащита)"></textarea>
         </div>
       `).join('');
     }
@@ -443,7 +457,7 @@ const UgcCreator = {
               </div>
               <div class="ugc-inputs-grid">
                 ${[1, 2, 3, 4, 5].map(i => `
-                  <input type="text" class="form-input ugc-input" data-cat="${cat.key}" data-index="${i - 1}" placeholder="Вариант ${i}">
+                  <textarea class="form-input ugc-input ugc-textarea" rows="2" data-cat="${cat.key}" data-index="${i - 1}" placeholder="Вариант ${i}"></textarea>
                 `).join('')}
               </div>
             </div>

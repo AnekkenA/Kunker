@@ -954,10 +954,10 @@ const GameBoard = {
     const banner = document.getElementById('roulette-outcome-banner');
 
     if (cube) cube.className = 'roulette-cube';
-    if (numEl) numEl.textContent = '🎲';
+    if (numEl) numEl.textContent = 'GO';
     if (btnSpin) {
       btnSpin.disabled = false;
-      btnSpin.textContent = '🎲 ИСПЫТАТЬ СУДЬБУ (ПРОВЕРИТЬ)';
+      btnSpin.textContent = '⚡ ПРОВЕРИТЬ ВЫЖИВАНИЕ (КУБИК)';
     }
     if (banner) {
       banner.className = 'roulette-outcome-banner hidden';
@@ -981,8 +981,8 @@ const GameBoard = {
     if (cube) cube.className = 'roulette-cube spinning';
     if (banner) banner.classList.add('hidden');
 
-    // Delays increasing from fast up to 1.5s
-    const delays = [40, 45, 50, 55, 65, 80, 100, 130, 170, 220, 290, 390, 520, 700, 950, 1250, 1500];
+    // Delays increasing from fast up to maximum 1.0 second (1000ms)
+    const delays = [40, 45, 50, 60, 75, 95, 120, 160, 215, 290, 390, 520, 700, 1000];
 
     for (let i = 0; i < delays.length; i++) {
       await new Promise(resolve => setTimeout(resolve, delays[i]));
@@ -1017,7 +1017,7 @@ const GameBoard = {
 
     if (btnSpin) {
       btnSpin.disabled = false;
-      btnSpin.textContent = '🔄 ПОВТОРИТЬ ПРОВЕРКУ КУБИКА';
+      btnSpin.textContent = '🔄 ПОВТОРИТЬ ПРОВЕРКУ';
     }
 
     const verdictBox = document.getElementById('results-verdict-box');

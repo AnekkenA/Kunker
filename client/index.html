@@ -301,7 +301,159 @@
                 <button id="btn-ugc-autofill" class="btn btn-sm btn-outline">🎲 Случайное автозаполнение ВСЕХ полей</button>
                 <span id="ugc-status-badge" class="badge">Заполните поля карт</span>
               </div>
-              <div id="ugc-tag-helper-bar" class="ugc-tag-helper-bar" style="margin-top: 12px;"></div>
+              <div id="ugc-tag-helper-bar" class="ugc-tag-helper-bar" style="margin-top: 14px;">
+                <div class="ugc-tags-directory-panel">
+                  <div class="ugc-tags-dir-header">
+                    <div class="ugc-tags-dir-title">
+                      <span>🏷️</span>
+                      <strong>Классические параметры и теги выживания:</strong>
+                      <span class="ugc-tag-count-badge">7 классических тегов</span>
+                    </div>
+                    <button type="button" id="btn-toggle-ugc-tags-guide" class="btn btn-xs btn-outline">
+                      🔼 Свернуть описание всех тегов
+                    </button>
+                  </div>
+
+                  <p class="ugc-tags-dir-hint">
+                    💡 <strong>Как использовать:</strong> кликните в любое поле карты ниже и выберите нужный тег или балл (+1..+5) — тег сразу вставится в текст. В финале игры теги выживших суммируются и помогают спасти бункер!
+                  </p>
+
+                  <!-- QUICK CHIPS -->
+                  <div class="quick-tag-insert-bar" style="display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 12px 0;">
+                    <button type="button" class="btn-tag-chip" data-tag="#Пожаротушение[3]" title="Вставить #Пожаротушение[3] в активное поле" style="border-color: #f9731660; color: #f97316; background: rgba(249, 115, 22, 0.15); font-size: 12px; padding: 4px 9px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">+ 🧯 #Пожаротушение[3]</button>
+                    <button type="button" class="btn-tag-chip" data-tag="#Медицина[3]" title="Вставить #Медицина[3] в активное поле" style="border-color: #10b98160; color: #10b981; background: rgba(16, 185, 129, 0.15); font-size: 12px; padding: 4px 9px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">+ 💊 #Медицина[3]</button>
+                    <button type="button" class="btn-tag-chip" data-tag="#Провизия/Вода[3]" title="Вставить #Провизия/Вода[3] в активное поле" style="border-color: #eab30860; color: #eab308; background: rgba(234, 179, 8, 0.15); font-size: 12px; padding: 4px 9px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">+ 🍞 #Провизия/Вода[3]</button>
+                    <button type="button" class="btn-tag-chip" data-tag="#Инженерия[3]" title="Вставить #Инженерия[3] в активное поле" style="border-color: #06b6d460; color: #06b6d4; background: rgba(6, 182, 212, 0.15); font-size: 12px; padding: 4px 9px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">+ ⚙️ #Инженерия[3]</button>
+                    <button type="button" class="btn-tag-chip" data-tag="#Психика/Сон[3]" title="Вставить #Психика/Сон[3] в активное поле" style="border-color: #a855f760; color: #a855f7; background: rgba(168, 85, 247, 0.15); font-size: 12px; padding: 4px 9px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">+ 🧠 #Психика/Сон[3]</button>
+                    <button type="button" class="btn-tag-chip" data-tag="#Защита/Оборона[3]" title="Вставить #Защита/Оборона[3] в активное поле" style="border-color: #3b82f660; color: #3b82f6; background: rgba(59, 130, 246, 0.15); font-size: 12px; padding: 4px 9px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">+ 🛡️ #Защита/Оборона[3]</button>
+                    <button type="button" class="btn-tag-chip" data-tag="#Наука/Био[3]" title="Вставить #Наука/Био[3] в активное поле" style="border-color: #ec489960; color: #ec4899; background: rgba(236, 72, 153, 0.15); font-size: 12px; padding: 4px 9px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">+ 🔬 #Наука/Био[3]</button>
+                  </div>
+
+                  <!-- DETAILED LIST OF ALL CLASSIC TAGS (OPEN BY DEFAULT) -->
+                  <div id="ugc-tags-detailed-reference" class="ugc-tags-detailed-reference">
+                    <div class="ugc-tags-grid">
+                      <div class="ugc-tag-guide-card" style="border-left: 3px solid #f97316;">
+                        <div class="ugc-tag-guide-header">
+                          <div class="ugc-tag-guide-title" data-tag="#Пожаротушение[3]" style="color: #f97316; cursor: pointer;">
+                            <span>🧯</span> <span>#Пожаротушение</span>
+                          </div>
+                          <div class="ugc-tag-quick-buttons">
+                            <span style="font-size: 10px; color: var(--text-dim); margin-right: 2px;">Баллы:</span>
+                            <button type="button" class="btn-score-tag" data-tag="#Пожаротушение[1]">+1</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Пожаротушение[2]">+2</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Пожаротушение[3]">+3</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Пожаротушение[4]">+4</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Пожаротушение[5]">+5</button>
+                          </div>
+                        </div>
+                        <div class="ugc-tag-guide-desc">Огнетушители, гидранты, песок и негорючие материалы. Спасение бункера от возгораний.</div>
+                      </div>
+
+                      <div class="ugc-tag-guide-card" style="border-left: 3px solid #10b981;">
+                        <div class="ugc-tag-guide-header">
+                          <div class="ugc-tag-guide-title" data-tag="#Медицина[3]" style="color: #10b981; cursor: pointer;">
+                            <span>💊</span> <span>#Медицина</span>
+                          </div>
+                          <div class="ugc-tag-quick-buttons">
+                            <span style="font-size: 10px; color: var(--text-dim); margin-right: 2px;">Баллы:</span>
+                            <button type="button" class="btn-score-tag" data-tag="#Медицина[1]">+1</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Медицина[2]">+2</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Медицина[3]">+3</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Медицина[4]">+4</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Медицина[5]">+5</button>
+                          </div>
+                        </div>
+                        <div class="ugc-tag-guide-desc">Лекарства, хирургия, антибиотики и стерильность. Защита от эпидемий, заражений и ран.</div>
+                      </div>
+
+                      <div class="ugc-tag-guide-card" style="border-left: 3px solid #eab308;">
+                        <div class="ugc-tag-guide-header">
+                          <div class="ugc-tag-guide-title" data-tag="#Провизия/Вода[3]" style="color: #eab308; cursor: pointer;">
+                            <span>🍞</span> <span>#Провизия/Вода</span>
+                          </div>
+                          <div class="ugc-tag-quick-buttons">
+                            <span style="font-size: 10px; color: var(--text-dim); margin-right: 2px;">Баллы:</span>
+                            <button type="button" class="btn-score-tag" data-tag="#Провизия/Вода[1]">+1</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Провизия/Вода[2]">+2</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Провизия/Вода[3]">+3</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Провизия/Вода[4]">+4</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Провизия/Вода[5]">+5</button>
+                          </div>
+                        </div>
+                        <div class="ugc-tag-guide-desc">Запас еды, чистой воды и сухпайков. Защита бункера от голода, засухи и истощения.</div>
+                      </div>
+
+                      <div class="ugc-tag-guide-card" style="border-left: 3px solid #06b6d4;">
+                        <div class="ugc-tag-guide-header">
+                          <div class="ugc-tag-guide-title" data-tag="#Инженерия[3]" style="color: #06b6d4; cursor: pointer;">
+                            <span>⚙️</span> <span>#Инженерия</span>
+                          </div>
+                          <div class="ugc-tag-quick-buttons">
+                            <span style="font-size: 10px; color: var(--text-dim); margin-right: 2px;">Баллы:</span>
+                            <button type="button" class="btn-score-tag" data-tag="#Инженерия[1]">+1</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Инженерия[2]">+2</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Инженерия[3]">+3</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Инженерия[4]">+4</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Инженерия[5]">+5</button>
+                          </div>
+                        </div>
+                        <div class="ugc-tag-guide-desc">Ремонт генераторов, проводки, вентиляции и помп. Восстановление систем бункера.</div>
+                      </div>
+
+                      <div class="ugc-tag-guide-card" style="border-left: 3px solid #a855f7;">
+                        <div class="ugc-tag-guide-header">
+                          <div class="ugc-tag-guide-title" data-tag="#Психика/Сон[3]" style="color: #a855f7; cursor: pointer;">
+                            <span>🧠</span> <span>#Психика/Сон</span>
+                          </div>
+                          <div class="ugc-tag-quick-buttons">
+                            <span style="font-size: 10px; color: var(--text-dim); margin-right: 2px;">Баллы:</span>
+                            <button type="button" class="btn-score-tag" data-tag="#Психика/Сон[1]">+1</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Психика/Сон[2]">+2</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Психика/Сон[3]">+3</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Психика/Сон[4]">+4</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Психика/Сон[5]">+5</button>
+                          </div>
+                        </div>
+                        <div class="ugc-tag-guide-desc">Моральная стойкость, сон и порядок. Предотвращение паники, психоза и бунта выживших.</div>
+                      </div>
+
+                      <div class="ugc-tag-guide-card" style="border-left: 3px solid #3b82f6;">
+                        <div class="ugc-tag-guide-header">
+                          <div class="ugc-tag-guide-title" data-tag="#Защита/Оборона[3]" style="color: #3b82f6; cursor: pointer;">
+                            <span>🛡️</span> <span>#Защита/Оборона</span>
+                          </div>
+                          <div class="ugc-tag-quick-buttons">
+                            <span style="font-size: 10px; color: var(--text-dim); margin-right: 2px;">Баллы:</span>
+                            <button type="button" class="btn-score-tag" data-tag="#Защита/Оборона[1]">+1</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Защита/Оборона[2]">+2</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Защита/Оборона[3]">+3</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Защита/Оборона[4]">+4</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Защита/Оборона[5]">+5</button>
+                          </div>
+                        </div>
+                        <div class="ugc-tag-guide-desc">Броня, оружие, укрепление гермодверей и караул. Защита от рейдеров, мародеров и мутантов.</div>
+                      </div>
+
+                      <div class="ugc-tag-guide-card" style="border-left: 3px solid #ec4899;">
+                        <div class="ugc-tag-guide-header">
+                          <div class="ugc-tag-guide-title" data-tag="#Наука/Био[3]" style="color: #ec4899; cursor: pointer;">
+                            <span>🔬</span> <span>#Наука/Био</span>
+                          </div>
+                          <div class="ugc-tag-quick-buttons">
+                            <span style="font-size: 10px; color: var(--text-dim); margin-right: 2px;">Баллы:</span>
+                            <button type="button" class="btn-score-tag" data-tag="#Наука/Био[1]">+1</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Наука/Био[2]">+2</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Наука/Био[3]">+3</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Наука/Био[4]">+4</button>
+                            <button type="button" class="btn-score-tag" data-tag="#Наука/Био[5]">+5</button>
+                          </div>
+                        </div>
+                        <div class="ugc-tag-guide-desc">Лаборатории, дезактивация радиации, селекция семян и создание вакцин.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- 1. WORLD SECTIONS (DISASTER, BUNKER, THREATS) -->
@@ -319,13 +471,13 @@
                 <div class="ugc-world-inputs-grid">
                   <div class="ugc-world-card-pair">
                     <span class="ugc-card-pair-badge">Вариант 1:</span>
-                    <input type="text" class="form-input ugc-input" data-world="disasters" data-field="title" data-index="0" placeholder="Название (например: Глобальное потепление и супер-потоп)">
-                    <input type="text" class="form-input ugc-input" data-world="disasters" data-field="goal" data-index="0" placeholder="Цель выживания / Описание (например: Переждать 4 года до стабилизации океана)">
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="disasters" data-field="title" data-index="0" placeholder="Название (например: Глобальное потепление и супер-потоп)"></textarea>
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="disasters" data-field="goal" data-index="0" placeholder="Цель выживания / Описание (например: Переждать 4 года до стабилизации океана)"></textarea>
                   </div>
                   <div class="ugc-world-card-pair">
                     <span class="ugc-card-pair-badge">Вариант 2:</span>
-                    <input type="text" class="form-input ugc-input" data-world="disasters" data-field="title" data-index="1" placeholder="Название (например: Падение метеорита и вечная тьма)">
-                    <input type="text" class="form-input ugc-input" data-world="disasters" data-field="goal" data-index="1" placeholder="Цель выживания / Описание (например: Выжить в изоляции и нехватке тепла 10 лет)">
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="disasters" data-field="title" data-index="1" placeholder="Название (например: Падение метеорита и вечная тьма)"></textarea>
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="disasters" data-field="goal" data-index="1" placeholder="Цель выживания / Описание (например: Выжить в изоляции и нехватке тепла 10 лет)"></textarea>
                   </div>
                 </div>
               </div>
@@ -342,28 +494,28 @@
                 <div class="ugc-world-inputs-grid" id="ugc-bunker-inputs">
                   <div class="ugc-world-card-pair">
                     <span class="ugc-card-pair-badge">Отсек 1:</span>
-                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="title" data-index="0" placeholder="Название отсека (например: Автономный медблок)">
-                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="desc" data-index="0" placeholder="Описание бонуса (например: Запас лекарств и операционная)">
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="bunker" data-field="title" data-index="0" placeholder="Название отсека (например: Автономный медблок)"></textarea>
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="bunker" data-field="desc" data-index="0" placeholder="Описание бонуса (например: Запас лекарств и операционная)"></textarea>
                   </div>
                   <div class="ugc-world-card-pair">
                     <span class="ugc-card-pair-badge">Отсек 2:</span>
-                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="title" data-index="1" placeholder="Название отсека (например: Оранжерея гидропоники)">
-                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="desc" data-index="1" placeholder="Описание бонуса (например: Свежие овощи и зелень)">
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="bunker" data-field="title" data-index="1" placeholder="Название отсека (например: Оранжерея гидропоники)"></textarea>
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="bunker" data-field="desc" data-index="1" placeholder="Описание бонуса (например: Свежие овощи и зелень)"></textarea>
                   </div>
                   <div class="ugc-world-card-pair">
                     <span class="ugc-card-pair-badge">Отсек 3:</span>
-                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="title" data-index="2" placeholder="Название отсека (например: Геотермальный генератор)">
-                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="desc" data-index="2" placeholder="Описание бонуса (например: Неисчерпаемое электричество)">
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="bunker" data-field="title" data-index="2" placeholder="Название отсека (например: Геотермальный генератор)"></textarea>
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="bunker" data-field="desc" data-index="2" placeholder="Описание бонуса (например: Неисчерпаемое электричество)"></textarea>
                   </div>
                   <div class="ugc-world-card-pair">
                     <span class="ugc-card-pair-badge">Отсек 4:</span>
-                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="title" data-index="3" placeholder="Название отсека (например: Скважина чистой воды)">
-                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="desc" data-index="3" placeholder="Описание бонуса (например: Неограниченная питьевая вода)">
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="bunker" data-field="title" data-index="3" placeholder="Название отсека (например: Скважина чистой воды)"></textarea>
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="bunker" data-field="desc" data-index="3" placeholder="Описание бонуса (например: Неограниченная питьевая вода)"></textarea>
                   </div>
                   <div class="ugc-world-card-pair">
                     <span class="ugc-card-pair-badge">Отсек 5:</span>
-                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="title" data-index="4" placeholder="Название отсека (например: 3D-мастерская деталей)">
-                    <input type="text" class="form-input ugc-input" data-world="bunker" data-field="desc" data-index="4" placeholder="Описание бонуса (например: Ремонт и производство любых инструментов)">
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="bunker" data-field="title" data-index="4" placeholder="Название отсека (например: 3D-мастерская деталей)"></textarea>
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="bunker" data-field="desc" data-index="4" placeholder="Описание бонуса (например: Ремонт и производство любых инструментов)"></textarea>
                   </div>
                 </div>
               </div>
@@ -380,28 +532,28 @@
                 <div class="ugc-world-inputs-grid" id="ugc-threats-inputs">
                   <div class="ugc-world-card-pair">
                     <span class="ugc-card-pair-badge">Угроза 1:</span>
-                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="title" data-index="0" placeholder="Название опасности (например: Утечка ядовитого фреона)">
-                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="desc" data-index="0" placeholder="Описание угрозы (например: Риск удушья, требуется химзащита)">
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="threats" data-field="title" data-index="0" placeholder="Название опасности (например: Утечка ядовитого фреона)"></textarea>
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="threats" data-field="desc" data-index="0" placeholder="Описание угрозы (например: Риск удушья, требуется химзащита)"></textarea>
                   </div>
                   <div class="ugc-world-card-pair">
                     <span class="ugc-card-pair-badge">Угроза 2:</span>
-                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="title" data-index="1" placeholder="Название опасности (например: Короткое замыкание в щитовой)">
-                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="desc" data-index="1" placeholder="Описание угрозы (например: Риск пожара в кабельных каналах)">
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="threats" data-field="title" data-index="1" placeholder="Название опасности (например: Короткое замыкание в щитовой)"></textarea>
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="threats" data-field="desc" data-index="1" placeholder="Описание угрозы (например: Риск пожара в кабельных каналах)"></textarea>
                   </div>
                   <div class="ugc-world-card-pair">
                     <span class="ugc-card-pair-badge">Угроза 3:</span>
-                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="title" data-index="2" placeholder="Название опасности (например: Вспышка неизвестной лихорадки)">
-                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="desc" data-index="2" placeholder="Описание угрозы (например: Эпидемия в замкнутом отсеке)">
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="threats" data-field="title" data-index="2" placeholder="Название опасности (например: Вспышка неизвестной лихорадки)"></textarea>
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="threats" data-field="desc" data-index="2" placeholder="Описание угрозы (например: Эпидемия в замкнутом отсеке)"></textarea>
                   </div>
                   <div class="ugc-world-card-pair">
                     <span class="ugc-card-pair-badge">Угроза 4:</span>
-                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="title" data-index="3" placeholder="Название опасности (например: Паника и психоз взаперти)">
-                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="desc" data-index="3" placeholder="Описание угрозы (например: Угроза бунта выживших)">
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="threats" data-field="title" data-index="3" placeholder="Название опасности (например: Паника и психоз взаперти)"></textarea>
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="threats" data-field="desc" data-index="3" placeholder="Описание угрозы (например: Угроза бунта выживших)"></textarea>
                   </div>
                   <div class="ugc-world-card-pair">
                     <span class="ugc-card-pair-badge">Угроза 5:</span>
-                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="title" data-index="4" placeholder="Название опасности (например: Поломка глубинного насоса)">
-                    <input type="text" class="form-input ugc-input" data-world="threats" data-field="desc" data-index="4" placeholder="Описание угрозы (например: Обезвоживание, срочно нужен ремонт)">
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="threats" data-field="title" data-index="4" placeholder="Название опасности (например: Поломка глубинного насоса)"></textarea>
+                    <textarea class="form-input ugc-input ugc-textarea" rows="2" data-world="threats" data-field="desc" data-index="4" placeholder="Описание угрозы (например: Обезвоживание, срочно нужен ремонт)"></textarea>
                   </div>
                 </div>
               </div>
@@ -764,13 +916,13 @@
 
               <div class="roulette-cube-wrapper">
                 <div id="roulette-cube" class="roulette-cube">
-                  <span id="roulette-number" class="roulette-number">🎲</span>
+                  <span id="roulette-number" class="roulette-number">GO</span>
                 </div>
               </div>
 
               <div class="roulette-action-box">
                 <button type="button" id="btn-spin-roulette" class="btn btn-warning btn-lg btn-spin-roulette">
-                  🎲 ИСПЫТАТЬ СУДЬБУ (ПРОВЕРИТЬ)
+                  ⚡ ПРОВЕРИТЬ ВЫЖИВАНИЕ (КУБИК)
                 </button>
               </div>
 
