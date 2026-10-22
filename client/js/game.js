@@ -1038,15 +1038,23 @@ const GameBoard = {
     this.updateVotingUI(state.voting, state);
 
     // 0. Theme Background
+    const gameScreen = document.getElementById('screen-game');
     const gameContainer = document.querySelector('.game-container');
-    if (gameContainer) {
-      if (state.backgroundImage) {
-        gameContainer.style.backgroundImage = `linear-gradient(rgba(11, 15, 23, 0.88), rgba(11, 15, 23, 0.88)), url('${state.backgroundImage}')`;
-        gameContainer.style.backgroundSize = 'cover';
-        gameContainer.style.backgroundPosition = 'center';
-      } else {
-        gameContainer.style.backgroundImage = '';
+    const bgUrl = state.backgroundImage;
+    if (bgUrl) {
+      const bgStyle = `linear-gradient(rgba(11, 15, 23, 0.45), rgba(11, 15, 23, 0.45)), url('${bgUrl}'), radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%)`;
+      if (gameScreen) {
+        gameScreen.style.backgroundImage = bgStyle;
+        gameScreen.style.backgroundSize = 'cover';
+        gameScreen.style.backgroundPosition = 'center';
+        gameScreen.style.backgroundAttachment = 'fixed';
       }
+      if (gameContainer) {
+        gameContainer.style.background = 'transparent';
+      }
+    } else {
+      if (gameScreen) gameScreen.style.backgroundImage = '';
+      if (gameContainer) gameContainer.style.background = '';
     }
 
     // 1. Catastrophe (Disaster)

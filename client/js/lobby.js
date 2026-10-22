@@ -271,6 +271,7 @@ const Lobby = {
     if (countEl) countEl.textContent = state.players.length;
 
     // Render Players List
+    const isMaster = Boolean(state.isHost);
     const playersList = document.getElementById('lobby-players-list');
     playersList.innerHTML = state.players.map(p => {
       const isSelf = p.id === state.myId;
@@ -281,15 +282,55 @@ const Lobby = {
             <strong>${p.name}</strong>
             ${isSelf ? '<span class="role-badge">(Вы)</span>' : ''}
           </div>
-          <div>
+          <div style="display: flex; align-items: center; gap: 6px;">
             ${p.isHost ? '<span class="role-badge master">Мастер</span>' : '<span class="role-badge">Готов</span>'}
+            ${isMaster && !p.isHost ? `
+              <button type="button" class="btn btn-xs btn-outline btn-transfer-host" data-id="${p.id}" data-name="${p.name}" style="font-size: 11px; padding: 3px 8px; color: var(--accent-amber); border-color: rgba(245, 158, 11, 0.4);" title="Передать роль Мастера этому игроку">👑 Передать</button>
+              <button type="button" class="btn btn-xs btn-outline btn-kick-player" data-id="${p.id}" data-name="${p.name}" style="font-size: 11px; padding: 3px 8px; color: var(--accent-red); border-color: rgba(239, 68, 68, 0.4);" title="Удалить лишнего игрока из шлюза">✕ Кикнуть</button>
+            ` : ''}
           </div>
         </div>
       `;
     }).join('');
 
+    // Attach Master Host Transfer and Kick handlers
+    if (isMaster) {
+      playersList.querySelectorAll('.btn-transfer-host').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const targetId = btn.getAttribute('data-id');
+          const targetName = btn.getAttribute('data-name');
+          if (confirm(`👑 Передать роль Мастера игроку "${targetName}"?\nВы станете обычным выжившим.`)) {
+            try {
+              await App.sendAction('transfer_host', { targetPlayerId: targetId });
+              App.playSound('start');
+              App.showToast(`👑 Роль Мастера передана игроку ${targetName}!`);
+            } catch (err) {
+              App.showToast(`Ошибка: ${err.message}`);
+            }
+          }
+        });
+      });
+
+      playersList.querySelectorAll('.btn-kick-player').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const targetId = btn.getAttribute('data-id');
+          const targetName = btn.getAttribute('data-name');
+          if (confirm(`🗑️ Удалить игрока "${targetName}" из шлюза?`)) {
+            try {
+              await App.sendAction('kick_player', { targetPlayerId: targetId });
+              App.playSound('click');
+              App.showToast(`🚪 Игрок ${targetName} удален из шлюза.`);
+            } catch (err) {
+              App.showToast(`Ошибка: ${err.message}`);
+            }
+          }
+        });
+      });
+    }
+
     // If viewer is not Host -> disable start button and settings
-    const isMaster = state.isHost;
     document.getElementById('btn-start-game').style.display = isMaster ? 'block' : 'none';
     document.querySelectorAll('input[name="game-mode"]').forEach(r => r.disabled = !isMaster);
     document.querySelectorAll('input[name="selected-deck"]').forEach(cb => cb.disabled = !isMaster);
@@ -307,19 +348,7 @@ const Lobby = {
     const headerTitle = document.querySelector('.settings-panel .panel-header h2');
     if (!isMaster) {
       if (headerTitle) {
-        headerTitle.innerHTML = '⚙️ Ожидание Мастера... <button type="button" class="btn btn-xs btn-outline" id="btn-claim-host-lobby" style="font-size: 11px; margin-left: 8px; color: var(--accent-amber); border-color: var(--accent-amber); vertical-align: middle;">👑 Стать Мастером</button>';
-        const btnClaim = document.getElementById('btn-claim-host-lobby');
-        if (btnClaim) {
-          btnClaim.addEventListener('click', async () => {
-            try {
-              await App.sendAction('claim_host');
-              App.playSound('start');
-              App.showToast('👑 Вы теперь Мастер игры!');
-            } catch (e) {
-              App.showToast(`Ошибка: ${e.message}`);
-            }
-          });
-        }
+        headerTitle.textContent = '⚙️ Ожидание запуска игры Мастером...';
       }
     } else {
       if (headerTitle) {

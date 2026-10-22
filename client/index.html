@@ -744,43 +744,6 @@
                 <textarea id="edit-deck-desc" class="form-input" rows="2"></textarea>
               </div>
 
-              <!-- THEME VISUAL CUSTOMIZATION (BACKGROUND & CARD BACK) -->
-              <div class="editor-theme-styling-box">
-                <div class="theme-style-title">🎨 Оформление игрового стола и карт:</div>
-                <div class="theme-inputs-grid">
-                  <div class="form-group">
-                    <label>Фоновое изображение стола (URL или файл):</label>
-                    <div style="display: flex; gap: 6px; margin-bottom: 6px;">
-                      <input type="text" id="edit-deck-bg" class="form-input" placeholder="https://... или загрузите файл">
-                      <button type="button" class="btn btn-sm btn-outline" id="btn-upload-deck-bg" title="Загрузить изображение с устройства">📁 Загрузить</button>
-                      <input type="file" id="input-file-deck-bg" accept="image/png,image/jpeg,image/webp" class="hidden">
-                    </div>
-                    <div class="preset-links">
-                      <span class="preset-label">Пресеты фона:</span>
-                      <button type="button" class="btn-preset-link" onclick="DeckEditor.setBgPreset('bunker')">Бункер</button>
-                      <button type="button" class="btn-preset-link" onclick="DeckEditor.setBgPreset('ruins')">Руины</button>
-                      <button type="button" class="btn-preset-link" onclick="DeckEditor.setBgPreset('space')">Космос</button>
-                      <button type="button" class="btn-preset-link" onclick="DeckEditor.setBgPreset('none')">Сброс</button>
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label>Изображение рубашки карт (URL или файл):</label>
-                    <div style="display: flex; gap: 6px; margin-bottom: 6px;">
-                      <input type="text" id="edit-deck-card-back" class="form-input" placeholder="https://... или загрузите файл">
-                      <button type="button" class="btn btn-sm btn-outline" id="btn-upload-deck-back" title="Загрузить изображение с устройства">📁 Загрузить</button>
-                      <input type="file" id="input-file-deck-back" accept="image/png,image/jpeg,image/webp" class="hidden">
-                    </div>
-                    <div class="preset-links">
-                      <span class="preset-label">Пресеты рубашки:</span>
-                      <button type="button" class="btn-preset-link" onclick="DeckEditor.setBackPreset('vault')">Люк</button>
-                      <button type="button" class="btn-preset-link" onclick="DeckEditor.setBackPreset('biohazard')">Радиация</button>
-                      <button type="button" class="btn-preset-link" onclick="DeckEditor.setBackPreset('cyber')">Кибер</button>
-                      <button type="button" class="btn-preset-link" onclick="DeckEditor.setBackPreset('none')">Сброс</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               <!-- DECK CUSTOM TAGS / PARAMETERS -->
               <div class="editor-tags-manager-box">
                 <div class="editor-section-header">
@@ -886,6 +849,43 @@
                 <div class="preview-test-input-box">
                   <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Быстрая проверка карты с параметрами:</label>
                   <input type="text" id="prev-test-input" class="form-input" placeholder="Например: Пожарный (#Пожаротушение[4])" value="Огнетушитель углекислотный (#Пожаротушение[4])">
+                </div>
+
+                <!-- THEME VISUAL CUSTOMIZATION (MOVED DOWN TO CARDS DISPLAY) -->
+                <div class="editor-theme-styling-box" style="margin-top: 14px; margin-bottom: 0;">
+                  <div class="theme-style-title">🎨 Оформление игрового стола и карт:</div>
+                  <div class="theme-inputs-grid">
+                    <div class="form-group">
+                      <label>Фоновое изображение стола (URL или файл):</label>
+                      <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                        <input type="text" id="edit-deck-bg" class="form-input" placeholder="https://... или выберите пресет">
+                        <button type="button" class="btn btn-sm btn-outline" id="btn-upload-deck-bg" title="Загрузить изображение с устройства">📁 Загрузить</button>
+                        <input type="file" id="input-file-deck-bg" accept="image/png,image/jpeg,image/webp" class="hidden">
+                      </div>
+                      <div class="preset-links">
+                        <span class="preset-label">Пресеты фона:</span>
+                        <button type="button" class="btn-preset-link" onclick="DeckEditor.setBgPreset('bunker')">Бункер</button>
+                        <button type="button" class="btn-preset-link" onclick="DeckEditor.setBgPreset('ruins')">Руины</button>
+                        <button type="button" class="btn-preset-link" onclick="DeckEditor.setBgPreset('space')">Космос</button>
+                        <button type="button" class="btn-preset-link" onclick="DeckEditor.setBgPreset('none')">Сброс</button>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>Изображение рубашки карт (URL или файл):</label>
+                      <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                        <input type="text" id="edit-deck-card-back" class="form-input" placeholder="https://... или выберите пресет">
+                        <button type="button" class="btn btn-sm btn-outline" id="btn-upload-deck-back" title="Загрузить изображение с устройства">📁 Загрузить</button>
+                        <input type="file" id="input-file-deck-back" accept="image/png,image/jpeg,image/webp" class="hidden">
+                      </div>
+                      <div class="preset-links">
+                        <span class="preset-label">Пресеты рубашки:</span>
+                        <button type="button" class="btn-preset-link" onclick="DeckEditor.setBackPreset('vault')">Люк</button>
+                        <button type="button" class="btn-preset-link" onclick="DeckEditor.setBackPreset('biohazard')">Радиация</button>
+                        <button type="button" class="btn-preset-link" onclick="DeckEditor.setBackPreset('cyber')">Кибер</button>
+                        <button type="button" class="btn-preset-link" onclick="DeckEditor.setBackPreset('none')">Сброс</button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

@@ -799,6 +799,40 @@ const DeckEditor = {
         prevBack.style.backgroundImage = '';
       }
     }
+
+    // Apply table background to screen-deck-builder and tabletop preview
+    const bgInput = document.getElementById('edit-deck-bg');
+    const bgUrl = bgInput ? bgInput.value.trim() : '';
+
+    const screenEditor = document.getElementById('screen-deck-builder');
+    if (screenEditor) {
+      if (bgUrl) {
+        screenEditor.style.backgroundImage = `linear-gradient(rgba(11, 15, 23, 0.45), rgba(11, 15, 23, 0.45)), url('${bgUrl}'), radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%)`;
+        screenEditor.style.backgroundSize = 'cover';
+        screenEditor.style.backgroundPosition = 'center';
+        screenEditor.style.backgroundAttachment = 'fixed';
+      } else {
+        screenEditor.style.backgroundImage = '';
+      }
+    }
+
+    const previewPair = document.querySelector('.preview-cards-pair');
+    if (previewPair) {
+      if (bgUrl) {
+        previewPair.style.backgroundImage = `linear-gradient(rgba(11, 15, 23, 0.35), rgba(11, 15, 23, 0.35)), url('${bgUrl}'), radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%)`;
+        previewPair.style.backgroundSize = 'cover';
+        previewPair.style.backgroundPosition = 'center';
+        previewPair.style.borderRadius = 'var(--radius-md)';
+        previewPair.style.padding = '14px 10px';
+        previewPair.style.border = '1px solid rgba(56, 189, 248, 0.35)';
+        previewPair.style.boxShadow = 'inset 0 0 25px rgba(0, 0, 0, 0.6)';
+      } else {
+        previewPair.style.backgroundImage = '';
+        previewPair.style.padding = '';
+        previewPair.style.border = '';
+        previewPair.style.boxShadow = '';
+      }
+    }
   },
 
   // --- BULK IMPORT MODAL ---
@@ -865,13 +899,15 @@ const DeckEditor = {
     const input = document.getElementById('edit-deck-bg');
     if (!input) return;
     const presets = {
-      bunker: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=1200&q=80',
-      ruins: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80',
-      space: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=1200&q=80',
+      bunker: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=1600&q=80',
+      ruins: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1600&q=80',
+      space: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=1600&q=80',
       none: ''
     };
     input.value = presets[type] !== undefined ? presets[type] : '';
-    App.showToast('Пресет фона стола установлен!');
+    this.updateLivePreview();
+    const names = { bunker: 'Бункер', ruins: 'Руины', space: 'Космос', none: 'Сброс' };
+    App.showToast(`Пресет фона стола "${names[type] || type}" установлен!`);
     App.playSound('click');
   },
 
@@ -1142,6 +1178,16 @@ const DeckEditor = {
         const file = e.target.files[0];
         if (file) this.uploadImageFile(file, 'edit-deck-card-back', true);
       });
+    }
+
+    // Live preview on manual background or card back URL typing
+    const editBgInput = document.getElementById('edit-deck-bg');
+    if (editBgInput) {
+      editBgInput.addEventListener('input', () => this.updateLivePreview());
+    }
+    const editBackInput = document.getElementById('edit-deck-card-back');
+    if (editBackInput) {
+      editBackInput.addEventListener('input', () => this.updateLivePreview());
     }
 
     // Category modal events

@@ -150,6 +150,10 @@ const server = http.createServer(async (req, res) => {
 
     req.on('close', () => {
       targetGame.sseClients.delete(clientObj);
+      if (playerId && targetGame.players.has(playerId)) {
+        const p = targetGame.players.get(playerId);
+        p.connected = false;
+      }
     });
     return;
   }
@@ -177,7 +181,7 @@ const server = http.createServer(async (req, res) => {
       if (pathname === '/api/join' && req.method === 'POST') {
         const body = await parseBody(req);
         const targetGame = getGameFromReq(req, parsedUrl, body);
-        const { playerId, isHost } = targetGame.joinPlayer(body.name, body.password);
+        const { playerId, isHost } = targetGame.joinPlayer(body.name, body.password, body.playerId);
         targetGame.broadcast();
         return sendJson(res, 200, {
           success: true,
@@ -248,6 +252,10 @@ const server = http.createServer(async (req, res) => {
             break;
 
           case 'claim_host':
+            // Only allow claiming host if there is NO active host in room
+            if (targetGame.hostId && targetGame.players.has(targetGame.hostId) && targetGame.hostId !== playerId) {
+              throw new Error('В бункере уже есть назначенный Мастер. Только Мастер может передать права.');
+            }
             targetGame.setHost(playerId);
             break;
 
@@ -257,6 +265,25 @@ const server = http.createServer(async (req, res) => {
             }
             targetGame.setHost(payload.targetPlayerId);
             break;
+
+          case 'kick_player': {
+            if (targetGame.hostId !== playerId) {
+              throw new Error('Только Мастер может удалять игроков из шлюза.');
+            }
+            const targetId = payload.targetPlayerId;
+            if (!targetId || targetId === targetGame.hostId) {
+              throw new Error('Нельзя удалить самого себя или несуществующего игрока.');
+            }
+            targetGame.removePlayer(targetId);
+            for (const client of targetGame.sseClients) {
+              if (client.playerId === targetId) {
+                try {
+                  client.res.write(`data: ${JSON.stringify({ type: 'kicked', message: 'Вы были исключены Мастером из шлюза.' })}\n\n`);
+                } catch (e) {}
+              }
+            }
+            break;
+          }
 
           case 'start_ugc_phase':
             targetGame.mode = 'ugc';

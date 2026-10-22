@@ -420,7 +420,7 @@ class SingleGame {
     return String(enteredPassword).trim() === this.password;
   }
 
-  joinPlayer(name, enteredPassword) {
+  joinPlayer(name, enteredPassword, existingPlayerId = null) {
     if (!this.checkPassword(enteredPassword)) {
       throw new Error('Неверный пароль от бункера.');
     }
@@ -428,6 +428,24 @@ class SingleGame {
     const cleanName = (name || 'Выживший').trim().substring(0, 24);
     if (!cleanName) {
       throw new Error('Введите ваше имя (никнейм).');
+    }
+
+    // 1. Reconnect by explicit playerId if provided
+    if (existingPlayerId && this.players.has(existingPlayerId)) {
+      const existing = this.players.get(existingPlayerId);
+      existing.name = cleanName;
+      existing.connected = true;
+      this.addLog(`👤 ${existing.name} восстановил связь с бункером.`);
+      return { player: existing, playerId: existing.id, isHost: existing.isHost };
+    }
+
+    // 2. Prevent duplicate phantom guests: if a player with this exact name is already in the room, reconnect them
+    for (const [id, p] of this.players.entries()) {
+      if (p.name.trim().toLowerCase() === cleanName.toLowerCase()) {
+        p.connected = true;
+        this.addLog(`👤 ${p.name} вернулся в бункер ${p.isHost ? '(Мастер игры)' : ''}`);
+        return { player: p, playerId: p.id, isHost: p.isHost };
+      }
     }
 
     const playerId = crypto.randomUUID();

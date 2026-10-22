@@ -1,7 +1,7 @@
 // --- GLOBAL APP STATE & NETWORKING (MULTI-ROOM ENGINE) ---
 const App = {
-  playerName: sessionStorage.getItem('bunker_player_name') || '',
-  playerId: sessionStorage.getItem('bunker_player_id') || '',
+  playerName: localStorage.getItem('bunker_player_name') || sessionStorage.getItem('bunker_player_name') || '',
+  playerId: localStorage.getItem('bunker_player_id') || sessionStorage.getItem('bunker_player_id') || '',
   roomId: 'BUNKER-101',
   isHost: false,
   soundEnabled: true,
@@ -41,7 +41,13 @@ const App = {
       if (nameInput) nameInput.value = this.playerName;
     }
 
-    // If session has player ID, try restoring state for this specific room
+    // Recover scoped player ID for this room from localStorage if available
+    const roomScopedPlayerId = localStorage.getItem('bunker_player_id_' + this.roomId);
+    if (roomScopedPlayerId) {
+      this.playerId = roomScopedPlayerId;
+    }
+
+    // If session or local storage has player ID, try restoring state for this specific room
     if (this.playerId) {
       try {
         const res = await fetch(`/api/state?playerId=${encodeURIComponent(this.playerId)}&room=${encodeURIComponent(this.roomId)}`, {
@@ -59,6 +65,8 @@ const App = {
       // Clear stale/expired session
       this.playerId = '';
       sessionStorage.removeItem('bunker_player_id');
+      localStorage.removeItem('bunker_player_id');
+      localStorage.removeItem('bunker_player_id_' + this.roomId);
       this.showScreen('screen-auth');
     }
   },
@@ -277,6 +285,7 @@ const App = {
 
       this.playerName = name;
       sessionStorage.setItem('bunker_player_name', name);
+      localStorage.setItem('bunker_player_name', name);
 
       try {
         const res = await fetch('/api/join', {
@@ -288,7 +297,8 @@ const App = {
           body: JSON.stringify({
             name,
             password: '',
-            roomId: this.roomId || 'BUNKER-101'
+            roomId: this.roomId || 'BUNKER-101',
+            playerId: this.playerId || localStorage.getItem('bunker_player_id_' + (this.roomId || 'BUNKER-101')) || localStorage.getItem('bunker_player_id') || null
           })
         });
         const data = await res.json();
@@ -298,6 +308,8 @@ const App = {
         this.isHost = data.isHost;
         this.roomId = data.roomId || this.roomId;
         sessionStorage.setItem('bunker_player_id', data.playerId);
+        localStorage.setItem('bunker_player_id', data.playerId);
+        localStorage.setItem('bunker_player_id_' + this.roomId, data.playerId);
         localStorage.setItem('bunker_room_id', this.roomId);
 
         this.connectEvents();
@@ -398,8 +410,21 @@ const App = {
 
     this.eventSource.onmessage = (event) => {
       try {
-        const state = JSON.parse(event.data);
-        this.onStateUpdate(state);
+        const data = JSON.parse(event.data);
+        if (data && data.type === 'kicked') {
+          this.playerId = '';
+          sessionStorage.removeItem('bunker_player_id');
+          localStorage.removeItem('bunker_player_id');
+          if (this.roomId) localStorage.removeItem('bunker_player_id_' + this.roomId);
+          if (this.eventSource) {
+            this.eventSource.close();
+            this.eventSource = null;
+          }
+          this.showScreen('screen-auth');
+          this.showToast('⚠️ Вы были исключены Мастером из шлюза.');
+          return;
+        }
+        this.onStateUpdate(data);
       } catch (e) {
         console.error('Ошибка SSE:', e);
       }
@@ -434,11 +459,14 @@ const App = {
       // Server restarted or player was removed/invalid
       this.playerId = '';
       sessionStorage.removeItem('bunker_player_id');
+      localStorage.removeItem('bunker_player_id');
+      if (this.roomId) localStorage.removeItem('bunker_player_id_' + this.roomId);
       if (this.eventSource) {
         this.eventSource.close();
         this.eventSource = null;
       }
       this.showScreen('screen-auth');
+      this.showToast('⚠️ Вы были исключены или сессия была сброшена.');
       return;
     }
 

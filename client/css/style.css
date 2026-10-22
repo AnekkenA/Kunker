@@ -2340,6 +2340,13 @@ body {
   box-shadow: 0 0 15px rgba(56, 189, 248, 0.08);
 }
 
+.preview-sticky-box .editor-theme-styling-box {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+}
+
 .theme-style-title {
   font-size: 13px;
   font-weight: 700;
@@ -2351,6 +2358,23 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+.preview-sticky-box .theme-inputs-grid {
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.btn-transfer-host:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--accent-amber);
+  color: var(--accent-amber);
+}
+
+.btn-kick-player:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: var(--accent-red);
+  color: var(--accent-red);
 }
 
 @media (max-width: 768px) {
