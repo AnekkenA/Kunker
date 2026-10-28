@@ -144,12 +144,19 @@ class SingleGame {
   }
 
   notifyBroadcast() {
+    this.touchActivity();
     if (typeof this.broadcastCallback === 'function') {
       this.broadcastCallback(this);
     }
   }
 
+  touchActivity() {
+    this.lastActivity = Date.now();
+    this.emptySince = null;
+  }
+
   broadcast() {
+    this.touchActivity();
     this.notifyBroadcast();
   }
 
@@ -157,6 +164,7 @@ class SingleGame {
     this.stopThreatTimer();
     this.stopSpeakerTimer();
 
+    this.touchActivity();
     // Preserve password across game restarts, reset lobby lock
     this.lockedLobby = false;
     this.hostId = null;
@@ -1951,6 +1959,10 @@ class SingleGame {
       evaluationConfig: this.evaluationConfig || null,
       logs: this.logs.slice(0, 35),
       roomId: this.roomId,
+      roomsInfo: {
+        activeCount: (typeof roomManager !== 'undefined' && roomManager) ? roomManager.rooms.size : 1,
+        maxRooms: 4
+      },
       network: getNetworkInfo(this.roomId)
     };
   }
@@ -1960,20 +1972,14 @@ class RoomManager {
   constructor() {
     this.rooms = new Map();
     this.defaultRoomId = '101';
+    this.maxRooms = 4; // Strict cap of 4 rooms maximum
+    this.idleLimitMs = 5 * 60 * 1000; // 5 minutes inactivity timeout
     this.onRoomCreated = null;
-    // Pre-create default room
-    this.getRoom(this.defaultRoomId);
 
-    // Periodically clean up abandoned empty rooms (older than 2 hours with 0 players)
+    // Periodically clean up idle rooms (every 10 seconds)
     setInterval(() => {
-      const now = Date.now();
-      for (const [id, room] of this.rooms.entries()) {
-        if (id === '101' || id === 'BUNKER-101') continue;
-        if (room.players.size === 0 && (!room.lastActivity || now - room.lastActivity > 2 * 60 * 60 * 1000)) {
-          this.rooms.delete(id);
-        }
-      }
-    }, 15 * 60 * 1000);
+      this.cleanupIdleRooms();
+    }, 10000);
   }
 
   generateRoomCode() {
@@ -1992,50 +1998,102 @@ class RoomManager {
     return this.rooms.has(cleanId);
   }
 
-  getRoom(roomId, createIfNotFound = true) {
+  cleanupIdleRooms() {
+    const now = Date.now();
+    for (const [id, room] of this.rooms.entries()) {
+      const timeSinceActivity = now - (room.lastActivity || now);
+      const noConnected = room.players.size === 0 || Array.from(room.players.values()).every(p => !p.connected);
+      const timeSinceEmpty = room.emptySince ? (now - room.emptySince) : (noConnected ? timeSinceActivity : 0);
+
+      // Close if room has had no activity for 5 minutes (300 seconds)
+      // OR if room has been completely empty/disconnected for 2 minutes
+      if (timeSinceActivity >= this.idleLimitMs || (noConnected && timeSinceEmpty >= 2 * 60 * 1000)) {
+        this.closeRoom(id, 'Бункер был закрыт из-за отсутствия активности в течение 5 минут.');
+      }
+    }
+  }
+
+  closeRoom(roomId, reason = 'Комната закрыта из-за отсутствия активности в течение 5 минут.') {
+    const room = this.rooms.get(roomId);
+    if (!room) return;
+
+    // Notify connected SSE clients before closing
+    for (const client of room.sseClients) {
+      try {
+        client.res.write(`data: ${JSON.stringify({ type: 'room_closed', message: reason })}\n\n`);
+      } catch (e) {}
+    }
+    room.sseClients.clear();
+    room.stopThreatTimer();
+    room.stopSpeakerTimer();
+    this.rooms.delete(roomId);
+    console.log(`[ROOMS] Бункер #${roomId} закрыт и освобожден (${reason}). Занято бункеров: ${this.rooms.size}/${this.maxRooms}`);
+  }
+
+  getRoom(roomId, createIfNotFound = true, password = '') {
     let cleanId = (roomId || '').trim().toUpperCase();
     if (!cleanId) {
       cleanId = this.defaultRoomId;
     }
 
-    if (!this.rooms.has(cleanId)) {
-      if (!createIfNotFound) return null;
-      const gameInstance = new SingleGame(cleanId);
-      this.rooms.set(cleanId, gameInstance);
-      if (typeof this.onRoomCreated === 'function') {
-        this.onRoomCreated(gameInstance);
-      }
-      return gameInstance;
+    if (this.rooms.has(cleanId)) {
+      return this.rooms.get(cleanId);
     }
-    return this.rooms.get(cleanId);
+
+    if (!createIfNotFound) return null;
+
+    this.cleanupIdleRooms();
+
+    if (this.rooms.size >= this.maxRooms) {
+      throw new Error(`Все ${this.maxRooms} бункера сейчас заняты другими игроками. Подождите, пока освободится место (комната освобождается после 5 минут неактивности).`);
+    }
+
+    const gameInstance = new SingleGame(cleanId);
+    if (password) gameInstance.password = String(password).trim();
+    this.rooms.set(cleanId, gameInstance);
+    if (typeof this.onRoomCreated === 'function') {
+      this.onRoomCreated(gameInstance);
+    }
+    return gameInstance;
   }
 
   createRoom(customId = null, password = '') {
+    this.cleanupIdleRooms();
+
     const roomId = customId && String(customId).trim() ? String(customId).trim().toUpperCase() : this.generateRoomCode();
-    let gameInstance;
     if (this.rooms.has(roomId)) {
-      gameInstance = this.rooms.get(roomId);
-      if (password) gameInstance.password = String(password).trim();
-    } else {
-      gameInstance = new SingleGame(roomId);
-      if (password) gameInstance.password = String(password).trim();
-      this.rooms.set(roomId, gameInstance);
-      if (typeof this.onRoomCreated === 'function') {
-        this.onRoomCreated(gameInstance);
-      }
+      const room = this.rooms.get(roomId);
+      if (password) room.password = String(password).trim();
+      return room;
+    }
+
+    if (this.rooms.size >= this.maxRooms) {
+      throw new Error(`Все ${this.maxRooms} бункера сейчас заняты другими игроками. Подождите, пока освободится место (комната освобождается после 5 минут неактивности).`);
+    }
+
+    const gameInstance = new SingleGame(roomId);
+    if (password) gameInstance.password = String(password).trim();
+    this.rooms.set(roomId, gameInstance);
+    if (typeof this.onRoomCreated === 'function') {
+      this.onRoomCreated(gameInstance);
     }
     return gameInstance;
   }
 
   listRooms() {
-    return Array.from(this.rooms.values()).map(r => ({
-      roomId: r.roomId,
-      playersCount: r.players.size,
-      status: r.status,
-      hasPassword: Boolean(r.password),
-      lockedLobby: Boolean(r.lockedLobby),
-      disaster: r.disaster ? r.disaster.title : null
-    }));
+    this.cleanupIdleRooms();
+    return {
+      activeCount: this.rooms.size,
+      maxRooms: this.maxRooms,
+      rooms: Array.from(this.rooms.values()).map(r => ({
+        roomId: r.roomId,
+        playersCount: r.players.size,
+        status: r.status,
+        hasPassword: Boolean(r.password),
+        lockedLobby: Boolean(r.lockedLobby),
+        idleSeconds: Math.floor((Date.now() - (r.lastActivity || Date.now())) / 1000)
+      }))
+    };
   }
 }
 

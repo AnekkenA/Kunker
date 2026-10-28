@@ -154,6 +154,10 @@ const server = http.createServer(async (req, res) => {
         const p = targetGame.players.get(playerId);
         p.connected = false;
       }
+      const anyConnected = Array.from(targetGame.players.values()).some(p => p.connected);
+      if (!anyConnected) {
+        targetGame.emptySince = Date.now();
+      }
     });
     return;
   }
@@ -167,6 +171,7 @@ const server = http.createServer(async (req, res) => {
         const customId = body ? (body.customRoomId || body.roomId) : null;
         const password = body && body.password ? String(body.password).trim() : '';
         const newGame = roomManager.createRoom(customId, password);
+        newGame.touchActivity();
         newGame.setBroadcast(() => broadcastRoom(newGame));
         return sendJson(res, 200, {
           success: true,
@@ -175,9 +180,10 @@ const server = http.createServer(async (req, res) => {
         });
       }
 
-      // Room info (check existence, password requirement, player count)
+      // Room info (check existence, password requirement, player count, server capacity)
       if (pathname === '/api/room_info' && req.method === 'GET') {
         const roomId = parsedUrl.query.room;
+        roomManager.cleanupIdleRooms();
         const targetRoom = roomManager.getRoom(roomId, false);
         if (!targetRoom) {
           return sendJson(res, 200, {
@@ -185,7 +191,9 @@ const server = http.createServer(async (req, res) => {
             roomId: (roomId || '').trim().toUpperCase(),
             hasPassword: false,
             playersCount: 0,
-            status: 'none'
+            status: 'none',
+            activeCount: roomManager.rooms.size,
+            maxRooms: roomManager.maxRooms
           });
         }
         return sendJson(res, 200, {
@@ -194,13 +202,16 @@ const server = http.createServer(async (req, res) => {
           hasPassword: Boolean(targetRoom.password),
           playersCount: targetRoom.players.size,
           status: targetRoom.status,
-          lockedLobby: Boolean(targetRoom.lockedLobby)
+          lockedLobby: Boolean(targetRoom.lockedLobby),
+          activeCount: roomManager.rooms.size,
+          maxRooms: roomManager.maxRooms,
+          idleSeconds: Math.floor((Date.now() - (targetRoom.lastActivity || Date.now())) / 1000)
         });
       }
 
       // List active rooms
       if (pathname === '/api/rooms' && req.method === 'GET') {
-        return sendJson(res, 200, { rooms: roomManager.listRooms() });
+        return sendJson(res, 200, roomManager.listRooms());
       }
 
       // Join / Enter Game

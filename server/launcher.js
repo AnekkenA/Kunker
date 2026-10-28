@@ -5,6 +5,7 @@ const fs = require('fs');
 const readline = require('readline');
 
 let cfProcess = null;
+let sshProcess = null;
 
 function getNetworkDetails() {
   const interfaces = os.networkInterfaces();
@@ -52,6 +53,12 @@ function cleanupProcesses() {
     } catch (e) {}
     cfProcess = null;
   }
+  if (sshProcess) {
+    try {
+      sshProcess.kill();
+    } catch (e) {}
+    sshProcess = null;
+  }
 }
 
 process.on('exit', cleanupProcesses);
@@ -64,7 +71,7 @@ process.on('SIGTERM', () => {
   process.exit();
 });
 
-// --- MODE 1: INTERNET & PHONES (CLOUDFLARE TUNNEL - WORKS EVERYWHERE) ---
+// --- MODE 1: INTERNET & PHONES (WORKS EVERYWHERE WITHOUT VPN) ---
 function startInternetMode() {
   const net = getNetworkDetails();
   const localhostUrl = 'http://localhost:3000';
@@ -85,82 +92,112 @@ function startInternetMode() {
 
   console.clear();
   console.log('===============================================================');
-  console.log('     ИГРА «БУНКЕР» ЗАПУСКАЕТСЯ В ИНТЕРНЕТЕ (CLOUDFLARE)...');
+  console.log('       ИГРА «БУНКЕР» ЗАПУСКАЕТСЯ В СЕТИ ИНТЕРНЕТ...');
   console.log('===============================================================');
   console.log('');
-  console.log('  [i] Создание безопасного интернет-соединения...');
+  console.log('  [i] Подключение защищенного интернет-соединения...');
   console.log('      (Обычно занимает 2-4 секунды, ожидайте)...');
   console.log('');
 
-  const cloudflaredBin = path.join(__dirname, '..', 'bin', 'cloudflared.exe');
-  if (!fs.existsSync(cloudflaredBin)) {
-    console.log('[!] Файл bin/cloudflared.exe не найден. Запуск в режиме Wi-Fi.');
-    startWifiMode();
-    return;
-  }
-
-  cfProcess = spawn(cloudflaredBin, ['tunnel', '--protocol', 'http2', '--url', 'http://127.0.0.1:3000']);
   let tunnelEstablished = false;
 
-  function onOutput(data) {
-    const text = data.toString();
-    const match = text.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/i);
-    if (match && !tunnelEstablished) {
-      tunnelEstablished = true;
-      const publicUrl = match[0];
+  const onTunnelSuccess = (publicUrl) => {
+    if (tunnelEstablished) return;
+    tunnelEstablished = true;
 
-      fs.writeFileSync(path.join(__dirname, 'tunnel_info.json'), JSON.stringify({
-        publicUrl,
-        primaryUrl: publicUrl,
-        localIpUrl: wifiUrl,
-        radminIpUrl: radminUrl,
-        localhostUrl,
-        mode: 'internet',
-        updatedAt: Date.now()
-      }, null, 2));
+    fs.writeFileSync(path.join(__dirname, 'tunnel_info.json'), JSON.stringify({
+      publicUrl,
+      primaryUrl: publicUrl,
+      localIpUrl: wifiUrl,
+      radminIpUrl: radminUrl,
+      localhostUrl,
+      mode: 'internet',
+      updatedAt: Date.now()
+    }, null, 2));
 
-      console.clear();
-      console.log('===============================================================');
-      console.log('         ИГРА «БУНКЕР» УСПЕШНО ЗАПУЩЕНА В ИНТЕРНЕТЕ!');
-      console.log('===============================================================');
-      console.log('');
-      console.log('  ССЫЛКА ДЛЯ ТЕЛЕФОНОВ И ДРУГИХ ИГРОКОВ:');
-      console.log('');
-      console.log(`     >>  ${publicUrl}  <<`);
-      console.log('');
-      console.log('     * Работает с ЛЮБОГО смартфона через мобильный интернет (4G/LTE)');
-      console.log('     * Работает через любой домашний или мобильный Wi-Fi');
-      console.log('     * Работает для друзей на ПК из любых городов');
-      console.log('     * В лобби на компьютере можно показать QR-код этой ссылки!');
-      console.log('');
-      console.log('  ДЛЯ ВАС (Мастер игры на этом ПК):');
-      console.log(`     >>  ${localhostUrl}  <<`);
-      console.log('');
-      console.log('===============================================================');
-      console.log('  Не закрывайте это окно консоли во время игры.');
-      console.log('');
+    console.clear();
+    console.log('===============================================================');
+    console.log('         ИГРА «БУНКЕР» УСПЕШНО ЗАПУЩЕНА В ИНТЕРНЕТЕ!');
+    console.log('===============================================================');
+    console.log('');
+    console.log('  ССЫЛКА ДЛЯ ТЕЛЕФОНОВ И ДРУГИХ ИГРОКОВ:');
+    console.log('');
+    console.log(`     >>  ${publicUrl}  <<`);
+    console.log('');
+    console.log('     * Работает с ЛЮБОГО смартфона через мобильный интернет (4G/LTE)');
+    console.log('     * Работает БЕЗ VPN у любых провайдеров');
+    console.log('     * В лобби на компьютере можно показать QR-код этой ссылки!');
+    console.log('');
+    console.log('  ДЛЯ ВАС (Мастер игры на этом ПК):');
+    console.log(`     >>  ${localhostUrl}  <<`);
+    console.log('');
+    console.log('  ПАРАМЕТРЫ СЕРВЕРА:');
+    console.log('     * Максимум 4 комнаты одновременно');
+    console.log('     * Автоочистка неактивных комнат: 5 минут');
+    console.log('===============================================================');
+    console.log('  Не закрывайте это окно консоли во время игры.');
+    console.log('');
 
-      setTimeout(() => {
-        openBrowser(localhostUrl);
-      }, 400);
-    }
+    setTimeout(() => {
+      openBrowser(localhostUrl);
+    }, 400);
+  };
+
+  // Try SSH tunnel first (works without VPN in Russia)
+  try {
+    sshProcess = spawn('ssh', [
+      '-o', 'StrictHostKeyChecking=no',
+      '-o', 'ServerAliveInterval=30',
+      '-R', '80:127.0.0.1:3000',
+      'nokey@localhost.run'
+    ]);
+
+    const onSshData = (data) => {
+      const text = data.toString();
+      const match = text.match(/https:\/\/[a-z0-9-]+\.lhr\.life/i);
+      if (match) {
+        onTunnelSuccess(match[0]);
+      }
+    };
+
+    sshProcess.stdout.on('data', onSshData);
+    sshProcess.stderr.on('data', onSshData);
+
+    sshProcess.on('error', () => {
+      // If ssh fails, fallback to cloudflared
+      tryCloudflared();
+    });
+  } catch (e) {
+    tryCloudflared();
   }
 
-  cfProcess.stdout.on('data', onOutput);
-  cfProcess.stderr.on('data', onOutput);
+  function tryCloudflared() {
+    if (tunnelEstablished) return;
+    const cloudflaredBin = path.join(__dirname, '..', 'bin', 'cloudflared.exe');
+    if (!fs.existsSync(cloudflaredBin)) return;
 
-  cfProcess.on('error', (err) => {
-    console.error('[!] Ошибка запуска cloudflared:', err.message);
-    if (!tunnelEstablished) {
-      console.log('    Резервный адрес для Wi-Fi: ' + wifiUrl);
-      openBrowser(localhostUrl);
-    }
-  });
+    cfProcess = spawn(cloudflaredBin, ['tunnel', '--protocol', 'http2', '--url', 'http://127.0.0.1:3000']);
+    const onCfData = (data) => {
+      const text = data.toString();
+      const match = text.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/i);
+      if (match) {
+        onTunnelSuccess(match[0]);
+      }
+    };
+    cfProcess.stdout.on('data', onCfData);
+    cfProcess.stderr.on('data', onCfData);
+  }
 
   // Timeout fallback if internet is unreachable
   setTimeout(() => {
     if (!tunnelEstablished) {
-      console.log('[!] Не удалось связаться с Cloudflare за 12 секунд (нет интернета?).');
+      tryCloudflared();
+    }
+  }, 6000);
+
+  setTimeout(() => {
+    if (!tunnelEstablished) {
+      console.log('[!] Не удалось получить интернет-ссылку за 12 секунд.');
       console.log('    Запущен локальный сервер Wi-Fi: ' + wifiUrl);
       openBrowser(localhostUrl);
     }

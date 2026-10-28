@@ -113,6 +113,25 @@ const App = {
     }
   },
 
+  async updateRoomsCapacityBadge() {
+    const badgeText = document.getElementById('auth-capacity-text');
+    if (!badgeText) return;
+    try {
+      const res = await fetch('/api/rooms');
+      if (res.ok) {
+        const data = await res.json();
+        const active = (data && typeof data.activeCount === 'number') ? data.activeCount : 0;
+        const max = (data && data.maxRooms) || 4;
+        const free = Math.max(0, max - active);
+        if (free > 0) {
+          badgeText.innerHTML = `<span style="color:var(--accent-green);">Свободно бункеров: ${free} из ${max}</span>`;
+        } else {
+          badgeText.innerHTML = `<span style="color:var(--accent-amber);">Все ${max} бункера заняты (автоочистка 5 мин)</span>`;
+        }
+      }
+    } catch (e) {}
+  },
+
   async init() {
     this.initAudio();
 
@@ -182,6 +201,15 @@ const App = {
       localStorage.removeItem('bunker_player_id');
       if (this.roomId) localStorage.removeItem('bunker_player_id_' + this.roomId);
     }
+
+    this.updateRoomsCapacityBadge();
+    if (this.capacityPollInterval) clearInterval(this.capacityPollInterval);
+    this.capacityPollInterval = setInterval(() => {
+      const authScreen = document.getElementById('screen-auth');
+      if (authScreen && authScreen.classList.contains('active')) {
+        this.updateRoomsCapacityBadge();
+      }
+    }, 15000);
 
     this.showScreen('screen-auth');
   },
@@ -625,7 +653,8 @@ const App = {
     this.eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data && data.type === 'kicked') {
+        if (data && (data.type === 'kicked' || data.type === 'room_closed')) {
+          const isClosed = data.type === 'room_closed';
           this.playerId = '';
           sessionStorage.removeItem('bunker_player_id');
           localStorage.removeItem('bunker_player_id');
@@ -635,7 +664,8 @@ const App = {
             this.eventSource = null;
           }
           this.showScreen('screen-auth');
-          this.showToast('⚠️ Вы были исключены Мастером из шлюза.');
+          this.showToast(isClosed ? `⚠️ ${data.message || 'Бункер был закрыт из-за отсутствия активности (5 минут).'}` : '⚠️ Вы были исключены Мастером из шлюза.');
+          this.updateRoomsCapacityBadge();
           return;
         }
         this.onStateUpdate(data);
