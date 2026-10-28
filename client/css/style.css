@@ -3670,6 +3670,25 @@ body {
   color: var(--accent-red);
 }
 
+/* Input Error Animation */
+.input-error {
+  border-color: var(--accent-red) !important;
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5) !important;
+  animation: shake 0.35s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
+}
+
+.room-code-badge:hover {
+  filter: brightness(1.2);
+  transform: translateY(-1px);
+}
+
+
 
 
 

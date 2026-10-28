@@ -129,10 +129,13 @@ function detectSpecialAction(text) {
 }
 
 class SingleGame {
-  constructor(roomId = 'BUNKER-101') {
-    this.roomId = (roomId || 'BUNKER-101').trim().toUpperCase();
+  constructor(roomId = '101') {
+    this.roomId = (roomId || '101').trim().toUpperCase();
     this.sseClients = new Set();
     this.broadcastCallback = null;
+    this.password = '';
+    this.lockedLobby = false;
+    this.lastActivity = Date.now();
     this.resetGame();
   }
 
@@ -154,7 +157,8 @@ class SingleGame {
     this.stopThreatTimer();
     this.stopSpeakerTimer();
 
-    this.password = '';
+    // Preserve password across game restarts, reset lobby lock
+    this.lockedLobby = false;
     this.hostId = null;
     this.status = 'lobby'; // 'lobby' | 'ugc_building' | 'playing' | 'finished'
     this.mode = 'preset'; // 'preset' | 'ugc'
@@ -417,14 +421,10 @@ class SingleGame {
 
   checkPassword(enteredPassword) {
     if (!this.password) return true;
-    return String(enteredPassword).trim() === this.password;
+    return String(enteredPassword || '').trim() === this.password;
   }
 
   joinPlayer(name, enteredPassword, existingPlayerId = null) {
-    if (!this.checkPassword(enteredPassword)) {
-      throw new Error('Неверный пароль от бункера.');
-    }
-
     const cleanName = (name || 'Выживший').trim().substring(0, 24);
     if (!cleanName) {
       throw new Error('Введите ваше имя (никнейм).');
@@ -435,6 +435,7 @@ class SingleGame {
       const existing = this.players.get(existingPlayerId);
       existing.name = cleanName;
       existing.connected = true;
+      this.lastActivity = Date.now();
       this.addLog(`👤 ${existing.name} восстановил связь с бункером.`);
       return { player: existing, playerId: existing.id, isHost: existing.isHost };
     }
@@ -443,10 +444,28 @@ class SingleGame {
     for (const [id, p] of this.players.entries()) {
       if (p.name.trim().toLowerCase() === cleanName.toLowerCase()) {
         p.connected = true;
+        this.lastActivity = Date.now();
         this.addLog(`👤 ${p.name} вернулся в бункер ${p.isHost ? '(Мастер игры)' : ''}`);
         return { player: p, playerId: p.id, isHost: p.isHost };
       }
     }
+
+    // 3. Prevent new players if lobby is locked
+    if (this.lockedLobby) {
+      throw new Error('Шлюз бункера заблокирован Мастером. Вход новых игроков закрыт.');
+    }
+
+    // 4. Verify password for new players entering a password-protected room
+    if (this.password) {
+      if (!enteredPassword || String(enteredPassword).trim() === '') {
+        throw new Error('Для входа в этот бункер требуется пароль.');
+      }
+      if (!this.checkPassword(enteredPassword)) {
+        throw new Error('Неверный пароль от бункера.');
+      }
+    }
+
+    this.lastActivity = Date.now();
 
     const playerId = crypto.randomUUID();
     const isHost = this.players.size === 0 || !this.hostId;
@@ -1876,6 +1895,8 @@ class SingleGame {
 
     return {
       hasPassword: Boolean(this.password),
+      currentPassword: isMaster ? (this.password || '') : null,
+      lockedLobby: Boolean(this.lockedLobby),
       status: this.status,
       mode: this.mode,
       selectedDecks: this.selectedDecks,
@@ -1938,15 +1959,37 @@ class SingleGame {
 class RoomManager {
   constructor() {
     this.rooms = new Map();
-    this.defaultRoomId = 'BUNKER-101';
+    this.defaultRoomId = '101';
     this.onRoomCreated = null;
     // Pre-create default room
     this.getRoom(this.defaultRoomId);
+
+    // Periodically clean up abandoned empty rooms (older than 2 hours with 0 players)
+    setInterval(() => {
+      const now = Date.now();
+      for (const [id, room] of this.rooms.entries()) {
+        if (id === '101' || id === 'BUNKER-101') continue;
+        if (room.players.size === 0 && (!room.lastActivity || now - room.lastActivity > 2 * 60 * 60 * 1000)) {
+          this.rooms.delete(id);
+        }
+      }
+    }, 15 * 60 * 1000);
   }
 
   generateRoomCode() {
-    const digits = Math.floor(1000 + Math.random() * 9000);
-    return `BUNKER-${digits}`;
+    let code;
+    let attempts = 0;
+    do {
+      code = String(Math.floor(1000 + Math.random() * 9000));
+      attempts++;
+    } while (this.rooms.has(code) && attempts < 100);
+    return code;
+  }
+
+  hasRoom(roomId) {
+    if (!roomId) return false;
+    const cleanId = String(roomId).trim().toUpperCase();
+    return this.rooms.has(cleanId);
   }
 
   getRoom(roomId, createIfNotFound = true) {
@@ -1967,12 +2010,19 @@ class RoomManager {
     return this.rooms.get(cleanId);
   }
 
-  createRoom(customId = null) {
-    const roomId = customId ? customId.trim().toUpperCase() : this.generateRoomCode();
-    const gameInstance = new SingleGame(roomId);
-    this.rooms.set(roomId, gameInstance);
-    if (typeof this.onRoomCreated === 'function') {
-      this.onRoomCreated(gameInstance);
+  createRoom(customId = null, password = '') {
+    const roomId = customId && String(customId).trim() ? String(customId).trim().toUpperCase() : this.generateRoomCode();
+    let gameInstance;
+    if (this.rooms.has(roomId)) {
+      gameInstance = this.rooms.get(roomId);
+      if (password) gameInstance.password = String(password).trim();
+    } else {
+      gameInstance = new SingleGame(roomId);
+      if (password) gameInstance.password = String(password).trim();
+      this.rooms.set(roomId, gameInstance);
+      if (typeof this.onRoomCreated === 'function') {
+        this.onRoomCreated(gameInstance);
+      }
     }
     return gameInstance;
   }
@@ -1982,13 +2032,15 @@ class RoomManager {
       roomId: r.roomId,
       playersCount: r.players.size,
       status: r.status,
+      hasPassword: Boolean(r.password),
+      lockedLobby: Boolean(r.lockedLobby),
       disaster: r.disaster ? r.disaster.title : null
     }));
   }
 }
 
 const roomManager = new RoomManager();
-const singleGameInstance = roomManager.getRoom('BUNKER-101');
+const singleGameInstance = roomManager.getRoom('101');
 
 module.exports = {
   game: singleGameInstance,

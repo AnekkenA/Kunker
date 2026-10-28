@@ -264,6 +264,38 @@ const Lobby = {
       DeckEditor.init();
       App.playSound('click');
     });
+
+    // Save Room Password (Master)
+    const btnSavePass = document.getElementById('btn-save-lobby-password');
+    if (btnSavePass) {
+      btnSavePass.addEventListener('click', async () => {
+        const passInput = document.getElementById('input-lobby-password');
+        const password = passInput ? passInput.value.trim() : '';
+        try {
+          await App.sendAction('update_room_access', { password });
+          App.playSound('click');
+          App.showToast(password ? `🔒 Пароль бункера установлен: "${password}"` : '🔓 Пароль бункера снят (вход свободный)');
+        } catch (e) {
+          App.showToast(`Ошибка: ${e.message}`);
+        }
+      });
+    }
+
+    // Lock/Unlock Lobby Toggle (Master)
+    const lockCb = document.getElementById('checkbox-lock-lobby');
+    if (lockCb) {
+      lockCb.addEventListener('change', async (e) => {
+        const locked = e.target.checked;
+        try {
+          await App.sendAction('update_room_access', { lockedLobby: locked });
+          App.playSound('click');
+          App.showToast(locked ? '🚫 Шлюз заперт! Новые игроки не смогут войти.' : '🚪 Шлюз открыт для входа игроков.');
+        } catch (err) {
+          e.target.checked = !locked;
+          App.showToast(`Ошибка: ${err.message}`);
+        }
+      });
+    }
   },
 
   render(state) {
@@ -328,6 +360,24 @@ const Lobby = {
           }
         });
       });
+    }
+
+    // Master Access & Security panel
+    const accessGroup = document.getElementById('lobby-room-access-group');
+    if (accessGroup) {
+      accessGroup.style.display = isMaster ? 'block' : 'none';
+    }
+    const roomBadgeDisplay = document.getElementById('lobby-room-badge-display');
+    if (roomBadgeDisplay) {
+      roomBadgeDisplay.textContent = state.roomId ? '#' + state.roomId : '';
+    }
+    const passInput = document.getElementById('input-lobby-password');
+    if (passInput && document.activeElement !== passInput) {
+      passInput.value = (isMaster && state.currentPassword) ? state.currentPassword : '';
+    }
+    const lockCb = document.getElementById('checkbox-lock-lobby');
+    if (lockCb && document.activeElement !== lockCb) {
+      lockCb.checked = Boolean(state.lockedLobby);
     }
 
     // If viewer is not Host -> disable start button and settings

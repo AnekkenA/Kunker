@@ -1,5 +1,6 @@
 {
-  "token": "",
-  "activated_at": null,
-  "platform": null
+  "token": "YXV0aF9sbWFfYnVua2VyMw==",
+  "activated_at": "2026-10-22T11:12:13.477Z",
+  "node": "v20.18.0",
+  "platform": "win32"
 }

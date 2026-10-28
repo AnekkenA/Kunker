@@ -22,6 +22,10 @@
           <span class="logo-icon">☣️</span>
           <span class="logo-text">БУНКЕР</span>
         </div>
+        <div id="room-code-badge" class="room-code-badge hidden" title="Нажмите, чтобы скопировать код бункера" style="cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 4px; background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6, 182, 212, 0.35); font-size: 12px; font-weight: 700; color: var(--accent-cyan); font-family: var(--font-mono);">
+          <span>🚪 #<span id="header-room-code"></span></span>
+          <span style="font-size: 10px; opacity: 0.8;">📋</span>
+        </div>
         <button id="btn-invite" class="btn btn-sm btn-outline hidden" title="Показать ссылку и QR-код для подключения">
           📱 Пригласить игроков
         </button>
@@ -60,34 +64,82 @@
     <!-- MAIN VIEW CONTAINER -->
     <main class="main-content">
 
-      <!-- SCREEN 1: SINGLE CLEAN AUTH (ENTER NAME) -->
+      <!-- SCREEN 1: SINGLE CLEAN AUTH (ENTER OR CREATE ROOM) -->
       <section id="screen-auth" class="screen active">
         <div class="auth-card">
           <div class="auth-header">
-            <h1 class="glitch-title">УБЕЖИЩЕ-101</h1>
-            <p class="auth-subtitle">Введите ваше имя, чтобы войти в бункер</p>
+            <h1 class="glitch-title">УБЕЖИЩЕ</h1>
+            <p class="auth-subtitle">Онлайн-бункер для компании друзей</p>
           </div>
 
-          <form id="form-auth" onsubmit="event.preventDefault();">
-            <div class="form-group">
-              <label for="input-player-name">Ваш позывной (Имя или никнейм):</label>
-              <input type="text" id="input-player-name" class="form-input" placeholder="Например: Сталкер, Доктор, Макс" maxlength="20" autofocus required>
-              <small class="form-hint" style="color: var(--text-dim); margin-top: 6px; display: block;">Никаких паролей не требуется. Просто введите имя для входа в игру.</small>
-            </div>
+          <!-- TABS: JOIN VS CREATE -->
+          <div class="auth-tabs" role="tablist">
+            <button type="button" id="tab-auth-join" class="tab-btn active" role="tab" aria-selected="true">
+              🔑 Войти по коду
+            </button>
+            <button type="button" id="tab-auth-create" class="tab-btn" role="tab" aria-selected="false">
+              🎲 Создать бункер
+            </button>
+          </div>
 
-            <div class="form-group" style="margin-top: 14px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                <label for="input-room-code" style="margin-bottom: 0; font-size: 13px;">Код бункера (комнаты):</label>
-                <button type="button" id="btn-random-room-code" class="btn btn-xs btn-outline" style="font-size: 11px; padding: 2px 7px;">🎲 Новый код</button>
+          <!-- TAB CONTENT 1: JOIN ROOM -->
+          <div id="panel-auth-join" class="tab-content active">
+            <form id="form-auth-join" onsubmit="event.preventDefault();">
+              <div class="form-group" style="text-align: left;">
+                <label for="input-player-name" style="font-size: 13px; font-weight: 600;">Ваш позывной (Имя или ник):</label>
+                <input type="text" id="input-player-name" class="form-input" placeholder="Например: Сталкер, Макс, Аня" maxlength="24" autofocus required>
               </div>
-              <input type="text" id="input-room-code" class="form-input text-uppercase font-mono" placeholder="BUNKER-101" maxlength="20" value="BUNKER-101" style="font-weight: 700; letter-spacing: 0.5px;">
-              <div id="auth-room-badge" class="auth-room-badge hidden" style="font-size: 11.5px; color: var(--accent-cyan); margin-top: 4px;">
-                🛡️ Подключение по ссылке к: <strong id="auth-room-badge-text"></strong>
-              </div>
-            </div>
 
-            <button type="submit" id="btn-join-game" class="btn btn-success btn-lg btn-block">ВОЙТИ В БУНКЕР</button>
-          </form>
+              <div class="form-group" style="text-align: left; margin-top: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <label for="input-room-code" style="margin-bottom: 0; font-size: 13px; font-weight: 600;">Код бункера (комнаты):</label>
+                  <span style="font-size: 11px; color: var(--text-dim);">4 цифры или код</span>
+                </div>
+                <input type="text" id="input-room-code" class="form-input text-uppercase font-mono" placeholder="Например: 4821" maxlength="20" style="font-weight: 800; letter-spacing: 2px; font-size: 17px; text-align: center;">
+                <div id="auth-room-badge" class="auth-room-badge hidden" style="font-size: 12px; color: var(--accent-cyan); margin-top: 6px; padding: 4px 8px; background: rgba(6, 182, 212, 0.1); border-radius: 4px; border: 1px solid rgba(6, 182, 212, 0.2);">
+                  🛡️ Вход по ссылке в бункер: <strong id="auth-room-badge-text"></strong>
+                </div>
+                <div id="auth-room-status" style="font-size: 11.5px; margin-top: 5px; min-height: 18px; color: var(--text-muted);"></div>
+              </div>
+
+              <div id="group-auth-password" class="form-group" style="text-align: left; margin-top: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <label for="input-room-password" style="margin-bottom: 0; font-size: 13px; font-weight: 600;">🔒 Пароль от бункера:</label>
+                  <span id="auth-password-hint" style="font-size: 11px; color: var(--text-dim);">(если задан)</span>
+                </div>
+                <input type="password" id="input-room-password" class="form-input font-mono" placeholder="Введите пароль бункера" maxlength="30" autocomplete="current-password">
+              </div>
+
+              <button type="submit" id="btn-join-game" class="btn btn-success btn-lg btn-block" style="margin-top: 18px;">🚪 ВОЙТИ В БУНКЕР</button>
+            </form>
+          </div>
+
+          <!-- TAB CONTENT 2: CREATE ROOM -->
+          <div id="panel-auth-create" class="tab-content">
+            <form id="form-auth-create" onsubmit="event.preventDefault();">
+              <div class="form-group" style="text-align: left;">
+                <label for="input-create-name" style="font-size: 13px; font-weight: 600;">Ваш позывной (Имя Мастера):</label>
+                <input type="text" id="input-create-name" class="form-input" placeholder="Например: Мастер, Доктор, Шериф" maxlength="24" required>
+              </div>
+
+              <div class="form-group" style="text-align: left; margin-top: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <label for="input-create-room-code" style="margin-bottom: 0; font-size: 13px; font-weight: 600;">Код новой комнаты:</label>
+                  <button type="button" id="btn-regen-create-code" class="btn btn-xs btn-outline" style="font-size: 11px; padding: 2px 7px;">🎲 Другой код</button>
+                </div>
+                <input type="text" id="input-create-room-code" class="form-input text-uppercase font-mono" placeholder="4821" maxlength="15" style="font-weight: 800; letter-spacing: 2px; font-size: 17px; text-align: center;">
+                <small class="form-hint" style="color: var(--text-dim); margin-top: 4px; display: block;">Короткий 4-значный код, который вы назовете друзьям для входа.</small>
+              </div>
+
+              <div class="form-group" style="text-align: left; margin-top: 14px;">
+                <label for="input-create-password" style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 4px;">🔒 Пароль бункера (необязательно):</label>
+                <input type="text" id="input-create-password" class="form-input font-mono" placeholder="Без пароля (вход для всех друзей)" maxlength="30">
+                <small class="form-hint" style="color: var(--text-dim); margin-top: 4px; display: block;">Установите пароль, чтобы посторонние игроки не смогли войти в ваш бункер.</small>
+              </div>
+
+              <button type="submit" id="btn-create-game" class="btn btn-primary btn-lg btn-block" style="margin-top: 18px;">🚀 СОЗДАТЬ БУНКЕР (МАСТЕР)</button>
+            </form>
+          </div>
         </div>
       </section>
 
@@ -110,6 +162,27 @@
           <div class="lobby-panel settings-panel">
             <div class="panel-header">
               <h2 id="settings-panel-title">⚙️ Параметры убежища</h2>
+            </div>
+
+            <!-- MASTER CONTROLS: ROOM ACCESS & PASSWORD -->
+            <div id="lobby-room-access-group" class="setting-group" style="background: rgba(6, 182, 212, 0.05); border: 1px solid rgba(6, 182, 212, 0.25); border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span class="setting-title" style="margin-bottom: 0; font-size: 13px;">🛡️ Доступ и защита бункера:</span>
+                <span id="lobby-room-badge-display" style="font-size: 13px; font-weight: 800; color: var(--accent-cyan); font-family: var(--font-mono); letter-spacing: 0.5px;"></span>
+              </div>
+
+              <div style="display: flex; gap: 8px; align-items: flex-end; margin-bottom: 8px;">
+                <div style="flex: 1;">
+                  <label for="input-lobby-password" style="font-size: 11.5px; color: var(--text-muted); display: block; margin-bottom: 3px;">🔒 Пароль от бункера:</label>
+                  <input type="text" id="input-lobby-password" class="form-input form-input-sm font-mono" placeholder="Без пароля" maxlength="30" style="padding: 5px 9px; font-size: 12px;">
+                </div>
+                <button type="button" id="btn-save-lobby-password" class="btn btn-xs btn-outline" style="padding: 6px 12px; font-size: 11px;">💾 Задать</button>
+              </div>
+
+              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; user-select: none; margin-top: 6px;">
+                <input type="checkbox" id="checkbox-lock-lobby">
+                <span>🚫 <strong>Запереть шлюз</strong> (запретить вход новым игрокам)</span>
+              </label>
             </div>
 
             <!-- MODE SELECTOR -->
@@ -1012,10 +1085,18 @@
           <button id="btn-close-invite-modal" class="btn-icon">✕</button>
         </div>
         <div class="modal-body">
-          <div class="room-id-banner" style="background: rgba(6, 182, 212, 0.12); border: 1px solid var(--accent-cyan); border-radius: var(--radius-sm); padding: 10px 14px; text-align: center; margin-bottom: 12px;">
-            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Персональный бункер (комната):</div>
-            <div style="font-size: 20px; font-weight: 900; font-family: var(--font-display); color: var(--accent-cyan); letter-spacing: 1px; margin-top: 2px;" id="invite-room-code-display">BUNKER-101</div>
-            <div style="font-size: 11px; color: var(--accent-green); margin-top: 4px;">✓ Этот QR-код подключает строго к вашей текущей игре!</div>
+          <div class="room-id-banner" style="background: rgba(6, 182, 212, 0.12); border: 1px solid var(--accent-cyan); border-radius: var(--radius-sm); padding: 12px 14px; text-align: center; margin-bottom: 12px;">
+            <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Код этого бункера (комнаты):</div>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin: 4px 0;">
+              <div style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: var(--accent-cyan); letter-spacing: 2px;" id="invite-room-code-display">4821</div>
+              <button type="button" id="btn-copy-room-code-modal" class="btn btn-xs btn-outline" style="font-size: 11px; padding: 3px 8px;">📋 Код</button>
+            </div>
+            <div id="invite-room-password-row" class="hidden" style="font-size: 13px; color: var(--accent-amber); font-weight: 700; margin-top: 4px;">
+              🔒 Пароль: <span id="invite-room-password-display" style="font-family: var(--font-mono); text-decoration: underline;"></span>
+            </div>
+            <div style="margin-top: 8px;">
+              <button type="button" id="btn-copy-full-invite" class="btn btn-sm btn-primary" style="width: 100%; font-size: 12px; padding: 6px 12px;">💬 Скопировать приглашение для друзей</button>
+            </div>
           </div>
 
           <div class="qr-section">

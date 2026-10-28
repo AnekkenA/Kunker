@@ -2,15 +2,122 @@
 const App = {
   playerName: localStorage.getItem('bunker_player_name') || sessionStorage.getItem('bunker_player_name') || '',
   playerId: localStorage.getItem('bunker_player_id') || sessionStorage.getItem('bunker_player_id') || '',
-  roomId: 'BUNKER-101',
+  roomId: '',
   isHost: false,
   soundEnabled: true,
   state: null,
   eventSource: null,
   audioCtx: null,
 
+  generateNewCreateCode() {
+    const code = String(Math.floor(1000 + Math.random() * 9000));
+    const createCodeInput = document.getElementById('input-create-room-code');
+    if (createCodeInput) createCodeInput.value = code;
+    return code;
+  },
+
+  async checkRoomStatus(roomId) {
+    const statusEl = document.getElementById('auth-room-status');
+    const passHint = document.getElementById('auth-password-hint');
+    const passInput = document.getElementById('input-room-password');
+    if (!statusEl || !roomId) {
+      if (statusEl) statusEl.innerHTML = '';
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/room_info?room=${encodeURIComponent(roomId)}`);
+      if (res.ok) {
+        const info = await res.json();
+        if (info.exists) {
+          if (info.hasPassword) {
+            statusEl.innerHTML = `<span style="color:var(--accent-amber); font-weight:700;">🔒 Бункер #${info.roomId} защищен паролем.</span> <span style="color:var(--text-dim);">(${info.playersCount} выживших)</span>`;
+            if (passHint) passHint.innerHTML = '<strong style="color:var(--accent-amber); font-size:11px;">(ТРЕБУЕТСЯ ПАРОЛЬ)</strong>';
+            if (passInput) passInput.placeholder = 'Введите пароль бункера...';
+          } else {
+            statusEl.innerHTML = `<span style="color:var(--accent-green); font-weight:700;">✓ Бункер #${info.roomId} открыт.</span> <span style="color:var(--text-dim);">(${info.playersCount} выживших)</span>`;
+            if (passHint) passHint.innerHTML = '<span style="color:var(--text-dim);">(пароль не требуется)</span>';
+            if (passInput) passInput.placeholder = 'Без пароля';
+          }
+          if (info.lockedLobby) {
+            statusEl.innerHTML += ` <span style="color:var(--accent-red); font-weight:700;">[Шлюз заперт]</span>`;
+          }
+        } else {
+          statusEl.innerHTML = `<span style="color:var(--accent-cyan); font-weight:600;">Бункер #${roomId} свободен. Войдя, вы создадите его!</span>`;
+          if (passHint) passHint.innerHTML = '<span style="color:var(--text-dim);">(необязательно)</span>';
+        }
+      }
+    } catch (e) {}
+  },
+
+  setupAuthTabs() {
+    const tabJoin = document.getElementById('tab-auth-join');
+    const tabCreate = document.getElementById('tab-auth-create');
+    const panelJoin = document.getElementById('panel-auth-join');
+    const panelCreate = document.getElementById('panel-auth-create');
+
+    const nameJoin = document.getElementById('input-player-name');
+    const nameCreate = document.getElementById('input-create-name');
+
+    // Keep name synced
+    if (nameJoin && nameCreate) {
+      nameJoin.addEventListener('input', () => { nameCreate.value = nameJoin.value; });
+      nameCreate.addEventListener('input', () => { nameJoin.value = nameCreate.value; });
+    }
+
+    const switchTab = (tab) => {
+      if (tab === 'join') {
+        if (tabJoin) tabJoin.classList.add('active');
+        if (tabCreate) tabCreate.classList.remove('active');
+        if (panelJoin) panelJoin.classList.add('active');
+        if (panelCreate) panelCreate.classList.remove('active');
+        if (nameJoin) nameJoin.focus();
+      } else {
+        if (tabCreate) tabCreate.classList.add('active');
+        if (tabJoin) tabJoin.classList.remove('active');
+        if (panelCreate) panelCreate.classList.add('active');
+        if (panelJoin) panelJoin.classList.remove('active');
+        const codeInput = document.getElementById('input-create-room-code');
+        if (codeInput && !codeInput.value) {
+          this.generateNewCreateCode();
+        }
+        if (nameCreate) nameCreate.focus();
+      }
+      this.playSound('click');
+    };
+
+    if (tabJoin) tabJoin.addEventListener('click', () => switchTab('join'));
+    if (tabCreate) tabCreate.addEventListener('click', () => switchTab('create'));
+
+    // Dynamic room status check
+    const roomInput = document.getElementById('input-room-code');
+    if (roomInput) {
+      let debounceTimer = null;
+      roomInput.addEventListener('input', () => {
+        const val = roomInput.value.trim().toUpperCase();
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          if (val) this.checkRoomStatus(val);
+        }, 300);
+      });
+    }
+
+    // Regen create room code button
+    const btnRegen = document.getElementById('btn-regen-create-code');
+    if (btnRegen) {
+      btnRegen.addEventListener('click', () => {
+        const code = this.generateNewCreateCode();
+        this.playSound('click');
+        this.showToast(`Сгенерирован код: ${code}`);
+      });
+    }
+  },
+
   async init() {
     this.initAudio();
+
+    // Prepare fresh code for create panel
+    this.generateNewCreateCode();
 
     // Resolve room from URL query parameter ?room=... or local storage
     const urlParams = new URLSearchParams(window.location.search);
@@ -19,11 +126,11 @@ const App = {
       this.roomId = roomParam.trim().toUpperCase();
       localStorage.setItem('bunker_room_id', this.roomId);
     } else {
-      this.roomId = (localStorage.getItem('bunker_room_id') || 'BUNKER-101').trim().toUpperCase();
+      this.roomId = (localStorage.getItem('bunker_room_id') || '').trim().toUpperCase();
     }
 
     const roomInput = document.getElementById('input-room-code');
-    if (roomInput) {
+    if (roomInput && this.roomId) {
       roomInput.value = this.roomId;
     }
 
@@ -35,20 +142,27 @@ const App = {
     }
 
     this.bindGlobalEvents();
+    this.setupAuthTabs();
 
     if (this.playerName) {
       const nameInput = document.getElementById('input-player-name');
+      const createNameInput = document.getElementById('input-create-name');
       if (nameInput) nameInput.value = this.playerName;
+      if (createNameInput) createNameInput.value = this.playerName;
+    }
+
+    if (this.roomId) {
+      this.checkRoomStatus(this.roomId);
     }
 
     // Recover scoped player ID for this room from localStorage if available
-    const roomScopedPlayerId = localStorage.getItem('bunker_player_id_' + this.roomId);
+    const roomScopedPlayerId = this.roomId ? localStorage.getItem('bunker_player_id_' + this.roomId) : null;
     if (roomScopedPlayerId) {
       this.playerId = roomScopedPlayerId;
     }
 
     // If session or local storage has player ID, try restoring state for this specific room
-    if (this.playerId) {
+    if (this.playerId && this.roomId) {
       try {
         const res = await fetch(`/api/state?playerId=${encodeURIComponent(this.playerId)}&room=${encodeURIComponent(this.roomId)}`, {
           headers: { 'x-room-id': this.roomId }
@@ -66,9 +180,10 @@ const App = {
       this.playerId = '';
       sessionStorage.removeItem('bunker_player_id');
       localStorage.removeItem('bunker_player_id');
-      localStorage.removeItem('bunker_player_id_' + this.roomId);
-      this.showScreen('screen-auth');
+      if (this.roomId) localStorage.removeItem('bunker_player_id_' + this.roomId);
     }
+
+    this.showScreen('screen-auth');
   },
 
   initAudio() {
@@ -223,60 +338,34 @@ const App = {
       });
     }
 
-    // Random Room Code button on Auth screen
-    const btnRandomRoom = document.getElementById('btn-random-room-code');
-    if (btnRandomRoom) {
-      btnRandomRoom.addEventListener('click', () => {
-        const rnd = Math.floor(1000 + Math.random() * 9000);
-        this.roomId = `BUNKER-${rnd}`;
-        const roomInput = document.getElementById('input-room-code');
-        if (roomInput) roomInput.value = this.roomId;
-        localStorage.setItem('bunker_room_id', this.roomId);
-        this.playSound('click');
-        this.showToast(`Сгенерирован новый код: ${this.roomId}`);
-      });
-    }
-
-    // Create New Room button on Lobby screen
-    const btnLobbyNewRoom = document.getElementById('btn-lobby-new-room');
-    if (btnLobbyNewRoom) {
-      btnLobbyNewRoom.addEventListener('click', async () => {
-        if (!confirm('Создать новый отдельный бункер (новую комнату)? Текущая игра останется активной в своей комнате.')) return;
-        try {
-          const res = await fetch('/api/create_room', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-          });
-          const data = await res.json();
-          if (data && data.roomId) {
-            localStorage.setItem('bunker_room_id', data.roomId);
-            window.location.search = `?room=${data.roomId}`;
-          }
-        } catch (e) {
-          this.showToast(`Ошибка: ${e.message}`);
-        }
-      });
-    }
-
     // Enter / Join Game (Form Submit + Button Click)
     const joinBtn = document.getElementById('btn-join-game');
-    const authForm = document.getElementById('form-auth');
+    const authJoinForm = document.getElementById('form-auth-join') || document.getElementById('form-auth');
 
     const handleJoin = async () => {
       const nameInput = document.getElementById('input-player-name');
       const name = nameInput ? nameInput.value.trim() : '';
 
       const roomInput = document.getElementById('input-room-code');
-      if (roomInput && roomInput.value.trim()) {
-        this.roomId = roomInput.value.trim().toUpperCase();
-      }
-      localStorage.setItem('bunker_room_id', this.roomId);
+      const enteredCode = roomInput ? roomInput.value.trim().toUpperCase() : '';
+
+      const passInput = document.getElementById('input-room-password');
+      const password = passInput ? passInput.value.trim() : '';
 
       if (!name) {
         this.showToast('⚠️ Пожалуйста, введите ваше имя (никнейм)!');
         if (nameInput) nameInput.focus();
         return;
       }
+
+      if (!enteredCode) {
+        this.showToast('⚠️ Введите код бункера (например: 4821)!');
+        if (roomInput) roomInput.focus();
+        return;
+      }
+
+      this.roomId = enteredCode;
+      localStorage.setItem('bunker_room_id', this.roomId);
 
       if (joinBtn) {
         joinBtn.disabled = true;
@@ -292,13 +381,13 @@ const App = {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-room-id': this.roomId || 'BUNKER-101'
+            'x-room-id': this.roomId
           },
           body: JSON.stringify({
             name,
-            password: '',
-            roomId: this.roomId || 'BUNKER-101',
-            playerId: this.playerId || localStorage.getItem('bunker_player_id_' + (this.roomId || 'BUNKER-101')) || localStorage.getItem('bunker_player_id') || null
+            password,
+            roomId: this.roomId,
+            playerId: this.playerId || localStorage.getItem('bunker_player_id_' + this.roomId) || localStorage.getItem('bunker_player_id') || null
           })
         });
         const data = await res.json();
@@ -312,6 +401,13 @@ const App = {
         localStorage.setItem('bunker_player_id_' + this.roomId, data.playerId);
         localStorage.setItem('bunker_room_id', this.roomId);
 
+        // Update URL to current room
+        try {
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.set('room', this.roomId);
+          window.history.replaceState(null, '', newUrl.toString());
+        } catch (e) {}
+
         this.connectEvents();
         this.onStateUpdate(data.state);
         this.showToast(data.isHost ? '👑 Вы вошли как Мастер игры!' : '🚪 Вы вошли в бункер!');
@@ -319,15 +415,19 @@ const App = {
       } catch (err) {
         if (joinBtn) {
           joinBtn.disabled = false;
-          joinBtn.textContent = 'ВОЙТИ В БУНКЕР';
+          joinBtn.textContent = '🚪 ВОЙТИ В БУНКЕР';
+        }
+        if (passInput && err.message && err.message.toLowerCase().includes('парол')) {
+          passInput.focus();
+          passInput.classList.add('input-error');
+          setTimeout(() => passInput.classList.remove('input-error'), 2500);
         }
         this.showToast(`❌ ${err.message}`);
-        alert(`Ошибка входа: ${err.message}`);
       }
     };
 
-    if (authForm) {
-      authForm.addEventListener('submit', (e) => {
+    if (authJoinForm) {
+      authJoinForm.addEventListener('submit', (e) => {
         e.preventDefault();
         handleJoin();
       });
@@ -336,6 +436,120 @@ const App = {
       joinBtn.addEventListener('click', (e) => {
         e.preventDefault();
         handleJoin();
+      });
+    }
+
+    // Create New Room Form Submit + Button Click
+    const createBtn = document.getElementById('btn-create-game');
+    const authCreateForm = document.getElementById('form-auth-create');
+
+    const handleCreate = async () => {
+      const nameInput = document.getElementById('input-create-name');
+      const name = nameInput ? nameInput.value.trim() : '';
+
+      const codeInput = document.getElementById('input-create-room-code');
+      let code = codeInput ? codeInput.value.trim().toUpperCase() : '';
+      if (!code) code = this.generateNewCreateCode();
+
+      const passInput = document.getElementById('input-create-password');
+      const password = passInput ? passInput.value.trim() : '';
+
+      if (!name) {
+        this.showToast('⚠️ Введите ваше имя Мастера!');
+        if (nameInput) nameInput.focus();
+        return;
+      }
+
+      if (createBtn) {
+        createBtn.disabled = true;
+        createBtn.textContent = '⏳ СОЗДАНИЕ БУНКЕРА...';
+      }
+
+      this.playerName = name;
+      sessionStorage.setItem('bunker_player_name', name);
+      localStorage.setItem('bunker_player_name', name);
+
+      try {
+        // 1. Create Room on server
+        const createRes = await fetch('/api/create_room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customRoomId: code, password })
+        });
+        const createData = await createRes.json();
+        const activeRoomId = (createData && createData.roomId) || code;
+        this.roomId = activeRoomId;
+        localStorage.setItem('bunker_room_id', this.roomId);
+
+        // 2. Join the newly created room as Master
+        const joinRes = await fetch('/api/join', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-room-id': this.roomId
+          },
+          body: JSON.stringify({
+            name,
+            password,
+            roomId: this.roomId,
+            playerId: null
+          })
+        });
+        const joinData = await joinRes.json();
+        if (!joinRes.ok) throw new Error(joinData.error || 'Ошибка входа в созданный бункер');
+
+        this.playerId = joinData.playerId;
+        this.isHost = joinData.isHost;
+        this.roomId = joinData.roomId || this.roomId;
+        sessionStorage.setItem('bunker_player_id', joinData.playerId);
+        localStorage.setItem('bunker_player_id', joinData.playerId);
+        localStorage.setItem('bunker_player_id_' + this.roomId, joinData.playerId);
+        localStorage.setItem('bunker_room_id', this.roomId);
+
+        // Update URL
+        try {
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.set('room', this.roomId);
+          window.history.replaceState(null, '', newUrl.toString());
+        } catch (e) {}
+
+        this.connectEvents();
+        this.onStateUpdate(joinData.state);
+        this.showToast(`👑 Бункер #${this.roomId} создан! Вы Мастер игры.`);
+        this.playSound('start');
+      } catch (err) {
+        if (createBtn) {
+          createBtn.disabled = false;
+          createBtn.textContent = '🚀 СОЗДАТЬ БУНКЕР (МАСТЕР)';
+        }
+        this.showToast(`❌ ${err.message}`);
+      }
+    };
+
+    if (authCreateForm) {
+      authCreateForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        handleCreate();
+      });
+    }
+    if (createBtn) {
+      createBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        handleCreate();
+      });
+    }
+
+    // Header Room Badge Copy
+    const headerRoomBadge = document.getElementById('room-code-badge');
+    if (headerRoomBadge) {
+      headerRoomBadge.addEventListener('click', () => {
+        if (!this.roomId) return;
+        navigator.clipboard.writeText(this.roomId).then(() => {
+          this.showToast(`📋 Код бункера "${this.roomId}" скопирован!`);
+          this.playSound('click');
+        }).catch(() => {
+          this.showToast(`Код бункера: ${this.roomId}`);
+        });
       });
     }
 
@@ -585,6 +799,19 @@ const App = {
     }
   },
 
+  getBestInviteUrl() {
+    let net = (this.state && this.state.network) || {};
+    const publicLink = (net.publicUrl || '').trim();
+    if (publicLink) {
+      return `${publicLink}/?room=${encodeURIComponent(this.roomId || '')}`;
+    }
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      return `${window.location.origin}/?room=${encodeURIComponent(this.roomId || '')}`;
+    }
+    const localLink = (net.localIpUrl || `${window.location.origin}/?room=${encodeURIComponent(this.roomId || '')}`).trim();
+    return localLink;
+  },
+
   async openInviteModal() {
     const modal = document.getElementById('invite-modal');
     if (!modal) return;
@@ -592,30 +819,61 @@ const App = {
 
     const roomDisplay = document.getElementById('invite-room-code-display');
     if (roomDisplay) {
-      roomDisplay.textContent = this.roomId || 'BUNKER-101';
+      roomDisplay.textContent = this.roomId || '';
+    }
+
+    const passRow = document.getElementById('invite-room-password-row');
+    const passDisplay = document.getElementById('invite-room-password-display');
+    const curPass = (this.state && (this.state.currentPassword || (this.state.hasPassword ? 'Задан' : ''))) || '';
+    if (passRow && passDisplay) {
+      if (curPass) {
+        passDisplay.textContent = curPass;
+        passRow.classList.remove('hidden');
+      } else {
+        passRow.classList.add('hidden');
+      }
+    }
+
+    // Modal Copy Room Code Button
+    const btnCopyCodeModal = document.getElementById('btn-copy-room-code-modal');
+    if (btnCopyCodeModal) {
+      btnCopyCodeModal.onclick = () => {
+        if (!this.roomId) return;
+        navigator.clipboard.writeText(this.roomId).then(() => {
+          this.showToast(`📋 Код бункера "${this.roomId}" скопирован!`);
+          this.playSound('click');
+        });
+      };
+    }
+
+    // Modal Full Invite Message Copy Button
+    const btnCopyFull = document.getElementById('btn-copy-full-invite');
+    if (btnCopyFull) {
+      btnCopyFull.onclick = () => {
+        const inviteUrl = this.getBestInviteUrl();
+        const passText = (this.state && (this.state.currentPassword || (this.state.hasPassword ? '[Уточните у Мастера]' : ''))) || '';
+        const text = `☢️ Игра «Бункер»!\n🚪 Код комнаты: ${this.roomId}\n${passText ? '🔒 Пароль: ' + passText + '\n' : '🔓 Вход без пароля\n'}🔗 Ссылка для входа: ${inviteUrl}`;
+        navigator.clipboard.writeText(text).then(() => {
+          this.showToast('📋 Приглашение скопировано для отправки друзьям!');
+          this.playSound('click');
+        }).catch(() => {
+          this.showToast('📋 Ссылка: ' + inviteUrl);
+        });
+      };
     }
 
     let net = (this.state && this.state.network) || {};
     try {
-      const res = await fetch(`/api/network?room=${encodeURIComponent(this.roomId || 'BUNKER-101')}`, {
-        headers: { 'x-room-id': this.roomId || 'BUNKER-101' }
+      const res = await fetch(`/api/network?room=${encodeURIComponent(this.roomId || '')}`, {
+        headers: { 'x-room-id': this.roomId || '' }
       });
       if (res.ok) net = await res.json();
     } catch (e) {}
 
     const publicLink = (net.publicUrl || '').trim();
     const radminLink = net.radminIpUrl || '';
-    const localLink = (net.localIpUrl || `http://localhost:3000/?room=${encodeURIComponent(this.roomId || 'BUNKER-101')}`).trim();
-
-    // Determine the BEST link for other players (NEVER encode localhost into QR!)
-    let bestLink = publicLink;
-    if (!bestLink) {
-      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        bestLink = `${window.location.origin}/?room=${encodeURIComponent(this.roomId || 'BUNKER-101')}`;
-      } else {
-        bestLink = localLink;
-      }
-    }
+    const localLink = (net.localIpUrl || `${window.location.origin}/?room=${encodeURIComponent(this.roomId || '')}`).trim();
+    const bestLink = this.getBestInviteUrl();
 
     const pubInput = document.getElementById('input-public-link');
     const pubGroup = document.getElementById('group-public-link');
@@ -623,14 +881,14 @@ const App = {
     const locInput = document.getElementById('input-local-link');
     const radGroup = document.getElementById('group-radmin-link');
 
-    if (pubInput) pubInput.value = publicLink;
+    if (pubInput) pubInput.value = publicLink ? `${publicLink}/?room=${encodeURIComponent(this.roomId || '')}` : '';
     if (pubGroup) {
       if (publicLink) pubGroup.classList.remove('hidden');
       else pubGroup.classList.add('hidden');
     }
 
     if (locInput) locInput.value = localLink;
-    if (radInput) radInput.value = radminLink;
+    if (radInput) radInput.value = radminLink ? `${radminLink}/?room=${encodeURIComponent(this.roomId || '')}` : '';
 
     if (radGroup) {
       if (radminLink) {

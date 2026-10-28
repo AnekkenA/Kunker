@@ -164,11 +164,37 @@ const server = http.createServer(async (req, res) => {
       // Create new unique room / game
       if (pathname === '/api/create_room' && req.method === 'POST') {
         const body = await parseBody(req);
-        const newGame = roomManager.createRoom(body ? body.customRoomId : null);
+        const customId = body ? (body.customRoomId || body.roomId) : null;
+        const password = body && body.password ? String(body.password).trim() : '';
+        const newGame = roomManager.createRoom(customId, password);
         newGame.setBroadcast(() => broadcastRoom(newGame));
         return sendJson(res, 200, {
           success: true,
-          roomId: newGame.roomId
+          roomId: newGame.roomId,
+          hasPassword: Boolean(newGame.password)
+        });
+      }
+
+      // Room info (check existence, password requirement, player count)
+      if (pathname === '/api/room_info' && req.method === 'GET') {
+        const roomId = parsedUrl.query.room;
+        const targetRoom = roomManager.getRoom(roomId, false);
+        if (!targetRoom) {
+          return sendJson(res, 200, {
+            exists: false,
+            roomId: (roomId || '').trim().toUpperCase(),
+            hasPassword: false,
+            playersCount: 0,
+            status: 'none'
+          });
+        }
+        return sendJson(res, 200, {
+          exists: true,
+          roomId: targetRoom.roomId,
+          hasPassword: Boolean(targetRoom.password),
+          playersCount: targetRoom.players.size,
+          status: targetRoom.status,
+          lockedLobby: Boolean(targetRoom.lockedLobby)
         });
       }
 
@@ -380,11 +406,32 @@ const server = http.createServer(async (req, res) => {
             targetGame.resetToLobby(playerId);
             break;
 
+          case 'update_room_access':
+            if (playerId !== targetGame.hostId) throw new Error('Только Мастер может настраивать доступ к бункеру');
+            if (payload && payload.password !== undefined) {
+              targetGame.password = String(payload.password).trim();
+              if (targetGame.password) {
+                targetGame.addLog(`🔒 Мастер установил пароль для бункера.`);
+              } else {
+                targetGame.addLog(`🔓 Мастер снял пароль с бункера.`);
+              }
+            }
+            if (payload && payload.lockedLobby !== undefined) {
+              targetGame.lockedLobby = Boolean(payload.lockedLobby);
+              if (targetGame.lockedLobby) {
+                targetGame.addLog(`🚫 Мастер запер шлюз бункера (вход закрыт).`);
+              } else {
+                targetGame.addLog(`🚪 Мастер открыл шлюз бункера для входа.`);
+              }
+            }
+            break;
+
           case 'update_settings':
             if (playerId !== targetGame.hostId) throw new Error('Только мастер может менять настройки');
             if (payload.bunkerCapacity) targetGame.bunkerCapacity = parseInt(payload.bunkerCapacity, 10) || 1;
             if (payload.decks) targetGame.selectedDecks = payload.decks;
             if (payload.password !== undefined) targetGame.password = String(payload.password).trim();
+            if (payload.lockedLobby !== undefined) targetGame.lockedLobby = Boolean(payload.lockedLobby);
             break;
 
           default:
