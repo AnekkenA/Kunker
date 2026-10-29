@@ -3,6 +3,8 @@ services:
     name: bunker-online
     runtime: node
     plan: free
+    branch: main
+    autoDeploy: true
     buildCommand: npm install
     startCommand: npm start
     envVars:
