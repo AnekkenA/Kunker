@@ -759,6 +759,36 @@ const DeckEditor = {
     reader.readAsDataURL(file);
   },
 
+  // --- URL SANITIZATION & IMAGE VALIDATION ---
+  sanitizeUrl(raw) {
+    if (!raw) return '';
+    let val = raw.trim();
+    // Detect accidental concatenated URLs, e.g. "...jpg...h.com/photo-..." or "...jpghttps?://..."
+    const doubleMatch = val.match(/(https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp|gif|svg))([a-z0-9_.-]*(?:https?:|\.com|\/photo|\/image|\/img).*)?/i);
+    if (doubleMatch && doubleMatch[2]) {
+      val = doubleMatch[1];
+    }
+    return val.replace(/["'\s]+$/, '');
+  },
+
+  checkImageStatus(url, statusElementId) {
+    const el = document.getElementById(statusElementId);
+    if (!el) return;
+    if (!url) {
+      el.innerHTML = '';
+      return;
+    }
+    el.innerHTML = '<span style="color: var(--accent-cyan); font-size: 11px;">⏳ Проверка картинки...</span>';
+    const img = new Image();
+    img.onload = () => {
+      el.innerHTML = '<span style="color: var(--accent-green); font-weight: 600; font-size: 11px;">✅ Изображение доступно и быстро загружается!</span>';
+    };
+    img.onerror = () => {
+      el.innerHTML = '<span style="color: var(--accent-red); font-weight: 600; font-size: 11px;">⚠️ Картинка не найдена: проверьте адрес или вставьте прямую ссылку</span>';
+    };
+    img.src = url;
+  },
+
   // --- LIVE STATIC PREVIEW ---
   updateLivePreview(catKey = null, text = null) {
     const testInput = document.getElementById('prev-test-input');
@@ -789,7 +819,11 @@ const DeckEditor = {
     }
 
     const backInput = document.getElementById('edit-deck-card-back');
-    const backUrl = backInput ? backInput.value.trim() : '';
+    const backUrl = backInput ? this.sanitizeUrl(backInput.value) : '';
+    if (backInput && backInput.value !== backUrl && backUrl) {
+      backInput.value = backUrl;
+    }
+
     if (prevBack) {
       if (backUrl) {
         prevBack.style.backgroundImage = `url('${backUrl}')`;
@@ -800,9 +834,23 @@ const DeckEditor = {
       }
     }
 
-    // Apply table background to screen-deck-builder and tabletop preview
+    // Apply table background to preview tabletop box and editor screen
     const bgInput = document.getElementById('edit-deck-bg');
-    const bgUrl = bgInput ? bgInput.value.trim() : '';
+    const bgUrl = bgInput ? this.sanitizeUrl(bgInput.value) : '';
+    if (bgInput && bgInput.value !== bgUrl && bgUrl) {
+      bgInput.value = bgUrl;
+    }
+
+    const tabletopBox = document.getElementById('preview-tabletop-box') || document.querySelector('.preview-cards-pair');
+    if (tabletopBox) {
+      if (bgUrl) {
+        tabletopBox.style.backgroundImage = `linear-gradient(rgba(11, 15, 23, 0.35), rgba(11, 15, 23, 0.35)), url('${bgUrl}'), radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%)`;
+        tabletopBox.style.backgroundSize = 'cover';
+        tabletopBox.style.backgroundPosition = 'center center';
+      } else {
+        tabletopBox.style.backgroundImage = '';
+      }
+    }
 
     const screenEditor = document.getElementById('screen-deck-builder');
     if (screenEditor) {
@@ -813,24 +861,6 @@ const DeckEditor = {
         screenEditor.style.backgroundAttachment = 'fixed';
       } else {
         screenEditor.style.backgroundImage = '';
-      }
-    }
-
-    const previewPair = document.querySelector('.preview-cards-pair');
-    if (previewPair) {
-      if (bgUrl) {
-        previewPair.style.backgroundImage = `linear-gradient(rgba(11, 15, 23, 0.35), rgba(11, 15, 23, 0.35)), url('${bgUrl}'), radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%)`;
-        previewPair.style.backgroundSize = 'cover';
-        previewPair.style.backgroundPosition = 'center';
-        previewPair.style.borderRadius = 'var(--radius-md)';
-        previewPair.style.padding = '14px 10px';
-        previewPair.style.border = '1px solid rgba(56, 189, 248, 0.35)';
-        previewPair.style.boxShadow = 'inset 0 0 25px rgba(0, 0, 0, 0.6)';
-      } else {
-        previewPair.style.backgroundImage = '';
-        previewPair.style.padding = '';
-        previewPair.style.border = '';
-        previewPair.style.boxShadow = '';
       }
     }
   },
@@ -983,8 +1013,8 @@ const DeckEditor = {
     const name = document.getElementById('edit-deck-name').value.trim();
     const author = document.getElementById('edit-deck-author').value.trim();
     const desc = document.getElementById('edit-deck-desc').value.trim();
-    const bg = document.getElementById('edit-deck-bg').value.trim();
-    const back = document.getElementById('edit-deck-card-back').value.trim();
+    const bg = this.sanitizeUrl(document.getElementById('edit-deck-bg').value);
+    const back = this.sanitizeUrl(document.getElementById('edit-deck-card-back').value);
 
     if (!id || !name) {
       throw new Error('Укажите ID и название темы!');
@@ -1180,14 +1210,49 @@ const DeckEditor = {
       });
     }
 
-    // Live preview on manual background or card back URL typing
+    // Live preview & validation on manual background or card back URL typing
     const editBgInput = document.getElementById('edit-deck-bg');
     if (editBgInput) {
-      editBgInput.addEventListener('input', () => this.updateLivePreview());
+      const handleBgChange = () => {
+        const clean = this.sanitizeUrl(editBgInput.value);
+        if (clean !== editBgInput.value && clean) editBgInput.value = clean;
+        this.updateLivePreview();
+        this.checkImageStatus(clean, 'deck-bg-status-msg');
+      };
+      editBgInput.addEventListener('input', handleBgChange);
+      editBgInput.addEventListener('blur', handleBgChange);
     }
+
+    const btnClearBg = document.getElementById('btn-clear-deck-bg');
+    if (btnClearBg && editBgInput) {
+      btnClearBg.addEventListener('click', () => {
+        editBgInput.value = '';
+        this.updateLivePreview();
+        this.checkImageStatus('', 'deck-bg-status-msg');
+        if (typeof App !== 'undefined') App.playSound('click');
+      });
+    }
+
     const editBackInput = document.getElementById('edit-deck-card-back');
     if (editBackInput) {
-      editBackInput.addEventListener('input', () => this.updateLivePreview());
+      const handleBackChange = () => {
+        const clean = this.sanitizeUrl(editBackInput.value);
+        if (clean !== editBackInput.value && clean) editBackInput.value = clean;
+        this.updateLivePreview();
+        this.checkImageStatus(clean, 'deck-back-status-msg');
+      };
+      editBackInput.addEventListener('input', handleBackChange);
+      editBackInput.addEventListener('blur', handleBackChange);
+    }
+
+    const btnClearBack = document.getElementById('btn-clear-deck-back');
+    if (btnClearBack && editBackInput) {
+      btnClearBack.addEventListener('click', () => {
+        editBackInput.value = '';
+        this.updateLivePreview();
+        this.checkImageStatus('', 'deck-back-status-msg');
+        if (typeof App !== 'undefined') App.playSound('click');
+      });
     }
 
     // Category modal events

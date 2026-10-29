@@ -867,11 +867,14 @@ body {
 /* --- SCREEN 4: GAME BOARD --- */
 #screen-game {
   padding: 16px;
-  flex: 1;
+  flex: 1 1 auto;
+  min-height: calc(100vh - 65px);
+  width: 100%;
+  background: transparent !important;
 }
 
 #screen-game.active {
-  display: flex;
+  display: flex !important;
   flex-direction: column;
 }
 
@@ -883,6 +886,8 @@ body {
   max-width: 1600px;
   margin: 0 auto;
   width: 100%;
+  background: transparent !important;
+}
 }
 
 /* WORLD CARDS */
@@ -2451,12 +2456,32 @@ body {
   margin-bottom: 2px;
 }
 
-.preview-cards-pair {
+.preview-tabletop-box {
+  width: 100%;
+  padding: 16px 12px;
+  border-radius: var(--radius-md);
+  background: radial-gradient(ellipse at center, #1b2735 0%, #090a0f 100%);
+  background-size: cover !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+  border: 1px solid var(--border-color);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.85), 0 4px 16px rgba(0, 0, 0, 0.5);
+  margin-bottom: 16px;
+  box-sizing: border-box;
+  min-height: 320px;
   display: flex;
-  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  transition: background 0.3s ease;
+}
+
+.preview-tabletop-box .preview-cards-pair {
+  display: flex;
+  gap: 16px;
   justify-content: center;
   align-items: flex-start;
-  margin-bottom: 16px;
+  margin-bottom: 0;
+  width: 100%;
 }
 
 .card-preview-wrapper {
@@ -2468,8 +2493,13 @@ body {
 
 .preview-label {
   font-size: 10.5px;
-  color: var(--text-muted);
-  font-weight: 600;
+  color: var(--text-main);
+  font-weight: 700;
+  background: rgba(11, 15, 23, 0.85);
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(4px);
 }
 
 .bunker-card-preview {

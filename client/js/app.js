@@ -333,6 +333,10 @@ const App = {
       target.style.setProperty('display', 'flex', 'important');
     }
 
+    if (screenId !== 'screen-game' && screenId !== 'screen-results' && screenId !== 'screen-editor') {
+      document.body.style.backgroundImage = '';
+    }
+
     // Header Back to Lobby Button
     const btnBack = document.getElementById('btn-header-back-to-lobby');
     if (btnBack) {

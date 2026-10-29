@@ -1089,24 +1089,38 @@ const GameBoard = {
     // 0b. Voting UI
     this.updateVotingUI(state.voting, state);
 
-    // 0. Theme Background
+    // 0. Theme Background (applied to document.body so 100% of viewport is covered seamlessly without any black bars)
+    const rawBg = state.backgroundImage || '';
+    const doubleMatch = rawBg.match(/(https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp|gif|svg))([a-z0-9_.-]*(?:https?:|\.com|\/photo|\/image|\/img).*)?/i);
+    const bgUrl = (doubleMatch && doubleMatch[2]) ? doubleMatch[1] : rawBg.trim();
+
     const gameScreen = document.getElementById('screen-game');
     const gameContainer = document.querySelector('.game-container');
-    const bgUrl = state.backgroundImage;
+
     if (bgUrl) {
       const bgStyle = `linear-gradient(rgba(11, 15, 23, 0.45), rgba(11, 15, 23, 0.45)), url('${bgUrl}'), radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%)`;
+      document.body.style.backgroundImage = bgStyle;
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center center';
+      document.body.style.backgroundAttachment = 'fixed';
+      document.body.style.backgroundRepeat = 'no-repeat';
+
       if (gameScreen) {
-        gameScreen.style.backgroundImage = bgStyle;
-        gameScreen.style.backgroundSize = 'cover';
-        gameScreen.style.backgroundPosition = 'center';
-        gameScreen.style.backgroundAttachment = 'fixed';
+        gameScreen.style.background = 'transparent';
+        gameScreen.style.backgroundImage = 'none';
       }
       if (gameContainer) {
         gameContainer.style.background = 'transparent';
       }
     } else {
-      if (gameScreen) gameScreen.style.backgroundImage = '';
-      if (gameContainer) gameContainer.style.background = '';
+      document.body.style.backgroundImage = '';
+      if (gameScreen) {
+        gameScreen.style.background = '';
+        gameScreen.style.backgroundImage = '';
+      }
+      if (gameContainer) {
+        gameContainer.style.background = '';
+      }
     }
 
     // 1. Catastrophe (Disaster)
