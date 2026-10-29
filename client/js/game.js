@@ -993,6 +993,16 @@ const GameBoard = {
     if (!results) return;
     this.resultsCache = results;
 
+    const resultKey = `${results.diceRoll}_${results.percentage}_${results.threshold}`;
+    if (this.lastResultsKey !== resultKey) {
+      this.lastResultsKey = resultKey;
+      const stored = (typeof localStorage !== 'undefined') ? localStorage.getItem('bunker_rolled_' + resultKey) : null;
+      this.rouletteRolled = stored === 'true';
+      this.isSpinningRoulette = false;
+    }
+
+    if (this.isSpinningRoulette) return;
+
     const chanceVal = document.getElementById('roulette-chance-val');
     if (chanceVal) chanceVal.textContent = results.percentage;
 
@@ -1004,27 +1014,51 @@ const GameBoard = {
     const numEl = document.getElementById('roulette-number');
     const btnSpin = document.getElementById('btn-spin-roulette');
     const banner = document.getElementById('roulette-outcome-banner');
+    const verdictBox = document.getElementById('results-verdict-box');
 
-    if (cube) cube.className = 'roulette-cube';
-    if (numEl) numEl.textContent = 'GO';
-    if (btnSpin) {
-      btnSpin.disabled = false;
-      btnSpin.textContent = '⚡ ПРОВЕРИТЬ ВЫЖИВАНИЕ (КУБИК)';
-    }
-    if (banner) {
-      banner.className = 'roulette-outcome-banner hidden';
-      banner.textContent = '';
+    const isSuccess = Boolean(results.isSuccess);
+
+    if (this.rouletteRolled) {
+      if (cube) cube.className = `roulette-cube ${isSuccess ? 'winner' : 'loser'}`;
+      if (numEl) numEl.textContent = results.diceRoll;
+      if (btnSpin) btnSpin.style.display = 'none';
+      if (banner) {
+        banner.className = `roulette-outcome-banner ${isSuccess ? 'success' : 'danger'}`;
+        banner.classList.remove('hidden');
+        if (isSuccess) {
+          banner.innerHTML = `🎉 ПОБЕДА! Выпало число <strong>${results.diceRoll}</strong> (требовалось ≥ <strong>${threshold}</strong>). БУНКЕР ВЫЖИЛ!`;
+        } else {
+          banner.innerHTML = `💀 ПОРАЖЕНИЕ! Выпало число <strong>${results.diceRoll}</strong> (требовалось ≥ <strong>${threshold}</strong>). БУНКЕР ПОГИБ!`;
+        }
+      }
+      if (verdictBox) verdictBox.style.display = 'block';
+    } else {
+      if (cube) cube.className = 'roulette-cube';
+      if (numEl) numEl.textContent = '🎲';
+      if (btnSpin) {
+        btnSpin.style.display = 'inline-block';
+        btnSpin.disabled = false;
+        btnSpin.textContent = '⚡ БРОСИТЬ КУБИК СУДЬБЫ';
+      }
+      if (banner) {
+        banner.className = 'roulette-outcome-banner hidden';
+        banner.textContent = '';
+      }
+      if (verdictBox) verdictBox.style.display = 'none';
     }
   },
 
   async spinRouletteAnimation() {
     const results = this.resultsCache || (App.state && App.state.results);
-    if (!results) return;
+    if (!results || this.isSpinningRoulette || this.rouletteRolled) return;
+
+    this.isSpinningRoulette = true;
 
     const btnSpin = document.getElementById('btn-spin-roulette');
     const cube = document.getElementById('roulette-cube');
     const numEl = document.getElementById('roulette-number');
     const banner = document.getElementById('roulette-outcome-banner');
+    const verdictBox = document.getElementById('results-verdict-box');
 
     if (btnSpin) {
       btnSpin.disabled = true;
@@ -1032,9 +1066,10 @@ const GameBoard = {
     }
     if (cube) cube.className = 'roulette-cube spinning';
     if (banner) banner.classList.add('hidden');
+    if (verdictBox) verdictBox.style.display = 'none';
 
-    // Delays increasing from fast up to maximum 1.0 second (1000ms)
-    const delays = [40, 45, 50, 60, 75, 95, 120, 160, 215, 290, 390, 520, 700, 1000];
+    // Delays increasing smoothly for suspense (~2.2s total)
+    const delays = [60, 60, 70, 80, 100, 130, 170, 230, 310, 420, 560];
 
     for (let i = 0; i < delays.length; i++) {
       await new Promise(resolve => setTimeout(resolve, delays[i]));
@@ -1067,20 +1102,35 @@ const GameBoard = {
       }
     }
 
+    // Permanently hide the roll button (verdict is final, no reroll)
     if (btnSpin) {
-      btnSpin.disabled = false;
-      btnSpin.textContent = '🔄 ПОВТОРИТЬ ПРОВЕРКУ';
+      btnSpin.style.display = 'none';
     }
 
-    const verdictBox = document.getElementById('results-verdict-box');
+    // Reveal verdict box smoothly right below without screen jerking
     if (verdictBox) {
-      verdictBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      verdictBox.style.display = 'block';
+    }
+
+    this.rouletteRolled = true;
+    this.isSpinningRoulette = false;
+
+    const resultKey = `${results.diceRoll}_${results.percentage}_${results.threshold}`;
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('bunker_rolled_' + resultKey, 'true');
+      } catch (e) {}
     }
   },
 
   // --- STATE RENDERER ---
 
   render(state) {
+    if (state.status !== 'finished') {
+      this.rouletteRolled = false;
+      this.isSpinningRoulette = false;
+      this.lastResultsKey = null;
+    }
     const isMaster = state.isHost;
 
     // 0a. Speaker Timer UI
@@ -1863,6 +1913,8 @@ const GameBoard = {
           </div>
         `;
       }
+
+      verdictBox.style.display = this.rouletteRolled ? 'block' : 'none';
     }
 
     const survList = document.getElementById('results-survivors-list');
