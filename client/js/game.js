@@ -178,57 +178,24 @@ const GameBoard = {
       });
     }
 
+    const btnCancelEvalFooter = document.getElementById('btn-cancel-eval-footer');
+    if (btnCancelEvalFooter) {
+      btnCancelEvalFooter.addEventListener('click', () => {
+        document.getElementById('modal-evaluation').classList.add('hidden');
+      });
+    }
+
     const btnSubmitEval = document.getElementById('btn-submit-final-evaluation');
     if (btnSubmitEval) {
-      btnSubmitEval.addEventListener('click', async () => {
-        const supplies = document.querySelector('input[name="eval-supplies"]:checked')?.value || '3';
-        const medicine = document.querySelector('input[name="eval-medicine"]:checked')?.value || '3';
-        const specialists = document.querySelector('input[name="eval-specialists"]:checked')?.value || '3';
-        const defense = document.querySelector('input[name="eval-defense"]:checked')?.value || '3';
-        const psychology = document.querySelector('input[name="eval-psychology"]:checked')?.value || '3';
+      btnSubmitEval.addEventListener('click', () => {
+        this.submitFinalEvaluation();
+      });
+    }
 
-        const answers = {};
-        document.querySelectorAll('.eval-question-block').forEach((block, idx) => {
-          const qId = block.getAttribute('data-qid') || `q_${idx}`;
-          const checked = block.querySelector('input[type="radio"]:checked');
-          if (checked) {
-            answers[qId] = checked.value;
-          }
-        });
-
-        const disasterCondition = document.querySelector('input[name="eval-disaster-condition"]:checked')?.value || 'ok';
-
-        const bunkerStatuses = [];
-        (App.state && App.state.revealedBunkerCards || []).forEach((_, idx) => {
-          const val = document.querySelector(`input[name="eval-bunker-${idx}"]:checked`)?.value || 'ok';
-          bunkerStatuses.push(val);
-        });
-
-        const threatStatuses = [];
-        (App.state && App.state.revealedThreatCards || []).forEach((_, idx) => {
-          const val = document.querySelector(`input[name="eval-threat-${idx}"]:checked`)?.value || 'resolved';
-          threatStatuses.push(val);
-        });
-
-        try {
-          await App.sendAction('submit_evaluation', {
-            evaluation: {
-              supplies,
-              medicine,
-              specialists,
-              defense,
-              psychology,
-              answers,
-              disasterCondition,
-              bunkerStatuses,
-              threatStatuses
-            }
-          });
-          document.getElementById('modal-evaluation').classList.add('hidden');
-          App.playSound('start');
-        } catch (e) {
-          App.showToast(`Ошибка: ${e.message}`);
-        }
+    const btnSubmitEvalInline = document.getElementById('btn-submit-final-evaluation-inline');
+    if (btnSubmitEvalInline) {
+      btnSubmitEvalInline.addEventListener('click', () => {
+        this.submitFinalEvaluation();
       });
     }
 
@@ -531,6 +498,151 @@ const GameBoard = {
     App.playSound('click');
   },
 
+  renderEvaluationQuestions() {
+    const container = document.getElementById('eval-questions-container');
+    if (!container) return;
+
+    const state = App.state || {};
+    const res = state.finalTeamResources || state.teamResources || {};
+
+    let questions = null;
+    if (state.evaluationConfig && Array.isArray(state.evaluationConfig.questions) && state.evaluationConfig.questions.length > 0) {
+      questions = state.evaluationConfig.questions;
+    } else if (typeof DeckEditor !== 'undefined' && Array.isArray(DeckEditor.DEFAULT_EVALUATION_QUESTIONS)) {
+      questions = DeckEditor.DEFAULT_EVALUATION_QUESTIONS;
+    }
+
+    if (questions && questions.length > 0) {
+      let qHtml = `
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+          Мастер отвечает на вопросы анкеты (${questions.length} шт.), оценивая готовность команды:
+        </p>
+      `;
+
+      questions.forEach((q, idx) => {
+        let resBadge = '';
+        if (q.linkedResource && q.linkedResource !== 'none') {
+          const def = (typeof TagHelper !== 'undefined') ? TagHelper.PARAM_DEFINITIONS[q.linkedResource] : null;
+          const val = res[q.linkedResource] || 0;
+          if (def) {
+            resBadge = `<span class="card-tag-chip" style="color: ${def.color}; background: ${def.bg}; border: 1px solid ${def.color}40; font-size: 11px;">${def.icon} ${def.name}: +${val}</span>`;
+          }
+        }
+
+        const isStandard = q.id && ['supplies', 'medicine', 'specialists', 'defense', 'psychology'].includes(q.id);
+        const radioName = isStandard ? `eval-${q.id}` : `eval-custom-q-${idx}`;
+
+        const optsHtml = (q.options || []).map((opt, oIdx) => `
+          <label class="eval-opt">
+            <input type="radio" name="${radioName}" value="${opt.score}" ${oIdx === Math.min(2, (q.options.length - 1)) ? 'checked' : ''}>
+            <span>${opt.label}</span>
+          </label>
+        `).join('');
+
+        qHtml += `
+          <div class="eval-question-block" data-qid="${q.id || `q_${idx}`}">
+            <div class="eval-q-header">
+              <label class="eval-q-title">${q.title}</label>
+              <div class="eval-q-res-chip">${resBadge}</div>
+            </div>
+            <div class="eval-options-grid">${optsHtml}</div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = qHtml;
+    } else {
+      // 1. Per-Question Matching Resource Badges for standard questions
+      const q1 = document.getElementById('eval-q-res-1');
+      if (q1) q1.innerHTML = `<span class="card-tag-chip" style="color: #f59e0b; background: rgba(245,158,11,0.12); border: 1px solid #f59e0b40; font-size: 11px;">🍞 Провизия команды: +${res.food || 0}</span>`;
+
+      const q2 = document.getElementById('eval-q-res-2');
+      if (q2) q2.innerHTML = `<span class="card-tag-chip" style="color: #10b981; background: rgba(16,185,129,0.12); border: 1px solid #10b98140; font-size: 11px;">💊 Медицина команды: +${res.medicine || 0}</span>`;
+
+      const q3 = document.getElementById('eval-q-res-3');
+      if (q3) q3.innerHTML = `
+        <span class="card-tag-chip" style="color: #6366f1; background: rgba(99,102,241,0.12); border: 1px solid #6366f140; font-size: 11px;">⚙️ Инженерия: +${res.engineering || 0}</span>
+        <span class="card-tag-chip" style="color: #06b6d4; background: rgba(6,182,212,0.12); border: 1px solid #06b6d440; font-size: 11px;">🔬 Наука: +${res.science || 0}</span>
+      `;
+
+      const q4 = document.getElementById('eval-q-res-4');
+      if (q4) q4.innerHTML = `
+        <span class="card-tag-chip" style="color: #ef4444; background: rgba(239,68,68,0.12); border: 1px solid #ef444440; font-size: 11px;">🧯 Пожаротушение: +${res.fire || 0}</span>
+        <span class="card-tag-chip" style="color: #3b82f6; background: rgba(59,130,246,0.12); border: 1px solid #3b82f640; font-size: 11px;">🛡️ Оборона/Защита: +${res.defense || 0}</span>
+      `;
+
+      const q5 = document.getElementById('eval-q-res-5');
+      if (q5) q5.innerHTML = `<span class="card-tag-chip" style="color: #a855f7; background: rgba(168,85,247,0.12); border: 1px solid #a855f740; font-size: 11px;">🧠 Психика и сон: +${res.psycho || 0}</span>`;
+    }
+  },
+
+  async submitFinalEvaluation() {
+    const answers = {};
+    document.querySelectorAll('.eval-question-block').forEach((block, idx) => {
+      const qId = block.getAttribute('data-qid') || `q_${idx}`;
+      const checked = block.querySelector('input[type="radio"]:checked');
+      if (checked) {
+        answers[qId] = checked.value;
+      }
+    });
+
+    const supplies = answers['supplies'] || document.querySelector('input[name="eval-supplies"]:checked')?.value || '3';
+    const medicine = answers['medicine'] || document.querySelector('input[name="eval-medicine"]:checked')?.value || '3';
+    const specialists = answers['specialists'] || document.querySelector('input[name="eval-specialists"]:checked')?.value || '3';
+    const defense = answers['defense'] || document.querySelector('input[name="eval-defense"]:checked')?.value || '3';
+    const psychology = answers['psychology'] || document.querySelector('input[name="eval-psychology"]:checked')?.value || '3';
+
+    const disasterCondition = document.querySelector('input[name="eval-disaster-condition"]:checked')?.value || 'ok';
+
+    const bunkerStatuses = [];
+    (App.state && App.state.revealedBunkerCards || []).forEach((_, idx) => {
+      const val = document.querySelector(`input[name="eval-bunker-${idx}"]:checked`)?.value || 'ok';
+      bunkerStatuses.push(val);
+    });
+
+    const threatStatuses = [];
+    (App.state && App.state.revealedThreatCards || []).forEach((_, idx) => {
+      const val = document.querySelector(`input[name="eval-threat-${idx}"]:checked`)?.value || 'resolved';
+      threatStatuses.push(val);
+    });
+
+    const submitBtns = [
+      document.getElementById('btn-submit-final-evaluation'),
+      document.getElementById('btn-submit-final-evaluation-inline')
+    ].filter(Boolean);
+
+    try {
+      submitBtns.forEach(b => {
+        b.disabled = true;
+        b.dataset.prevText = b.textContent;
+        b.textContent = '⏳ Идет расчет выживания...';
+      });
+
+      await App.sendAction('submit_evaluation', {
+        evaluation: {
+          supplies,
+          medicine,
+          specialists,
+          defense,
+          psychology,
+          answers,
+          disasterCondition,
+          bunkerStatuses,
+          threatStatuses
+        }
+      });
+      document.getElementById('modal-evaluation').classList.add('hidden');
+      App.playSound('start');
+    } catch (e) {
+      App.showToast(`Ошибка: ${e.message}`);
+    } finally {
+      submitBtns.forEach(b => {
+        b.disabled = false;
+        b.textContent = b.dataset.prevText || '🏆 РАССЧИТАТЬ ВЫЖИВАНИЕ БУНКЕРА';
+      });
+    }
+  },
+
   openEvaluationModal() {
     const modal = document.getElementById('modal-evaluation');
     if (!modal) return;
@@ -563,68 +675,8 @@ const GameBoard = {
       }
     }
 
-    // Resources to display: prefer finalTeamResources (all cards of survivors) or live teamResources
-    const res = state.finalTeamResources || state.teamResources || {};
-
-    const questionsCol = document.querySelector('.eval-questions-col');
-    if (questionsCol && state.evaluationConfig && Array.isArray(state.evaluationConfig.questions) && state.evaluationConfig.questions.length > 0) {
-      const questions = state.evaluationConfig.questions;
-      let qHtml = `
-        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
-          Мастер отвечает на вопросы анкеты набора (${questions.length} шт.), оценивая готовность команды:
-        </p>
-      `;
-      questions.forEach((q, idx) => {
-        let resBadge = '';
-        if (q.linkedResource && q.linkedResource !== 'none') {
-          const def = (typeof TagHelper !== 'undefined') ? TagHelper.PARAM_DEFINITIONS[q.linkedResource] : null;
-          const val = res[q.linkedResource] || 0;
-          if (def) {
-            resBadge = `<span class="card-tag-chip" style="color: ${def.color}; background: ${def.bg}; border: 1px solid ${def.color}40; font-size: 11px;">${def.icon} ${def.name}: +${val}</span>`;
-          }
-        }
-
-        const optsHtml = (q.options || []).map((opt, oIdx) => `
-          <label class="eval-opt">
-            <input type="radio" name="eval-custom-q-${idx}" value="${opt.score}" ${oIdx === Math.min(2, (q.options.length - 1)) ? 'checked' : ''}>
-            <span>${opt.label}</span>
-          </label>
-        `).join('');
-
-        qHtml += `
-          <div class="eval-question-block" data-qid="${q.id}">
-            <div class="eval-q-header">
-              <label class="eval-q-title">${q.title}</label>
-              <div class="eval-q-res-chip">${resBadge}</div>
-            </div>
-            <div class="eval-options-grid">${optsHtml}</div>
-          </div>
-        `;
-      });
-      questionsCol.innerHTML = qHtml;
-    } else {
-      // 1. Per-Question Matching Resource Badges for standard questions
-      const q1 = document.getElementById('eval-q-res-1');
-      if (q1) q1.innerHTML = `<span class="card-tag-chip" style="color: #f59e0b; background: rgba(245,158,11,0.12); border: 1px solid #f59e0b40; font-size: 11px;">🍞 Провизия команды: +${res.food || 0}</span>`;
-
-      const q2 = document.getElementById('eval-q-res-2');
-      if (q2) q2.innerHTML = `<span class="card-tag-chip" style="color: #10b981; background: rgba(16,185,129,0.12); border: 1px solid #10b98140; font-size: 11px;">💊 Медицина команды: +${res.medicine || 0}</span>`;
-
-      const q3 = document.getElementById('eval-q-res-3');
-      if (q3) q3.innerHTML = `
-        <span class="card-tag-chip" style="color: #6366f1; background: rgba(99,102,241,0.12); border: 1px solid #6366f140; font-size: 11px;">⚙️ Инженерия: +${res.engineering || 0}</span>
-        <span class="card-tag-chip" style="color: #06b6d4; background: rgba(6,182,212,0.12); border: 1px solid #06b6d440; font-size: 11px;">🔬 Наука: +${res.science || 0}</span>
-      `;
-
-      const q4 = document.getElementById('eval-q-res-4');
-      if (q4) q4.innerHTML = `
-        <span class="card-tag-chip" style="color: #ef4444; background: rgba(239,68,68,0.12); border: 1px solid #ef444440; font-size: 11px;">🧯 Пожаротушение: +${res.fire || 0}</span>
-        <span class="card-tag-chip" style="color: #3b82f6; background: rgba(59,130,246,0.12); border: 1px solid #3b82f640; font-size: 11px;">🛡️ Оборона/Защита: +${res.defense || 0}</span>
-      `;
-
-      const q5 = document.getElementById('eval-q-res-5');
-      if (q5) q5.innerHTML = `<span class="card-tag-chip" style="color: #a855f7; background: rgba(168,85,247,0.12); border: 1px solid #a855f740; font-size: 11px;">🧠 Психика и сон: +${res.psycho || 0}</span>`;
-    }
+    // Render questions into container (submit buttons remain intact and never overwritten)
+    this.renderEvaluationQuestions();
 
     // 2. Right Reference Column: Catastrophe
     const disTitle = document.getElementById('eval-ref-disaster-title');

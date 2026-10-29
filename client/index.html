@@ -1252,96 +1252,111 @@
 
     <!-- 4. MODAL: MASTER SURVIVAL EVALUATION (АНКЕТА ОЦЕНКИ ВЫЖИВАЕМОСТИ) -->
     <div id="modal-evaluation" class="modal-backdrop hidden">
-      <div class="modal-card modal-eval-card" style="max-width: 960px; width: 95vw; max-height: 92vh; overflow-y: auto;">
+      <div class="modal-card modal-eval-card">
         <div class="modal-header">
-          <h3>📋 Оценка выживаемости бункера (Анкета Мастера)</h3>
-          <button id="btn-close-eval-modal" class="btn-icon">✕</button>
+          <div class="eval-modal-header-info">
+            <span class="eval-header-icon">📋</span>
+            <div>
+              <h3 style="margin: 0; font-size: 17px;">Оценка выживаемости бункера (Анкета Мастера)</h3>
+              <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">
+                Оцените готовность команды и подтвердите финал игры
+              </div>
+            </div>
+          </div>
+          <button id="btn-close-eval-modal" class="btn-icon" title="Закрыть">✕</button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body eval-modal-scrollable-body">
           <div class="eval-layout-grid">
             
-            <!-- LEFT COLUMN: 5 QUESTIONS -->
+            <!-- LEFT COLUMN: QUESTIONS -->
             <div class="eval-questions-col">
-              <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
-                Мастер отвечает на 5 вопросов, оценивая готовность команды к выживанию:
-              </p>
+              <div id="eval-questions-container">
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">
+                  Мастер отвечает на 5 вопросов, оценивая готовность команды к выживанию:
+                </p>
 
-              <!-- QUESTION 1: SUPPLIES -->
-              <div class="eval-question-block">
-                <div class="eval-q-header">
-                  <label class="eval-q-title">1. Припасы и чистая вода:</label>
-                  <div class="eval-q-res-chip" id="eval-q-res-1"></div>
+                <!-- QUESTION 1: SUPPLIES -->
+                <div class="eval-question-block" data-qid="supplies">
+                  <div class="eval-q-header">
+                    <label class="eval-q-title">1. Припасы и чистая вода:</label>
+                    <div class="eval-q-res-chip" id="eval-q-res-1"></div>
+                  </div>
+                  <div class="eval-options-grid">
+                    <label class="eval-opt"><input type="radio" name="eval-supplies" value="1"> <span>1 — Припасов нет (голод и жажда)</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-supplies" value="2"> <span>2 — Не хватает на всех (острый дефицит)</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-supplies" value="3" checked> <span>3 — Хватает, если строго экономить</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-supplies" value="4"> <span>4 — В достатке на весь срок изоляции</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-supplies" value="5"> <span>5 — Больше, чем нужно (полные склады)</span></label>
+                  </div>
                 </div>
-                <div class="eval-options-grid">
-                  <label class="eval-opt"><input type="radio" name="eval-supplies" value="1"> <span>1 — Припасов нет (голод и жажда)</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-supplies" value="2"> <span>2 — Не хватает на всех (острый дефицит)</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-supplies" value="3" checked> <span>3 — Хватает, если строго экономить</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-supplies" value="4"> <span>4 — В достатке на весь срок изоляции</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-supplies" value="5"> <span>5 — Больше, чем нужно (полные склады)</span></label>
+
+                <!-- QUESTION 2: MEDICINE -->
+                <div class="eval-question-block" data-qid="medicine">
+                  <div class="eval-q-header">
+                    <label class="eval-q-title">2. Медицинское обеспечение и здоровье:</label>
+                    <div class="eval-q-res-chip" id="eval-q-res-2"></div>
+                  </div>
+                  <div class="eval-options-grid">
+                    <label class="eval-opt"><input type="radio" name="eval-medicine" value="1"> <span>1 — Тяжелые больные, лекарств нет</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-medicine" value="2"> <span>2 — Медикаментов мало, уход затруднен</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-medicine" value="3" checked> <span>3 — Базовые аптечки есть, среднее здоровье</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-medicine" value="4"> <span>4 — Хорошее здоровье, есть врач/лекарства</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-medicine" value="5"> <span>5 — Полный медблок и идеальное здоровье</span></label>
+                  </div>
+                </div>
+
+                <!-- QUESTION 3: SPECIALISTS -->
+                <div class="eval-question-block" data-qid="specialists">
+                  <div class="eval-q-header">
+                    <label class="eval-q-title">3. Специалисты и навыки для восстановления мира:</label>
+                    <div class="eval-q-res-chip" id="eval-q-res-3"></div>
+                  </div>
+                  <div class="eval-options-grid">
+                    <label class="eval-opt"><input type="radio" name="eval-specialists" value="1"> <span>1 — Нет нужных специалистов для катастрофы</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-specialists" value="2"> <span>2 — Навыки слабые, поддерживать бункер некому</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-specialists" value="3" checked> <span>3 — Есть базовые руки (механик/агроном/рабочий)</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-specialists" value="4"> <span>4 — Отличный баланс профессий под бункер</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-specialists" value="5"> <span>5 — Идеальный состав ученых, врачей и техников</span></label>
+                  </div>
+                </div>
+
+                <!-- QUESTION 4: DEFENSE & THREATS -->
+                <div class="eval-question-block" data-qid="defense">
+                  <div class="eval-q-header">
+                    <label class="eval-q-title">4. Защита бункера и нейтрализация угроз:</label>
+                    <div class="eval-q-res-chip" id="eval-q-res-4"></div>
+                  </div>
+                  <div class="eval-options-grid">
+                    <label class="eval-opt"><input type="radio" name="eval-defense" value="1"> <span>1 — Бункер беззащитен, угрозы смертельны</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-defense" value="2"> <span>2 — Защита слабая, высокий риск прорыва</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-defense" value="3" checked> <span>3 — Оборона достаточна при осторожности</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-defense" value="4"> <span>4 — Надежные укрепления, угрозы решены</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-defense" value="5"> <span>5 — Абсолютная неприступность и безопасность</span></label>
+                  </div>
+                </div>
+
+                <!-- QUESTION 5: PSYCHOLOGY -->
+                <div class="eval-question-block" data-qid="psychology">
+                  <div class="eval-q-header">
+                    <label class="eval-q-title">5. Психологический климат и сплоченность:</label>
+                    <div class="eval-q-res-chip" id="eval-q-res-5"></div>
+                  </div>
+                  <div class="eval-options-grid">
+                    <label class="eval-opt"><input type="radio" name="eval-psychology" value="1"> <span>1 — Ненависть, драки и безумие взаперти</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-psychology" value="2"> <span>2 — Атмосфера взаимного недоверия</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-psychology" value="3" checked> <span>3 — Споры бывают, но держат себя в руках</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-psychology" value="4"> <span>4 — Сплоченная команда с высоким боевым духом</span></label>
+                    <label class="eval-opt"><input type="radio" name="eval-psychology" value="5"> <span>5 — Полное доверие, единство и взаимовыручка</span></label>
+                  </div>
                 </div>
               </div>
 
-              <!-- QUESTION 2: MEDICINE -->
-              <div class="eval-question-block">
-                <div class="eval-q-header">
-                  <label class="eval-q-title">2. Медицинское обеспечение и здоровье:</label>
-                  <div class="eval-q-res-chip" id="eval-q-res-2"></div>
-                </div>
-                <div class="eval-options-grid">
-                  <label class="eval-opt"><input type="radio" name="eval-medicine" value="1"> <span>1 — Тяжелые больные, лекарств нет</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-medicine" value="2"> <span>2 — Медикаментов мало, уход затруднен</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-medicine" value="3" checked> <span>3 — Базовые аптечки есть, среднее здоровье</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-medicine" value="4"> <span>4 — Хорошее здоровье, есть врач/лекарства</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-medicine" value="5"> <span>5 — Полный медблок и идеальное здоровье</span></label>
-                </div>
+              <!-- INLINE SUBMIT BUTTON AT BOTTOM OF QUESTIONS -->
+              <div class="eval-inline-submit-wrap" style="margin-top: 16px;">
+                <button type="button" id="btn-submit-final-evaluation-inline" class="btn btn-success btn-lg btn-block eval-submit-btn">
+                  🏆 РАССЧИТАТЬ ВЫЖИВАНИЕ БУНКЕРА
+                </button>
               </div>
-
-              <!-- QUESTION 3: SPECIALISTS -->
-              <div class="eval-question-block">
-                <div class="eval-q-header">
-                  <label class="eval-q-title">3. Специалисты и навыки для восстановления мира:</label>
-                  <div class="eval-q-res-chip" id="eval-q-res-3"></div>
-                </div>
-                <div class="eval-options-grid">
-                  <label class="eval-opt"><input type="radio" name="eval-specialists" value="1"> <span>1 — Нет нужных специалистов для катастрофы</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-specialists" value="2"> <span>2 — Навыки слабые, поддерживать бункер некому</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-specialists" value="3" checked> <span>3 — Есть базовые руки (механик/агроном/рабочий)</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-specialists" value="4"> <span>4 — Отличный баланс профессий под бункер</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-specialists" value="5"> <span>5 — Идеальный состав ученых, врачей и техников</span></label>
-                </div>
-              </div>
-
-              <!-- QUESTION 4: DEFENSE & THREATS -->
-              <div class="eval-question-block">
-                <div class="eval-q-header">
-                  <label class="eval-q-title">4. Защита бункера и нейтрализация угроз:</label>
-                  <div class="eval-q-res-chip" id="eval-q-res-4"></div>
-                </div>
-                <div class="eval-options-grid">
-                  <label class="eval-opt"><input type="radio" name="eval-defense" value="1"> <span>1 — Бункер беззащитен, угрозы смертельны</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-defense" value="2"> <span>2 — Защита слабая, высокий риск прорыва</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-defense" value="3" checked> <span>3 — Оборона достаточна при осторожности</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-defense" value="4"> <span>4 — Надежные укрепления, угрозы решены</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-defense" value="5"> <span>5 — Абсолютная неприступность и безопасность</span></label>
-                </div>
-              </div>
-
-              <!-- QUESTION 5: PSYCHOLOGY -->
-              <div class="eval-question-block">
-                <div class="eval-q-header">
-                  <label class="eval-q-title">5. Психологический климат и сплоченность:</label>
-                  <div class="eval-q-res-chip" id="eval-q-res-5"></div>
-                </div>
-                <div class="eval-options-grid">
-                  <label class="eval-opt"><input type="radio" name="eval-psychology" value="1"> <span>1 — Ненависть, драки и безумие взаперти</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-psychology" value="2"> <span>2 — Атмосфера взаимного недоверия</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-psychology" value="3" checked> <span>3 — Споры бывают, но держат себя в руках</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-psychology" value="4"> <span>4 — Сплоченная команда с высоким боевым духом</span></label>
-                  <label class="eval-opt"><input type="radio" name="eval-psychology" value="5"> <span>5 — Полное доверие, единство и взаимовыручка</span></label>
-                </div>
-              </div>
-
-              <button id="btn-submit-final-evaluation" class="btn btn-success btn-lg btn-block" style="margin-top: 14px;">🏆 РАССЧИТАТЬ ВЫЖИВАНИЕ БУНКЕРА</button>
             </div>
 
             <!-- RIGHT COLUMN: REFERENCE (DISASTER, BUNKER CARDS, THREATS, CAPACITY, RESOURCES) -->
@@ -1399,6 +1414,19 @@
               </div>
             </div>
 
+          </div>
+        </div>
+
+        <!-- STICKY MODAL FOOTER: ALWAYS VISIBLE AND PROMINENT -->
+        <div class="eval-modal-footer">
+          <div class="eval-modal-footer-left">
+            <button type="button" id="btn-cancel-eval-footer" class="btn btn-outline">✕ Закрыть анкету</button>
+            <span class="text-dim eval-footer-hint" style="font-size: 12px;">Мастер оценивает шансы команды и утверждает финал</span>
+          </div>
+          <div class="eval-modal-footer-right">
+            <button type="button" id="btn-submit-final-evaluation" class="btn btn-success btn-lg eval-submit-btn">
+              🏆 РАССЧИТАТЬ ВЫЖИВАНИЕ БУНКЕРА
+            </button>
           </div>
         </div>
       </div>
