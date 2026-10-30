@@ -162,6 +162,7 @@ const App = {
 
     this.bindGlobalEvents();
     this.setupAuthTabs();
+    this.initChat();
 
     if (this.playerName) {
       const nameInput = document.getElementById('input-player-name');
@@ -346,6 +347,17 @@ const App = {
       } else {
         btnBack.classList.add('hidden');
         btnBack.style.display = 'none';
+      }
+    }
+
+    // Bunker Chat Widget Visibility (open/available in lobby, game, ugc, results)
+    const chatWidget = document.getElementById('bunker-chat-widget');
+    if (chatWidget) {
+      const inRoom = Boolean(this.playerId) && (screenId === 'screen-lobby' || screenId === 'screen-game' || screenId === 'screen-ugc' || screenId === 'screen-results');
+      if (inRoom) {
+        chatWidget.classList.remove('hidden');
+      } else {
+        chatWidget.classList.add('hidden');
       }
     }
   },
@@ -830,6 +842,114 @@ const App = {
           </div>
         `).join('');
       }
+
+      const panelLogsList = document.getElementById('chat-panel-logs-list');
+      if (panelLogsList) {
+        panelLogsList.innerHTML = state.logs.length > 0 ? state.logs.map(log => `
+          <div class="chat-log-item">
+            <span class="chat-log-time">${log.time}</span>
+            <span class="chat-log-text">${log.text}</span>
+          </div>
+        `).join('') : '<div class="chat-empty-hint">Событий пока нет</div>';
+      }
+    }
+
+    // Bunker Chat messages
+    if (state.chat) {
+      this.renderChat(state.chat);
+    }
+  },
+
+  // --- BUNKER CHAT LOGIC ---
+  initChat() {
+    const chatWidget = document.getElementById('bunker-chat-widget');
+    if (!chatWidget) return;
+
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const btnToggle = document.getElementById('btn-chat-toggle-collapse');
+    const tabChat = document.getElementById('tab-btn-chat');
+    const tabLogs = document.getElementById('tab-btn-logs');
+    const viewChat = document.getElementById('chat-messages-container');
+    const viewLogs = document.getElementById('chat-logs-container');
+
+    if (chatForm && chatInput) {
+      chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const text = chatInput.value.trim();
+        if (!text) return;
+        chatInput.value = '';
+        try {
+          await this.sendAction('send_chat', { text });
+        } catch (err) {
+          console.warn('Ошибка отправки сообщения:', err);
+        }
+      });
+    }
+
+    if (btnToggle) {
+      btnToggle.addEventListener('click', () => {
+        chatWidget.classList.toggle('collapsed');
+        const isCollapsed = chatWidget.classList.contains('collapsed');
+        btnToggle.textContent = isCollapsed ? '▢' : '−';
+        btnToggle.title = isCollapsed ? 'Развернуть чат' : 'Свернуть чат';
+      });
+    }
+
+    if (tabChat && tabLogs && viewChat && viewLogs) {
+      tabChat.addEventListener('click', () => {
+        tabChat.classList.add('active');
+        tabLogs.classList.remove('active');
+        viewChat.classList.add('active');
+        viewLogs.classList.remove('active');
+      });
+      tabLogs.addEventListener('click', () => {
+        tabLogs.classList.add('active');
+        tabChat.classList.remove('active');
+        viewLogs.classList.add('active');
+        viewChat.classList.remove('active');
+      });
+    }
+  },
+
+  renderChat(messages) {
+    const list = document.getElementById('chat-messages-list');
+    if (!list) return;
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      list.innerHTML = '<div class="chat-empty-hint">Напишите первое сообщение в бункер...</div>';
+      this.lastChatCount = 0;
+      return;
+    }
+
+    const previousCount = this.lastChatCount || 0;
+    const isNewMessage = messages.length > previousCount;
+    this.lastChatCount = messages.length;
+
+    const isNearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 90;
+
+    list.innerHTML = messages.map(msg => {
+      const isMe = msg.playerId === this.playerId;
+      const hostBadge = msg.isHost ? '<span class="chat-host-crown" title="Мастер бункера">👑</span>' : '';
+      return `
+        <div class="chat-bubble ${isMe ? 'chat-me' : 'chat-other'} ${msg.isHost ? 'chat-host' : ''}">
+          <div class="chat-bubble-header">
+            <span class="chat-sender-name">${hostBadge} ${msg.sender}</span>
+            <span class="chat-timestamp">${msg.time}</span>
+          </div>
+          <div class="chat-bubble-text">${msg.text}</div>
+        </div>
+      `;
+    }).join('');
+
+    if (isNewMessage) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg && lastMsg.playerId !== this.playerId) {
+        this.playSound('roulette_tick');
+      }
+      list.scrollTop = list.scrollHeight;
+    } else if (isNearBottom) {
+      list.scrollTop = list.scrollHeight;
     }
   },
 

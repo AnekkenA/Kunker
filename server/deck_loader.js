@@ -3,6 +3,17 @@ const path = require('path');
 
 const DECKS_DIR = path.join(__dirname, '..', 'decks');
 
+// Standard built-in decks that are permanent and must never be deleted
+const BUILTIN_DECK_IDS = new Set([
+  'classic',
+  'magic',
+  'space_colony',
+  'stalker_zone',
+  'steampunk',
+  'techno',
+  'zombie_apocalypse'
+]);
+
 class DeckLoader {
   constructor() {
     this.decks = new Map();
@@ -21,6 +32,9 @@ class DeckLoader {
         const filePath = path.join(DECKS_DIR, file);
         const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
         if (data && data.id) {
+          const isBuiltin = BUILTIN_DECK_IDS.has(data.id);
+          data.isBuiltin = isBuiltin;
+          data.isCustom = !isBuiltin;
           this.decks.set(data.id, data);
         }
       } catch (err) {
@@ -32,10 +46,13 @@ class DeckLoader {
   getDeckList() {
     const list = [];
     for (const [id, deck] of this.decks.entries()) {
+      const isBuiltin = BUILTIN_DECK_IDS.has(id);
       list.push({
         id: deck.id,
         name: deck.name || id,
         description: deck.description || '',
+        isBuiltin,
+        isCustom: !isBuiltin,
         counts: {
           disasters: (deck.disasters || []).length,
           bunker: ((deck.bunker || []).length || (deck.conditions || []).filter(c => !(c.title || '').includes('угроз') && !(c.title || '').includes('Угроз')).length),
@@ -66,6 +83,12 @@ class DeckLoader {
     }
     const safeId = deckData.id.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
     deckData.id = safeId;
+    const isBuiltin = BUILTIN_DECK_IDS.has(safeId);
+    deckData.isBuiltin = isBuiltin;
+    deckData.isCustom = !isBuiltin;
+    if (!isBuiltin) {
+      deckData.createdAt = Date.now();
+    }
     const filePath = path.join(DECKS_DIR, `${safeId}.json`);
     fs.writeFileSync(filePath, JSON.stringify(deckData, null, 2), 'utf-8');
     this.decks.set(safeId, deckData);
@@ -73,12 +96,35 @@ class DeckLoader {
   }
 
   deleteDeck(id) {
+    if (BUILTIN_DECK_IDS.has(id)) {
+      throw new Error('Встроенные стандартные колоды нельзя удалять.');
+    }
     const filePath = path.join(DECKS_DIR, `${id}.json`);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
     this.decks.delete(id);
   }
+
+  // Cleanup custom uploaded/UGC decks not in active use by any room
+  cleanupCustomDecks(activeDeckIdsSet = new Set()) {
+    for (const [id, deck] of this.decks.entries()) {
+      if (BUILTIN_DECK_IDS.has(id)) continue; // Never remove default 7 themes
+      if (activeDeckIdsSet && activeDeckIdsSet.has(id)) continue; // In active use by an ongoing game room
+
+      const filePath = path.join(DECKS_DIR, `${id}.json`);
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+          console.log(`[DECKS] Временная пользовательская тема удалена: ${id}.json`);
+        } catch (e) {
+          console.warn(`Не удалось удалить файл ${id}.json:`, e.message);
+        }
+      }
+      this.decks.delete(id);
+    }
+  }
 }
 
 module.exports = new DeckLoader();
+module.exports.BUILTIN_DECK_IDS = BUILTIN_DECK_IDS;

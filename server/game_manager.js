@@ -155,6 +155,10 @@ class SingleGame {
     this.emptySince = null;
   }
 
+  touch() {
+    this.touchActivity();
+  }
+
   broadcast() {
     this.touchActivity();
     this.notifyBroadcast();
@@ -217,6 +221,7 @@ class SingleGame {
     this.results = null;
     this.players = new Map();
     this.logs = [];
+    this.chatMessages = [];
 
     // Theme Background & Card Back custom images & Author
     this.backgroundImage = null;
@@ -425,6 +430,48 @@ class SingleGame {
     const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
     this.logs.unshift({ time, text });
     if (this.logs.length > 60) this.logs.pop();
+  }
+
+  addChatMessage(playerId, text) {
+    if (!text || typeof text !== 'string') return;
+    const cleanText = text.trim().substring(0, 300);
+    if (!cleanText) return;
+
+    let senderName = 'Выживший';
+    let isHost = false;
+    if (playerId && this.players.has(playerId)) {
+      const p = this.players.get(playerId);
+      senderName = p.name;
+      isHost = Boolean(p.isHost);
+    }
+
+    // Sanitize HTML
+    const sanitized = cleanText
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+    const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    const msg = {
+      id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      playerId,
+      sender: senderName,
+      isHost,
+      text: sanitized,
+      time
+    };
+
+    if (!Array.isArray(this.chatMessages)) {
+      this.chatMessages = [];
+    }
+    this.chatMessages.push(msg);
+    if (this.chatMessages.length > 100) {
+      this.chatMessages.shift();
+    }
+
+    this.touch();
+    return msg;
   }
 
   checkPassword(enteredPassword) {
@@ -1829,6 +1876,7 @@ class SingleGame {
         p.cards[cat.key] = { text: '', revealed: false };
       });
     });
+    this.logs = [];
     this.addLog('🔄 Мастер вернул игру в лобби.');
   }
 
@@ -1958,6 +2006,7 @@ class SingleGame {
       customTags: this.customTags || [],
       evaluationConfig: this.evaluationConfig || null,
       logs: this.logs.slice(0, 35),
+      chat: (this.chatMessages || []).slice(-60),
       roomId: this.roomId,
       roomsInfo: {
         activeCount: (typeof roomManager !== 'undefined' && roomManager) ? roomManager.rooms.size : 1,
@@ -1973,13 +2022,23 @@ class RoomManager {
     this.rooms = new Map();
     this.defaultRoomId = '101';
     this.maxRooms = 4; // Strict cap of 4 rooms maximum
-    this.idleLimitMs = 5 * 60 * 1000; // 5 minutes inactivity timeout
+    this.idleLimitMs = 30 * 60 * 1000; // 30 minutes inactivity timeout (extended so players can discuss & argue freely)
     this.onRoomCreated = null;
 
     // Periodically clean up idle rooms (every 10 seconds)
     setInterval(() => {
       this.cleanupIdleRooms();
     }, 10000);
+  }
+
+  getActiveDeckIds() {
+    const activeSet = new Set();
+    for (const room of this.rooms.values()) {
+      if (Array.isArray(room.selectedDecks)) {
+        room.selectedDecks.forEach(d => activeSet.add(d));
+      }
+    }
+    return activeSet;
   }
 
   generateRoomCode() {
@@ -2005,17 +2064,43 @@ class RoomManager {
       const noConnected = room.players.size === 0 || Array.from(room.players.values()).every(p => !p.connected);
       const timeSinceEmpty = room.emptySince ? (now - room.emptySince) : (noConnected ? timeSinceActivity : 0);
 
-      // Close if room has had no activity for 5 minutes (300 seconds)
-      // OR if room has been completely empty/disconnected for 2 minutes
-      if (timeSinceActivity >= this.idleLimitMs || (noConnected && timeSinceEmpty >= 2 * 60 * 1000)) {
-        this.closeRoom(id, 'Бункер был закрыт из-за отсутствия активности в течение 5 минут.');
+      // 1. If room has had 0 connected players for 10 minutes: close and erase in-memory history
+      if (noConnected && timeSinceEmpty >= 10 * 60 * 1000) {
+        room.chatMessages = [];
+        room.logs = [];
+        room.results = null;
+        this.closeRoom(id, 'Бункер был закрыт из-за отсутствия подключенных игроков более 10 минут.');
+        continue;
+      }
+
+      // 2. If room has active players:
+      // While game is playing or cards are being crafted, players often spend 15-30 minutes talking/arguing.
+      // Give 45 minutes of timeout during gameplay, and 30 minutes in lobby.
+      const allowedIdle = (room.status === 'playing' || room.status === 'ugc_building')
+        ? (45 * 60 * 1000)
+        : this.idleLimitMs;
+
+      if (timeSinceActivity >= allowedIdle) {
+        this.closeRoom(id, `Бункер был закрыт из-за отсутствия активности в течение ${Math.round(allowedIdle / 60000)} минут.`);
       }
     }
+
+    // Clean up any ephemeral custom decks that are no longer used by any active room
+    try {
+      if (typeof deckLoader !== 'undefined' && deckLoader.cleanupCustomDecks) {
+        deckLoader.cleanupCustomDecks(this.getActiveDeckIds());
+      }
+    } catch (e) {}
   }
 
-  closeRoom(roomId, reason = 'Комната закрыта из-за отсутствия активности в течение 5 минут.') {
+  closeRoom(roomId, reason = 'Комната закрыта из-за отсутствия активности.') {
     const room = this.rooms.get(roomId);
     if (!room) return;
+
+    // Erase in-memory chat & event logs completely
+    room.chatMessages = [];
+    room.logs = [];
+    room.results = null;
 
     // Notify connected SSE clients before closing
     for (const client of room.sseClients) {
@@ -2028,6 +2113,13 @@ class RoomManager {
     room.stopSpeakerTimer();
     this.rooms.delete(roomId);
     console.log(`[ROOMS] Бункер #${roomId} закрыт и освобожден (${reason}). Занято бункеров: ${this.rooms.size}/${this.maxRooms}`);
+
+    // Trigger cleanup of any custom decks that are now orphaned
+    try {
+      if (typeof deckLoader !== 'undefined' && deckLoader.cleanupCustomDecks) {
+        deckLoader.cleanupCustomDecks(this.getActiveDeckIds());
+      }
+    } catch (e) {}
   }
 
   getRoom(roomId, createIfNotFound = true, password = '') {

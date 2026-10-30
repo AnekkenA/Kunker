@@ -221,6 +221,12 @@
               <div id="decks-checkbox-list" class="decks-list">
                 <!-- Injected via JS -->
               </div>
+              <div class="deck-lobby-toolbar" style="margin-top: 8px; display: flex; gap: 8px; align-items: center;">
+                <button type="button" id="btn-lobby-upload-deck" class="btn btn-sm btn-outline" style="font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
+                  <span>📥</span> <span>Загрузить тему (JSON)</span>
+                </button>
+                <input type="file" id="input-lobby-deck-file" accept=".json" style="display: none;" />
+              </div>
             </div>
 
             <!-- THREAT OPENING MODE -->
@@ -1083,6 +1089,48 @@
           </div>
         </div>
       </section>
+
+    <!-- BUNKER CHAT & LOGS WIDGET (ALWAYS OPEN & AVAILABLE IN-ROOM) -->
+    <div id="bunker-chat-widget" class="bunker-chat-panel hidden">
+      <div class="chat-header" id="chat-header">
+        <div class="chat-header-title">
+          <span class="chat-header-icon">💬</span>
+          <span class="chat-header-text">ЧАТ БУНКЕРА</span>
+          <span id="chat-unread-badge" class="chat-unread-badge hidden">0</span>
+        </div>
+        <div class="chat-header-actions">
+          <button type="button" id="btn-chat-toggle-collapse" class="btn-chat-icon" title="Свернуть / развернуть чат">−</button>
+        </div>
+      </div>
+
+      <!-- TABS: ЧАТ / ЖУРНАЛ СОБЫТИЙ -->
+      <div class="chat-tabs">
+        <button type="button" id="tab-btn-chat" class="chat-tab-btn active">💬 Чат</button>
+        <button type="button" id="tab-btn-logs" class="chat-tab-btn">📜 Журнал событий</button>
+      </div>
+
+      <div class="chat-body" id="chat-body">
+        <!-- 1. MESSAGES VIEW -->
+        <div id="chat-messages-container" class="chat-view-content active">
+          <div id="chat-messages-list" class="chat-messages-list">
+            <div class="chat-empty-hint">Напишите первое сообщение в бункер...</div>
+          </div>
+          <form id="chat-form" class="chat-form" onsubmit="event.preventDefault();">
+            <input type="text" id="chat-input" class="chat-input" placeholder="Сообщение выжившим... (Enter)" maxlength="300" autocomplete="off" />
+            <button type="submit" id="btn-send-chat" class="btn btn-primary btn-chat-send" title="Отправить">
+              <span>➤</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- 2. LOGS VIEW -->
+        <div id="chat-logs-container" class="chat-view-content">
+          <div id="chat-panel-logs-list" class="chat-panel-logs-list">
+            <div class="chat-empty-hint">Событий пока нет</div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     </main>
 

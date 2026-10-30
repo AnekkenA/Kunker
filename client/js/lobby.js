@@ -81,15 +81,106 @@ const Lobby = {
     const list = document.getElementById('decks-checkbox-list');
     if (!list) return;
 
-    list.innerHTML = this.decks.map(deck => `
-      <label class="deck-item-label">
-        <div>
-          <input type="checkbox" name="selected-deck" value="${deck.id}" ${deck.id === 'classic' ? 'checked' : ''}>
-          <strong>${deck.name}</strong>
-          <div style="font-size: 11px; color: var(--text-muted);">${deck.description}</div>
+    const currentChecked = new Set(
+      Array.from(document.querySelectorAll('input[name="selected-deck"]:checked')).map(cb => cb.value)
+    );
+
+    list.innerHTML = this.decks.map(deck => {
+      const isChecked = currentChecked.size > 0 ? currentChecked.has(deck.id) : (deck.id === 'classic');
+      const customBadge = deck.isCustom
+        ? `<span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); font-size: 10px; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 700;">ВРЕМЕННАЯ</span>`
+        : '';
+
+      return `
+        <div class="deck-item-row" style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 6px; border: 1px solid var(--border-color);">
+          <label class="deck-item-label" style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; flex: 1; margin: 0;">
+            <input type="checkbox" name="selected-deck" value="${deck.id}" ${isChecked ? 'checked' : ''} style="margin-top: 3px;">
+            <div>
+              <div style="font-weight: 700; font-size: 13px;">
+                ${deck.name}
+                ${customBadge}
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted);">${deck.description || ''}</div>
+            </div>
+          </label>
+          <div style="margin-left: 8px;">
+            <button type="button" class="btn btn-xs btn-outline" title="Скачать колоду на устройство (.json)" onclick="event.stopPropagation(); Lobby.downloadDeckJson('${deck.id}')" style="font-size: 11px; padding: 3px 8px; border-radius: 6px; white-space: nowrap;">
+              ⬇️ JSON
+            </button>
+          </div>
         </div>
-      </label>
-    `).join('');
+      `;
+    }).join('');
+  },
+
+  async downloadDeckJson(deckId) {
+    try {
+      const res = await fetch(`/api/decks/${encodeURIComponent(deckId)}`);
+      if (!res.ok) throw new Error('Не удалось загрузить данные темы');
+      const data = await res.json();
+      const deck = data.deck;
+      if (!deck) throw new Error('Колода пуста');
+
+      const str = JSON.stringify(deck, null, 2);
+      const blob = new Blob([str], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${deck.id || 'deck'}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      App.showToast(`📥 Тема "${deck.name || deck.id}" скачана на устройство!`);
+    } catch (err) {
+      alert('Ошибка скачивания темы: ' + err.message);
+    }
+  },
+
+  async uploadDeckJson(file) {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const deckData = JSON.parse(text);
+
+      if (!deckData || typeof deckData !== 'object') {
+        throw new Error('Файл не содержит корректную структуру колоды JSON.');
+      }
+      if (!deckData.id) {
+        deckData.id = 'custom_' + Date.now();
+      }
+      if (!deckData.name) {
+        deckData.name = file.name.replace(/\.json$/i, '');
+      }
+
+      deckData.isCustom = true;
+      deckData.autoSelect = true;
+
+      const res = await fetch('/api/decks/save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-room-id': App.roomId || ''
+        },
+        body: JSON.stringify(deckData)
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Ошибка при сохранении темы на сервере');
+      }
+
+      const savedRes = await res.json();
+      App.showToast(`✅ Тема "${deckData.name}" успешно загружена!`);
+
+      await this.fetchDecks();
+      const newCb = document.querySelector(`input[name="selected-deck"][value="${savedRes.deck.id}"]`);
+      if (newCb) {
+        newCb.checked = true;
+      }
+    } catch (err) {
+      alert('Не удалось загрузить тему: ' + err.message);
+    }
   },
 
   bindEvents() {
@@ -257,6 +348,20 @@ const Lobby = {
       }
       App.playSound('start');
     });
+
+    // Upload Deck JSON Button in Lobby
+    const btnUploadDeck = document.getElementById('btn-lobby-upload-deck');
+    const inputUploadDeck = document.getElementById('input-lobby-deck-file');
+    if (btnUploadDeck && inputUploadDeck) {
+      btnUploadDeck.addEventListener('click', () => {
+        inputUploadDeck.value = '';
+        inputUploadDeck.click();
+      });
+      inputUploadDeck.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) this.uploadDeckJson(file);
+      });
+    }
 
     // Deck Editor Button
     document.getElementById('btn-open-deck-editor').addEventListener('click', () => {

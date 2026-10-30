@@ -144,6 +144,12 @@ const server = http.createServer(async (req, res) => {
     const clientObj = { res, playerId };
     targetGame.sseClients.add(clientObj);
 
+    if (playerId && targetGame.players.has(playerId)) {
+      const p = targetGame.players.get(playerId);
+      p.connected = true;
+      targetGame.emptySince = null;
+    }
+
     // Send initial state immediately
     const initialState = targetGame.toClientState(playerId);
     res.write(`data: ${JSON.stringify(initialState)}\n\n`);
@@ -244,8 +250,15 @@ const server = http.createServer(async (req, res) => {
         const body = await parseBody(req);
         const targetGame = getGameFromReq(req, parsedUrl, body);
         const { action, playerId, payload } = body;
+        targetGame.touch();
 
         switch (action) {
+          case 'send_chat': {
+            const chatText = (payload && payload.text) ? String(payload.text) : '';
+            targetGame.addChatMessage(playerId, chatText);
+            break;
+          }
+
           case 'reveal_card':
             targetGame.revealCard(payload.targetPlayerId, payload.categoryKey, playerId);
             break;
@@ -475,11 +488,21 @@ const server = http.createServer(async (req, res) => {
       if (pathname === '/api/decks/save' && req.method === 'POST') {
         const body = await parseBody(req);
         const saved = deckLoader.saveDeck(body);
+        const targetGame = getGameFromReq(req, parsedUrl, body);
+        if (targetGame && body && body.autoSelect) {
+          if (!targetGame.selectedDecks.includes(saved.id)) {
+            targetGame.selectedDecks.push(saved.id);
+          }
+          targetGame.broadcast();
+        }
         return sendJson(res, 200, { success: true, deck: saved });
       }
 
       if (pathname === '/api/decks/delete' && req.method === 'POST') {
         const body = await parseBody(req);
+        if (deckLoader.BUILTIN_DECK_IDS && deckLoader.BUILTIN_DECK_IDS.has(body.id)) {
+          return sendJson(res, 400, { error: 'Стандартные встроенные темы нельзя удалять.' });
+        }
         deckLoader.deleteDeck(body.id);
         return sendJson(res, 200, { success: true });
       }

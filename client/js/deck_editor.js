@@ -1171,14 +1171,22 @@ const DeckEditor = {
     if (btnDelete) {
       btnDelete.addEventListener('click', async () => {
         if (!this.currentDeck || !this.currentDeck.id) return;
+        if (this.currentDeck.isBuiltin || ['classic', 'magic', 'space_colony', 'stalker_zone', 'steampunk', 'techno', 'zombie_apocalypse'].includes(this.currentDeck.id)) {
+          alert('Стандартные встроенные темы защищены от удаления.');
+          return;
+        }
         if (!confirm(`Удалить набор карт "${this.currentDeck.name}"?`)) return;
 
         try {
-          await fetch('/api/decks/delete', {
+          const res = await fetch('/api/decks/delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: this.currentDeck.id })
           });
+          const resData = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error(resData.error || 'Ошибка удаления');
+          }
           App.showToast('🗑️ Набор удален');
           this.currentDeck = null;
           await this.fetchDecks();
