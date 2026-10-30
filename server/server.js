@@ -335,6 +335,17 @@ const server = http.createServer(async (req, res) => {
             break;
           }
 
+          case 'leave_room': {
+            targetGame.removePlayer(playerId);
+            const anyConnected = Array.from(targetGame.players.values()).some(p => p.connected);
+            if (!anyConnected || targetGame.players.size === 0) {
+              targetGame.emptySince = Date.now();
+              targetGame.logs = [];
+              targetGame.chatMessages = [];
+            }
+            break;
+          }
+
           case 'start_ugc_phase':
             targetGame.mode = 'ugc';
             if (payload && payload.bunkerCapacity) {

@@ -581,6 +581,11 @@ class SingleGame {
         nextHost.isHost = true;
         this.hostId = nextHost.id;
         this.addLog(`👑 ${nextHost.name} назначен новым Мастером игры.`);
+      } else if (this.players.size === 0) {
+        this.hostId = null;
+        this.emptySince = Date.now();
+        this.logs = [];
+        this.chatMessages = [];
       }
     }
     this.updateBunkerCapacityDefault();

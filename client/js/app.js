@@ -656,6 +656,43 @@ const App = {
         }
       });
     }
+
+    // Header Leave Room Button
+    const btnLeaveRoom = document.getElementById('btn-leave-room');
+    if (btnLeaveRoom) {
+      btnLeaveRoom.addEventListener('click', () => {
+        this.leaveRoom();
+      });
+    }
+  },
+
+  async leaveRoom() {
+    if (!confirm('Вы действительно хотите выйти из этого бункера?')) return;
+    try {
+      if (this.playerId) {
+        await this.sendAction('leave_room', {});
+      }
+    } catch (e) {}
+
+    if (this.eventSource) {
+      this.eventSource.close();
+      this.eventSource = null;
+    }
+    this.playerId = '';
+    sessionStorage.removeItem('bunker_player_id');
+    localStorage.removeItem('bunker_player_id');
+    if (this.roomId) localStorage.removeItem('bunker_player_id_' + this.roomId);
+    this.roomId = '';
+
+    const chatWidget = document.getElementById('bunker-chat-widget');
+    if (chatWidget) chatWidget.classList.add('hidden');
+
+    const userProfile = document.getElementById('user-profile');
+    if (userProfile) userProfile.classList.add('hidden');
+
+    this.showScreen('screen-auth');
+    this.showToast('🚪 Вы вышли из бункера.');
+    this.updateRoomsCapacityBadge();
   },
 
   connectEvents() {
