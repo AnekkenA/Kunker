@@ -477,6 +477,12 @@ const server = http.createServer(async (req, res) => {
             if (payload.cardBorderBack !== undefined) targetGame.cardBorderBack = payload.cardBorderBack;
             break;
 
+          case 'keep_alive':
+          case 'confirm_presence':
+            targetGame.touchActivity();
+            targetGame.addLog(`✅ ${targetGame.players.get(playerId)?.name || 'Выживший'} подтвердил присутствие: игра продлена!`);
+            break;
+
           default:
             return sendJson(res, 400, { error: `Неизвестное действие: ${action}` });
         }

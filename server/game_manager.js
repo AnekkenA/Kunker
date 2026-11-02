@@ -60,8 +60,19 @@ function getNetworkInfo(roomId = null) {
   };
 }
 
+function normalizeCategoryKey(key) {
+  if (!key) return '';
+  const k = String(key).trim().toLowerCase();
+  if (k === 'profession' || k === 'professions') return 'professions';
+  if (k === 'trait' || k === 'traits') return 'traits';
+  if (k === 'fact' || k === 'facts') return 'facts';
+  if (k === 'hobby' || k === 'hobbies') return 'hobby';
+  if (k === 'special_card' || k === 'special_cards') return 'special_cards';
+  return k;
+}
+
 const CATEGORIES = [
-  { key: 'profession', name: 'Профессия', icon: '💼', isSpecial: false },
+  { key: 'professions', name: 'Профессия', icon: '💼', isSpecial: false },
   { key: 'health', name: 'Здоровье', icon: '❤️', isSpecial: false },
   { key: 'biology', name: 'Биология', icon: '🧬', isSpecial: false },
   { key: 'hobby', name: 'Хобби', icon: '🎨', isSpecial: false },
@@ -136,6 +147,8 @@ class SingleGame {
     this.password = '';
     this.lockedLobby = false;
     this.lastActivity = Date.now();
+    this.afkWarningActive = false;
+    this.afkWarningDeadline = null;
     this.resetGame();
   }
 
@@ -153,6 +166,10 @@ class SingleGame {
   touchActivity() {
     this.lastActivity = Date.now();
     this.emptySince = null;
+    if (this.afkWarningActive) {
+      this.afkWarningActive = false;
+      this.afkWarningDeadline = null;
+    }
   }
 
   touch() {
@@ -1340,27 +1357,40 @@ class SingleGame {
     const deckCats = (primaryDeck && (primaryDeck.playerCategories || primaryDeck.customCategories)) || [];
     if (Array.isArray(deckCats) && deckCats.length > 0) {
       deckCats.forEach(c => {
-        if (!this.categories.some(existing => existing.key === c.key)) {
+        const normKey = normalizeCategoryKey(c.key);
+        if (!this.categories.some(existing => normalizeCategoryKey(existing.key) === normKey)) {
           this.categories.push({
             key: c.key,
             name: c.name,
             icon: c.icon || '🏷️',
-            isSpecial: Boolean(c.isSpecial || c.type === 'special' || c.key === 'special_cards')
+            isSpecial: Boolean(c.isSpecial || c.type === 'special' || normKey === 'special_cards')
           });
         }
       });
     }
+
+    // Strict deduplication: keep only first occurrence of each normalized category key
+    const seenNormKeys = new Set();
+    this.categories = this.categories.filter(cat => {
+      const norm = normalizeCategoryKey(cat.key);
+      if (seenNormKeys.has(norm)) return false;
+      seenNormKeys.add(norm);
+      return true;
+    });
+
     this.customTags = (primaryDeck && primaryDeck.customTags) || [];
     this.evaluationConfig = (primaryDeck && primaryDeck.evaluationConfig) || null;
 
     // 3. Player Cards (STRICT 1 COPY PER CARD)
     this.categories.forEach(cat => {
-      let sourceList = pool[cat.key] || [];
+      const normKey = normalizeCategoryKey(cat.key);
+      let sourceList = pool[cat.key] || pool[normKey] || [];
       if (cat.customCards && Array.isArray(cat.customCards) && cat.customCards.length > 0) {
         sourceList = cat.customCards;
       }
       if (sourceList.length === 0) {
-        sourceList = classicDeck[cat.key] || classicDeck[cat.key + 's'] || [];
+        const altKey = cat.key.endsWith('s') ? cat.key.slice(0, -1) : (cat.key + 's');
+        sourceList = classicDeck[cat.key] || classicDeck[normKey] || classicDeck[altKey] || [];
       }
       if (sourceList.length === 0) {
         // Fallback for custom dynamically added categories
@@ -1496,6 +1526,14 @@ class SingleGame {
     if (options && options.cardBorderBack !== undefined && options.cardBorderBack !== null) {
       this.cardBorderBack = options.cardBorderBack;
     }
+
+    const seenNormKeys = new Set();
+    this.categories = this.categories.filter(cat => {
+      const norm = normalizeCategoryKey(cat.key);
+      if (seenNormKeys.has(norm)) return false;
+      seenNormKeys.add(norm);
+      return true;
+    });
 
     const pool = {
       disasters: [],
@@ -2026,6 +2064,11 @@ class SingleGame {
       categories: this.categories,
       customTags: this.customTags || [],
       evaluationConfig: this.evaluationConfig || null,
+      afkWarning: this.afkWarningActive ? {
+        active: true,
+        deadline: this.afkWarningDeadline,
+        secondsLeft: Math.max(0, Math.ceil((this.afkWarningDeadline - Date.now()) / 1000))
+      } : null,
       logs: this.logs.slice(0, 35),
       chat: (this.chatMessages || []).slice(-60),
       roomId: this.roomId,
@@ -2085,24 +2128,31 @@ class RoomManager {
       const noConnected = room.players.size === 0 || Array.from(room.players.values()).every(p => !p.connected);
       const timeSinceEmpty = room.emptySince ? (now - room.emptySince) : (noConnected ? timeSinceActivity : 0);
 
-      // 1. If room has had 0 connected players for 10 minutes: close and erase in-memory history
-      if (noConnected && timeSinceEmpty >= 10 * 60 * 1000) {
+      // 1. If room has had 0 connected players for 5 minutes: close and erase in-memory history
+      if (noConnected && timeSinceEmpty >= 5 * 60 * 1000) {
         room.chatMessages = [];
         room.logs = [];
         room.results = null;
-        this.closeRoom(id, 'Бункер был закрыт из-за отсутствия подключенных игроков более 10 минут.');
+        this.closeRoom(id, 'Бункер был закрыт из-за отсутствия подключенных игроков более 5 минут.');
         continue;
       }
 
-      // 2. If room has active players:
-      // While game is playing or cards are being crafted, players often spend 15-30 minutes talking/arguing.
-      // Give 45 minutes of timeout during gameplay, and 30 minutes in lobby.
-      const allowedIdle = (room.status === 'playing' || room.status === 'ugc_building')
-        ? (45 * 60 * 1000)
-        : this.idleLimitMs;
-
-      if (timeSinceActivity >= allowedIdle) {
-        this.closeRoom(id, `Бункер был закрыт из-за отсутствия активности в течение ${Math.round(allowedIdle / 60000)} минут.`);
+      // 2. Active room with connected players:
+      // If 15 minutes of inactivity: show AFK warning with 3-minute (180s) countdown timer
+      if (!noConnected) {
+        if (!room.afkWarningActive) {
+          if (timeSinceActivity >= 15 * 60 * 1000) {
+            room.afkWarningActive = true;
+            room.afkWarningDeadline = now + (180 * 1000);
+            room.addLog('⚠️ 15 минут бездействия: открыто окно проверки выживших (3 минуты на ответ).');
+            room.broadcast();
+          }
+        } else {
+          // Warning is active: check if 3-minute grace period expired
+          if (now >= room.afkWarningDeadline) {
+            this.closeRoom(id, 'Бункер перезапущен: выжившие не подтвердили присутствие за 3 минуты.');
+          }
+        }
       }
     }
 

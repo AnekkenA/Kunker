@@ -10,7 +10,7 @@ const Lobby = {
   hasUserCustomizedVisuals: false,
   _syncTimer: null,
   categories: [
-    { key: 'profession', name: 'Профессия', icon: '💼', isSpecial: false, enabled: true },
+    { key: 'professions', name: 'Профессия', icon: '💼', isSpecial: false, enabled: true },
     { key: 'health', name: 'Здоровье', icon: '❤️', isSpecial: false, enabled: true },
     { key: 'biology', name: 'Биология', icon: '🧬', isSpecial: false, enabled: true },
     { key: 'hobby', name: 'Хобби', icon: '🎨', isSpecial: false, enabled: true },

@@ -1932,7 +1932,7 @@ const GameBoard = {
           <div class="survivor-header">
             <strong>🛡️ ${s.name}</strong>
           </div>
-          <small class="survivor-prof">${s.profession || ''} | ${s.health || ''}</small>
+          <small class="survivor-prof">${s.professions || s.profession || ''} | ${s.health || ''}</small>
           ${s.traits ? `<small class="survivor-trait">Черта: ${s.traits}</small>` : ''}
         </div>
       `).join('') : '<div style="color: var(--text-dim); font-size: 13px; padding: 12px; text-align: center;">Никто не спасся в бункере</div>';
@@ -1945,7 +1945,7 @@ const GameBoard = {
           <div class="survivor-header">
             <strong style="color: var(--accent-red);">💀 ${e.name} (ИЗГНАН)</strong>
           </div>
-          <small class="survivor-prof">${e.profession || ''}</small>
+          <small class="survivor-prof">${e.professions || e.profession || ''}</small>
         </div>
       `).join('') : '<div style="color: var(--text-dim); font-size: 13px; padding: 12px; text-align: center;">Никто не был изгнан</div>';
     }

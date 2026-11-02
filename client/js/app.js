@@ -382,6 +382,26 @@ const App = {
       });
     }
 
+    // AFK Warning Modal Confirm Button
+    const btnAfkConfirm = document.getElementById('btn-afk-confirm');
+    if (btnAfkConfirm) {
+      btnAfkConfirm.addEventListener('click', async () => {
+        try {
+          await this.sendAction('confirm_presence');
+          const afkModal = document.getElementById('modal-afk-warning');
+          if (afkModal) afkModal.classList.add('hidden');
+          if (this._afkTicker) {
+            clearInterval(this._afkTicker);
+            this._afkTicker = null;
+          }
+          this.showToast('✅ Время игры продлено!');
+          this.playSound('click');
+        } catch (e) {
+          console.warn('Ошибка подтверждения присутствия:', e);
+        }
+      });
+    }
+
     // Enter / Join Game (Form Submit + Button Click)
     const joinBtn = document.getElementById('btn-join-game');
     const authJoinForm = document.getElementById('form-auth-join') || document.getElementById('form-auth');
@@ -836,6 +856,37 @@ const App = {
         if (reasonEl) reasonEl.textContent = state.systemLockReason || 'Сессия приостановлена для проверки лицензии.';
       } else {
         lockModal.classList.add('hidden');
+      }
+    }
+
+    // Inactivity AFK Warning Modal (15 min idle -> 3 min countdown)
+    const afkModal = document.getElementById('modal-afk-warning');
+    const afkCountdown = document.getElementById('afk-timer-countdown');
+    if (afkModal) {
+      if (state.afkWarning && state.afkWarning.active) {
+        afkModal.classList.remove('hidden');
+        const deadline = Number(state.afkWarning.deadline) || (Date.now() + 180000);
+        const updateAfkDisplay = () => {
+          const now = Date.now();
+          const msLeft = Math.max(0, deadline - now);
+          const totalSec = Math.ceil(msLeft / 1000);
+          const m = Math.floor(totalSec / 60);
+          const s = totalSec % 60;
+          if (afkCountdown) {
+            afkCountdown.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+          }
+        };
+        updateAfkDisplay();
+        if (!this._afkTicker) {
+          this.playSound('danger');
+          this._afkTicker = setInterval(updateAfkDisplay, 1000);
+        }
+      } else {
+        afkModal.classList.add('hidden');
+        if (this._afkTicker) {
+          clearInterval(this._afkTicker);
+          this._afkTicker = null;
+        }
       }
     }
 

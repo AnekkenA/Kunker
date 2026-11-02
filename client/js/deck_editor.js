@@ -3,6 +3,7 @@ const DeckEditor = {
   currentDeck: null,
   decksList: [],
   currentBulkCategory: null,
+  activeTab: 'disasters',
 
   DEFAULT_CATEGORIES_CONFIG: [
     { key: 'disasters', name: 'Катастрофы', icon: '🌋', type: 'complex', scope: 'world', titlePlaceholder: 'Название катастрофы', descPlaceholder: 'Цель выживания / Срок изоляции' },
@@ -264,67 +265,160 @@ const DeckEditor = {
     }
     this.renderEvaluationConfig();
 
-    // 4. Render Category Card Inputs (Separated: World & Player categories)
-    const worldContainer = document.getElementById('editor-world-categories');
-    const playerContainer = document.getElementById('editor-player-categories');
-    const fallbackContainer = document.getElementById('editor-categories-inputs');
+    // 4. Render Tabs Bar and Category Containers
+    const tabsBar = document.getElementById('editor-category-tabs-bar');
+    const container = document.getElementById('editor-categories-container') || document.getElementById('editor-world-categories');
 
-    if (worldContainer) worldContainer.innerHTML = '';
-    if (playerContainer) playerContainer.innerHTML = '';
-    if (fallbackContainer && !worldContainer) fallbackContainer.innerHTML = '';
+    if (container) container.innerHTML = '';
+    if (tabsBar) tabsBar.innerHTML = '';
 
-    this.activeCategories.forEach(cat => {
-      const box = document.createElement('div');
-      box.className = 'constructor-category-box';
-      box.setAttribute('data-cat-key', cat.key);
+    const validCatKeys = this.activeCategories.map(c => c.key);
+    const validTabs = [...validCatKeys, 'visual_styling', 'tags', 'eval'];
+    if (!validTabs.includes(this.activeTab)) {
+      this.activeTab = validCatKeys[0] || 'disasters';
+    }
 
-      let items = (d[cat.key] || d[cat.key + 's'] || []);
-      // Handle legacy conditions if bunker/threats not explicitly filled
-      if (cat.key === 'bunker' && items.length === 0 && Array.isArray(d.conditions)) {
-        items = d.conditions.filter(c => !String(c.title || c).toLowerCase().includes('угроз'));
-      } else if (cat.key === 'threats' && items.length === 0 && Array.isArray(d.conditions)) {
-        items = d.conditions.filter(c => String(c.title || c).toLowerCase().includes('угроз'));
-      }
+    if (tabsBar) {
+      // 1. Category Tabs
+      this.activeCategories.forEach(cat => {
+        let items = (d[cat.key] || d[cat.key + 's'] || []);
+        if (cat.key === 'bunker' && items.length === 0 && Array.isArray(d.conditions)) {
+          items = d.conditions.filter(c => !String(c.title || c).toLowerCase().includes('угроз'));
+        } else if (cat.key === 'threats' && items.length === 0 && Array.isArray(d.conditions)) {
+          items = d.conditions.filter(c => String(c.title || c).toLowerCase().includes('угроз'));
+        }
+        const count = Array.isArray(items) ? items.length : 0;
+        const isAct = (this.activeTab === cat.key);
 
-      const count = Array.isArray(items) ? items.length : 0;
-      // Any player category can be removed, but world categories cannot be deleted
-      const deleteCatBtn = (cat.scope === 'player') ? `
-        <button type="button" class="btn btn-sm btn-danger" style="padding: 2px 8px; font-size: 11px;" title="Удалить категорию из набора" onclick="DeckEditor.deleteCategory('${cat.key}')">🗑️ Удалить категорию</button>
-      ` : '';
+        const tabBtn = document.createElement('button');
+        tabBtn.type = 'button';
+        tabBtn.className = `editor-tab-btn ${isAct ? 'active' : ''}`;
+        tabBtn.setAttribute('data-tab', cat.key);
+        tabBtn.innerHTML = `
+          <span class="tab-icon">${cat.icon}</span>
+          <span class="tab-name">${cat.name}</span>
+          <span class="tab-count-badge" id="tab-badge-${cat.key}">${count}</span>
+        `;
+        tabBtn.addEventListener('click', () => this.selectTab(cat.key));
+        tabsBar.appendChild(tabBtn);
+      });
 
-      box.innerHTML = `
-        <div class="constructor-cat-header">
-          <div class="constructor-cat-title">
-            <span class="cat-icon">${cat.icon}</span>
-            <span class="cat-name">${cat.name}</span>
-            <span class="cat-count-badge" id="count-badge-${cat.key}">${count} шт.</span>
-            ${deleteCatBtn}
+      // 2. Button: + Новая вкладка
+      const addTabBtn = document.createElement('button');
+      addTabBtn.type = 'button';
+      addTabBtn.className = 'editor-tab-btn tab-btn-add-cat';
+      addTabBtn.title = 'Добавить новую категорию и колонку карт';
+      addTabBtn.innerHTML = '+ Новая вкладка';
+      addTabBtn.addEventListener('click', () => this.openNewCategoryModal());
+      tabsBar.appendChild(addTabBtn);
+
+      // 3. Divider
+      const divider = document.createElement('div');
+      divider.className = 'editor-tabs-divider';
+      tabsBar.appendChild(divider);
+
+      // 4. Extra setting tabs
+      const settingsTabs = [
+        { key: 'visual_styling', name: 'Оформление', icon: '🎨' },
+        { key: 'tags', name: 'Теги выживания', icon: '🏷️' },
+        { key: 'eval', name: 'Анкета финала', icon: '📋' }
+      ];
+      settingsTabs.forEach(st => {
+        const isAct = (this.activeTab === st.key);
+        const stBtn = document.createElement('button');
+        stBtn.type = 'button';
+        stBtn.className = `editor-tab-btn editor-tab-btn-setting ${isAct ? 'active' : ''}`;
+        stBtn.setAttribute('data-tab', st.key);
+        stBtn.innerHTML = `<span class="tab-icon">${st.icon}</span> <span>${st.name}</span>`;
+        stBtn.addEventListener('click', () => this.selectTab(st.key));
+        tabsBar.appendChild(stBtn);
+      });
+    }
+
+    if (container) {
+      this.activeCategories.forEach(cat => {
+        const box = document.createElement('div');
+        box.className = 'constructor-category-box';
+        box.setAttribute('data-cat-key', cat.key);
+        if (cat.key !== this.activeTab) {
+          box.classList.add('hidden');
+        }
+
+        let items = (d[cat.key] || d[cat.key + 's'] || []);
+        if (cat.key === 'bunker' && items.length === 0 && Array.isArray(d.conditions)) {
+          items = d.conditions.filter(c => !String(c.title || c).toLowerCase().includes('угроз'));
+        } else if (cat.key === 'threats' && items.length === 0 && Array.isArray(d.conditions)) {
+          items = d.conditions.filter(c => String(c.title || c).toLowerCase().includes('угроз'));
+        }
+
+        const count = Array.isArray(items) ? items.length : 0;
+        const deleteCatBtn = (cat.scope === 'player') ? `
+          <button type="button" class="btn btn-sm btn-danger" style="padding: 2px 8px; font-size: 11px;" title="Удалить категорию из набора" onclick="DeckEditor.deleteCategory('${cat.key}')">Удалить категорию</button>
+        ` : '';
+
+        box.innerHTML = `
+          <div class="constructor-cat-header">
+            <div class="constructor-cat-title">
+              <span class="cat-icon">${cat.icon}</span>
+              <span class="cat-name">${cat.name}</span>
+              <span class="cat-count-badge" id="count-badge-${cat.key}">${count} шт.</span>
+              ${deleteCatBtn}
+            </div>
+            <div class="constructor-header-btn-group">
+              <button type="button" class="btn btn-sm btn-outline btn-bulk-import" onclick="DeckEditor.openBulkModal('${cat.key}', '${cat.name}')">Вставить списком</button>
+              <button type="button" class="btn btn-sm btn-primary btn-add-card" onclick="DeckEditor.addItem('${cat.key}')">+ Добавить карту</button>
+            </div>
           </div>
-          <div class="constructor-header-btn-group">
-            <button type="button" class="btn btn-sm btn-outline btn-bulk-import" onclick="DeckEditor.openBulkModal('${cat.key}', '${cat.name}')">📋 Вставить списком</button>
-            <button type="button" class="btn btn-sm btn-primary btn-add-card" onclick="DeckEditor.addItem('${cat.key}')">+ Добавить карту</button>
-          </div>
-        </div>
-        <div class="constructor-items-list" id="items-list-${cat.key}"></div>
-      `;
+          <div class="constructor-items-list" id="items-list-${cat.key}"></div>
+        `;
 
-      if (cat.scope === 'world' && worldContainer) {
-        worldContainer.appendChild(box);
-      } else if (playerContainer) {
-        playerContainer.appendChild(box);
-      } else if (fallbackContainer) {
-        fallbackContainer.appendChild(box);
-      }
+        container.appendChild(box);
 
-      const itemsListContainer = box.querySelector(`#items-list-${cat.key}`);
-      if (Array.isArray(items)) {
-        items.forEach((item, index) => {
-          this.appendItemRow(itemsListContainer, cat, item, index + 1);
+        const itemsListContainer = box.querySelector(`#items-list-${cat.key}`);
+        if (Array.isArray(items)) {
+          items.forEach((item, index) => {
+            this.appendItemRow(itemsListContainer, cat, item, index + 1);
+          });
+        }
+      });
+    }
+
+    this.selectTab(this.activeTab, false);
+    this.updateLivePreview();
+  },
+
+  selectTab(tabKey, playSound = true) {
+    this.activeTab = tabKey;
+    const tabsBar = document.getElementById('editor-category-tabs-bar');
+    if (tabsBar) {
+      tabsBar.querySelectorAll('.editor-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-tab') === tabKey);
+      });
+    }
+
+    const catContainer = document.getElementById('editor-categories-container') || document.getElementById('editor-world-categories');
+    const visualPanel = document.getElementById('editor-tab-visual-styling');
+    const tagsPanel = document.getElementById('editor-tab-tags');
+    const evalPanel = document.getElementById('editor-tab-eval');
+
+    if (visualPanel) visualPanel.classList.toggle('hidden', tabKey !== 'visual_styling');
+    if (tagsPanel) tagsPanel.classList.toggle('hidden', tabKey !== 'tags');
+    if (evalPanel) evalPanel.classList.toggle('hidden', tabKey !== 'eval');
+
+    const isSetting = ['visual_styling', 'tags', 'eval'].includes(tabKey);
+    if (catContainer) {
+      catContainer.classList.toggle('hidden', isSetting);
+      if (!isSetting) {
+        catContainer.querySelectorAll('.constructor-category-box').forEach(box => {
+          const key = box.getAttribute('data-cat-key');
+          box.classList.toggle('hidden', key !== tabKey);
         });
       }
-    });
+    }
 
-    this.updateLivePreview();
+    if (playSound && typeof App !== 'undefined') {
+      App.playSound('click');
+    }
   },
 
   appendItemRow(container, catConfig, itemData = null, itemIndex = null) {
@@ -467,8 +561,11 @@ const DeckEditor = {
   updateCategoryCount(catKey) {
     const listContainer = document.getElementById(`items-list-${catKey}`);
     const badge = document.getElementById(`count-badge-${catKey}`);
-    if (listContainer && badge) {
-      badge.textContent = `${listContainer.children.length} шт.`;
+    const tabBadge = document.getElementById(`tab-badge-${catKey}`);
+    if (listContainer) {
+      const count = listContainer.children.length;
+      if (badge) badge.textContent = `${count} шт.`;
+      if (tabBadge) tabBadge.textContent = String(count);
     }
   },
 
@@ -519,6 +616,7 @@ const DeckEditor = {
     };
 
     this.activeCategories.push(newCat);
+    this.activeTab = newCat.key;
     this.renderConstructor();
 
     document.getElementById('modal-new-category').classList.add('hidden');
@@ -545,6 +643,9 @@ const DeckEditor = {
       if (Array.isArray(this.currentDeck.playerCategories)) {
         this.currentDeck.playerCategories = this.currentDeck.playerCategories.filter(c => c.key !== catKey);
       }
+    }
+    if (this.activeTab === catKey) {
+      this.activeTab = this.activeCategories[0]?.key || 'disasters';
     }
     this.renderConstructor();
     App.showToast(`🗑️ Категория "${cat.name}" удалена`);

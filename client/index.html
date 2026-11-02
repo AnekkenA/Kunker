@@ -413,7 +413,6 @@
                     <button type="button" class="color-chip" data-color="#f8fafc" style="background: #f8fafc;" title="Белый"></button>
                     <label class="color-chip-custom" title="Выбрать произвольный цвет">
                       <input type="color" id="lobby-input-front-border" value="#06b6d4">
-                      <span class="color-chip-icon">🎨</span>
                     </label>
                   </div>
                 </div>
@@ -434,7 +433,6 @@
                     <button type="button" class="color-chip" data-color="#1e293b" style="background: #1e293b;" title="Тёмный"></button>
                     <label class="color-chip-custom" title="Выбрать произвольный цвет">
                       <input type="color" id="lobby-input-back-border" value="#f59e0b">
-                      <span class="color-chip-icon">🎨</span>
                     </label>
                   </div>
                 </div>
@@ -479,8 +477,8 @@
 
             <!-- MASTER START ACTION -->
             <div class="lobby-actions">
-              <button id="btn-start-game" class="btn btn-success btn-lg btn-block">🚀 НАЧАТЬ ИГРУ</button>
-              <button id="btn-open-deck-editor" class="btn btn-outline btn-block">🛠️ Конструктор наборов карт</button>
+              <button id="btn-start-game" class="btn btn-success btn-lg btn-block">НАЧАТЬ ИГРУ</button>
+              <button id="btn-open-deck-editor" class="btn btn-outline btn-block">Конструктор наборов карт</button>
             </div>
           </div>
         </div>
@@ -493,12 +491,12 @@
           <div id="ugc-master-top-bar" class="ugc-top-bar master-bar hidden">
             <div class="ugc-bar-row">
               <div>
-                <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border: 1px solid var(--accent-amber); font-weight: 700;">👑 Панель Мастера</span>
+                <span class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); border: 1px solid var(--accent-amber); font-weight: 700;">Панель Мастера</span>
                 <span id="ugc-host-status-text" style="font-size: 13px; color: var(--text-dim); margin-left: 8px;">Ожидание заполнения карт игроками</span>
               </div>
               <div class="ugc-bar-actions">
                 <input type="text" id="input-ugc-theme-name" class="form-input form-input-sm" placeholder="Название набора (по желанию)" style="max-width: 220px; font-size: 12px; padding: 6px 10px;">
-                <button type="button" id="btn-ugc-start-game" class="btn btn-success btn-lg">🚀 ЗАПУСТИТЬ ИГРУ</button>
+                <button type="button" id="btn-ugc-start-game" class="btn btn-success btn-lg">ЗАПУСТИТЬ ИГРУ</button>
               </div>
             </div>
             <div id="ugc-players-chips-bar" class="ugc-chips-bar"></div>
@@ -923,16 +921,16 @@
             </div>
 
             <div class="toolbar-actions">
-              <button id="btn-open-voting-modal" class="btn btn-sm btn-warning hidden" title="Открыть окно голосования на изгнание">🗳️ Голосование</button>
-              <button id="btn-back-to-results" class="btn btn-sm btn-success hidden" title="Вернуться на экран с итогами выживания">🏆 К итогам выживания</button>
-              <button id="btn-toggle-logs" class="btn btn-sm btn-outline">📜 Журнал</button>
+              <button id="btn-open-voting-modal" class="btn btn-sm btn-warning hidden" title="Открыть окно голосования на изгнание">Голосование</button>
+              <button id="btn-back-to-results" class="btn btn-sm btn-success hidden" title="Вернуться на экран с итогами выживания">К итогам выживания</button>
+              <button id="btn-toggle-logs" class="btn btn-sm btn-outline">Журнал</button>
               <div id="master-game-controls" class="master-controls hidden">
-                <button id="btn-master-start-voting" class="btn btn-sm btn-warning" title="Запустить голосование среди выживших">🗳️ Начать голосование</button>
-                <button id="btn-open-reveal-modal" class="btn btn-sm btn-primary">👁️ Открыть чужую карту</button>
-                <button id="btn-open-shuffle-modal" class="btn btn-sm btn-outline">🔀 Перемешать выбранные</button>
-                <button id="btn-open-replace-modal" class="btn btn-sm btn-warning">🎲 Заменить на случайную</button>
-                <button id="btn-finish-game" class="btn btn-sm btn-success">🏁 Подвести итоги</button>
-                <button id="btn-reset-lobby" class="btn btn-sm btn-danger">🔄 В лобби</button>
+                <button id="btn-master-start-voting" class="btn btn-sm btn-warning" title="Запустить голосование среди выживших">Начать голосование</button>
+                <button id="btn-open-reveal-modal" class="btn btn-sm btn-primary">Вскрыть карту игрока</button>
+                <button id="btn-open-shuffle-modal" class="btn btn-sm btn-outline">Перемешать карты</button>
+                <button id="btn-open-replace-modal" class="btn btn-sm btn-warning">Заменить карту</button>
+                <button id="btn-finish-game" class="btn btn-sm btn-success">Подвести итоги</button>
+                <button id="btn-reset-lobby" class="btn btn-sm btn-danger">В лобби</button>
               </div>
             </div>
           </div>
@@ -977,10 +975,10 @@
       <section id="screen-editor" class="screen">
         <div class="editor-container">
           <div class="editor-header">
-            <h2>🛠️ Конструктор наборов карт</h2>
+            <h2>Конструктор наборов карт</h2>
             <div class="editor-header-actions" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-              <button id="btn-editor-export-json" class="btn btn-sm btn-outline" title="Скачать тему на компьютер в формате .json">📥 Скачать (.json)</button>
-              <button id="btn-editor-import-json" class="btn btn-sm btn-outline" title="Загрузить тему с компьютера (.json)">📤 Загрузить (.json)</button>
+              <button id="btn-editor-export-json" class="btn btn-sm btn-outline" title="Скачать тему на компьютер в формате .json">Скачать (.json)</button>
+              <button id="btn-editor-import-json" class="btn btn-sm btn-outline" title="Загрузить тему с компьютера (.json)">Загрузить (.json)</button>
               <input type="file" id="input-editor-file" accept=".json" class="hidden">
               <button id="btn-editor-back" class="btn btn-sm btn-outline">← Назад в лобби</button>
             </div>
@@ -1011,124 +1009,25 @@
                 </div>
               </div>
 
-              <div class="form-group">
+              <div class="form-group" style="margin-bottom: 14px;">
                 <label>Описание набора:</label>
                 <textarea id="edit-deck-desc" class="form-input" rows="2"></textarea>
               </div>
 
-              <!-- DECK CUSTOM TAGS / PARAMETERS -->
-              <div class="editor-tags-manager-box">
-                <div class="editor-section-header">
-                  <div class="section-title">🏷️ Настройка параметров выживания (тегов набора):</div>
-                  <button type="button" id="btn-open-new-tag-modal" class="btn btn-sm btn-primary">+ Создать свой тег</button>
-                </div>
-                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
-                  Теги задают числовые бонусы картам (например: <code>#Пожаротушение[4]</code> или <code>#Радиация[3]</code>). Они суммируются у выживших и влияют на шанс спасения.
-                </p>
-                <div id="editor-tags-list-container" class="editor-tags-list-chips">
-                  <!-- Injected via JS -->
-                </div>
+              <!-- CATEGORY & SETTINGS TABS STRIP -->
+              <div class="editor-tabs-bar" id="editor-category-tabs-bar">
+                <!-- Injected via JS -->
               </div>
 
-              <!-- DECK CUSTOM EVALUATION QUESTIONS CONFIG -->
-              <div class="editor-eval-config-box">
-                <div class="editor-section-header">
-                  <div class="section-title">📋 Анкета оценки выживаемости (для финала Мастера):</div>
-                  <div style="display: flex; gap: 6px;">
-                    <button type="button" id="btn-reset-eval-config" class="btn btn-sm btn-outline" title="Вернуть стандартные 5 вопросов">↺ Сброс вопросов</button>
-                    <button type="button" id="btn-add-eval-question" class="btn btn-sm btn-primary">+ Добавить вопрос</button>
-                  </div>
-                </div>
-                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
-                  Настройте вопросы, которые Мастер заполняет в финале игры для расчета шанса выживания команды:
-                </p>
-                <div id="editor-eval-questions-list" class="editor-eval-questions-list">
-                  <!-- Injected via JS -->
-                </div>
+              <!-- TAB CONTENT: CATEGORY CARDS CONTAINER -->
+              <div class="editor-tab-panel" id="editor-categories-container">
+                <!-- Injected via JS: current category cards column -->
               </div>
 
-              <!-- 1. WORLD & BUNKER CARDS (MANDATORY) -->
-              <div class="deck-editor-section-header world-section-header">
-                <div class="section-title-wrap">
-                  <div class="section-title">🌍 КАРТЫ МИРА И БУНКЕРА</div>
-                  <span class="cat-scope-badge mandatory">Обязательные карты окружения (нельзя удалять)</span>
-                </div>
-                <p class="section-subtitle">Катастрофы задают сценарий апокалипсиса, бункер дает стартовые условия убежища, а угрозы проверяют устойчивость команды.</p>
-              </div>
-              <div class="editor-categories" id="editor-world-categories">
-                <!-- Injected via JS: disasters, bunker, threats -->
-              </div>
-
-              <!-- 2. PLAYER CHARACTERISTICS (CUSTOMIZABLE) -->
-              <div class="deck-editor-section-header player-section-header">
-                <div class="section-title-wrap">
-                  <div class="section-title">👤 ХАРАКТЕРИСТИКИ ИГРОКОВ</div>
-                  <span class="cat-scope-badge customizable">Карты выживших (можно добавлять и удалять любые)</span>
-                </div>
-                <div class="section-header-actions">
-                  <button type="button" id="btn-open-new-cat-modal" class="btn btn-sm btn-primary">+ Добавить новую категорию</button>
-                </div>
-              </div>
-              <div class="editor-categories" id="editor-player-categories">
-                <!-- Injected via JS: professions, health, biology, etc. -->
-              </div>
-
-              <div class="editor-actions">
-                <button id="btn-editor-save" class="btn btn-success btn-lg">💾 СОХРАНИТЬ НАБОР КАРТ</button>
-                <button id="btn-editor-delete" class="btn btn-danger">Удалить тему</button>
-              </div>
-            </div>
-
-            <!-- RIGHT: LIVE STATIC PREVIEW (HONEST IN-GAME CARD FACE & BACK) -->
-            <div class="editor-preview-column">
-              <div class="preview-sticky-box">
-                <div class="preview-header">
-                  <h4>👁️ Реальный предпросмотр</h4>
-                  <small style="color: var(--text-dim);">Без анимаций: точный вид на экране</small>
-                </div>
-
-                <!-- REALISTIC TABLETOP PREVIEW BOX -->
-                <div class="preview-tabletop-box" id="preview-tabletop-box">
-                  <div class="preview-cards-pair">
-                    <!-- CARD FACE PREVIEW -->
-                    <div class="card-preview-wrapper">
-                      <div class="preview-label">Лицевая сторона (Открыта):</div>
-                      <div class="bunker-card-preview face-preview" id="card-preview-face">
-                        <div class="card-header">
-                          <div class="card-cat-title">
-                            <span class="card-cat-icon" id="prev-cat-icon">💼</span>
-                            <span class="card-cat-name" id="prev-cat-name">Профессия</span>
-                          </div>
-                        </div>
-                        <div class="card-content-text" id="prev-card-text">Врач-хирург высшей категории</div>
-                        <div class="card-tags-badges" id="prev-card-tags">
-                          <span class="card-tag-chip" style="color: #10b981; background: rgba(16, 185, 129, 0.15);">💊 Медицина +5</span>
-                        </div>
-                        <div class="card-footer">
-                          <span class="card-author-badge" id="prev-card-author">✍️ Автор: Набор</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- CARD BACK PREVIEW -->
-                    <div class="card-preview-wrapper">
-                      <div class="preview-label">Рубашка (Закрыта):</div>
-                      <div class="bunker-card-preview back-preview" id="card-preview-back">
-                        <div class="card-back-icon" id="prev-back-icon">🛡️</div>
-                        <div class="card-back-text" id="prev-back-text">БУНКЕР 3.1</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="preview-test-input-box">
-                  <label style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 4px;">Быстрая проверка карты с параметрами:</label>
-                  <input type="text" id="prev-test-input" class="form-input" placeholder="Например: Пожарный (#Пожаротушение[4])" value="Огнетушитель углекислотный (#Пожаротушение[4])">
-                </div>
-
-                <!-- THEME VISUAL CUSTOMIZATION (MOVED DOWN TO CARDS DISPLAY) -->
-                <div class="editor-theme-styling-box" style="margin-top: 14px; margin-bottom: 0;">
-                  <div class="theme-style-title">🎨 Оформление игрового стола и карт:</div>
+              <!-- TAB CONTENT: THEME VISUAL STYLING -->
+              <div class="editor-tab-panel hidden" id="editor-tab-visual-styling">
+                <div class="editor-theme-styling-box" style="margin-top: 0; margin-bottom: 0;">
+                  <div class="theme-style-title">Оформление игрового стола и карт:</div>
                   <div class="theme-inputs-grid">
                     <!-- FRONT BORDER COLOR (Лицо) -->
                     <div class="form-group border-color-picker-box">
@@ -1146,7 +1045,6 @@
                         <button type="button" class="color-chip" data-color="#f8fafc" style="background: #f8fafc;" title="Белый"></button>
                         <label class="color-chip-custom" title="Выбрать произвольный цвет">
                           <input type="color" id="edit-deck-border-front" value="#06b6d4">
-                          <span class="color-chip-icon">🎨</span>
                         </label>
                       </div>
                     </div>
@@ -1167,20 +1065,20 @@
                         <button type="button" class="color-chip" data-color="#1e293b" style="background: #1e293b;" title="Тёмный"></button>
                         <label class="color-chip-custom" title="Выбрать произвольный цвет">
                           <input type="color" id="edit-deck-border-back" value="#f59e0b">
-                          <span class="color-chip-icon">🎨</span>
                         </label>
                       </div>
                     </div>
 
-                    <div class="form-group">
-                      <label>Фоновое изображение стола (URL или файл):</label>
-                      <div style="display: flex; gap: 6px; margin-bottom: 6px;">
-                        <input type="text" id="edit-deck-bg" class="form-input" placeholder="https://... или выберите пресет">
-                        <button type="button" class="btn btn-sm btn-outline" id="btn-upload-deck-bg" title="Загрузить изображение с устройства">📁 Загрузить</button>
+                    <!-- TABLE BG -->
+                    <div class="form-group visual-media-group">
+                      <label class="color-picker-title">Фоновое изображение стола (URL или файл):</label>
+                      <div class="media-input-row">
+                        <input type="text" id="edit-deck-bg" class="form-input form-input-sm" placeholder="https://... или выберите пресет">
+                        <button type="button" class="btn btn-xs btn-outline" id="btn-upload-deck-bg">Загрузить</button>
                         <input type="file" id="input-file-deck-bg" accept="image/png,image/jpeg,image/webp" class="hidden">
                       </div>
                       <div class="preset-links">
-                        <span class="preset-label">Пресеты фона:</span>
+                        <span class="preset-label">Пресеты:</span>
                         <button type="button" class="btn-preset-link" onclick="DeckEditor.setBgPreset('entrance')">Вход</button>
                         <button type="button" class="btn-preset-link" onclick="DeckEditor.setBgPreset('hangar')">Ангар</button>
                         <button type="button" class="btn-preset-link" onclick="DeckEditor.setBgPreset('corridor')">Коридор</button>
@@ -1188,15 +1086,17 @@
                         <button type="button" class="btn-preset-link" onclick="DeckEditor.setBgPreset('none')">Сброс</button>
                       </div>
                     </div>
-                    <div class="form-group">
-                      <label>Изображение рубашки карт (URL или файл):</label>
-                      <div style="display: flex; gap: 6px; margin-bottom: 6px;">
-                        <input type="text" id="edit-deck-card-back" class="form-input" placeholder="https://... или выберите пресет">
-                        <button type="button" class="btn btn-sm btn-outline" id="btn-upload-deck-back" title="Загрузить изображение с устройства">📁 Загрузить</button>
+
+                    <!-- CARD BACK -->
+                    <div class="form-group visual-media-group">
+                      <label class="color-picker-title">Изображение рубашки карт (URL или файл):</label>
+                      <div class="media-input-row">
+                        <input type="text" id="edit-deck-card-back" class="form-input form-input-sm" placeholder="https://... или выберите пресет">
+                        <button type="button" class="btn btn-xs btn-outline" id="btn-upload-deck-back">Загрузить</button>
                         <input type="file" id="input-file-deck-back" accept="image/png,image/jpeg,image/webp" class="hidden">
                       </div>
                       <div class="preset-links">
-                        <span class="preset-label">Пресеты рубашки:</span>
+                        <span class="preset-label">Пресеты:</span>
                         <button type="button" class="btn-preset-link" onclick="DeckEditor.setBackPreset('radiation')">Радиация</button>
                         <button type="button" class="btn-preset-link" onclick="DeckEditor.setBackPreset('association')">Ассоциация</button>
                         <button type="button" class="btn-preset-link" onclick="DeckEditor.setBackPreset('umbrella')">Амбрелла</button>
@@ -1206,6 +1106,42 @@
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <!-- TAB CONTENT: CUSTOM TAGS -->
+              <div class="editor-tab-panel hidden" id="editor-tab-tags">
+                <div class="editor-tags-manager-box" style="margin-top: 0;">
+                  <div class="editor-section-header">
+                    <div class="section-title">Параметры выживания (теги набора):</div>
+                    <button type="button" id="btn-open-new-tag-modal" class="btn btn-sm btn-primary">+ Создать свой тег</button>
+                  </div>
+                  <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                    Теги задают числовые бонусы картам (например: <code>#Пожаротушение[4]</code> или <code>#Радиация[3]</code>). Они суммируются у выживших и влияют на шанс спасения.
+                  </p>
+                  <div id="editor-tags-list-container" class="editor-tags-list-chips"></div>
+                </div>
+              </div>
+
+              <!-- TAB CONTENT: EVALUATION QUESTIONS -->
+              <div class="editor-tab-panel hidden" id="editor-tab-eval">
+                <div class="editor-eval-config-box" style="margin-top: 0;">
+                  <div class="editor-section-header">
+                    <div class="section-title">Анкета оценки выживаемости (для финала Мастера):</div>
+                    <div style="display: flex; gap: 6px;">
+                      <button type="button" id="btn-reset-eval-config" class="btn btn-sm btn-outline">Сброс вопросов</button>
+                      <button type="button" id="btn-add-eval-question" class="btn btn-sm btn-primary">+ Добавить вопрос</button>
+                    </div>
+                  </div>
+                  <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                    Настройте вопросы, которые Мастер заполняет в финале игры для расчета шанса выживания команды:
+                  </p>
+                  <div id="editor-eval-questions-list" class="editor-eval-questions-list"></div>
+                </div>
+              </div>
+
+              <div class="editor-actions" style="margin-top: 20px;">
+                <button id="btn-editor-save" class="btn btn-success btn-lg">СОХРАНИТЬ НАБОР КАРТ</button>
+                <button id="btn-editor-delete" class="btn btn-danger">Удалить тему</button>
               </div>
             </div>
 
@@ -1397,7 +1333,7 @@
           <div class="form-group">
             <label>Какую карту вскрыть для всех:</label>
             <select id="select-reveal-cat" class="form-input">
-              <option value="profession">💼 Профессия</option>
+              <option value="professions">💼 Профессия</option>
               <option value="health">❤️ Здоровье</option>
               <option value="biology">🧬 Биология</option>
               <option value="hobby">🎨 Хобби</option>
@@ -1408,7 +1344,7 @@
               <option value="special_cards">⚡ Спец-карта</option>
             </select>
           </div>
-          <button id="btn-apply-reveal-other" class="btn btn-primary btn-block">👁️ ВСКРЫТЬ КАРТУ ДЛЯ ВСЕХ</button>
+          <button id="btn-apply-reveal-other" class="btn btn-primary btn-block">Вскрыть карту для всех</button>
         </div>
       </div>
     </div>
@@ -1417,7 +1353,7 @@
     <div id="modal-shuffle-selected" class="modal-backdrop hidden">
       <div class="modal-card" style="max-width: 500px;">
         <div class="modal-header">
-          <h3>🔀 Перемешать выбранные карты</h3>
+          <h3>Перемешать выбранные карты</h3>
           <button id="btn-close-shuffle-modal" class="btn-icon">✕</button>
         </div>
         <div class="modal-body">
@@ -1427,7 +1363,7 @@
           <div class="form-group">
             <label>Категория для перемешивания:</label>
             <select id="select-shuffle-cat" class="form-input">
-              <option value="profession">💼 Профессия</option>
+              <option value="professions">💼 Профессия</option>
               <option value="health">❤️ Здоровье</option>
               <option value="biology">🧬 Биология</option>
               <option value="hobby">🎨 Хобби</option>
@@ -1444,7 +1380,7 @@
               <!-- Checkboxes injected by JS -->
             </div>
           </div>
-          <button id="btn-apply-shuffle-selected" class="btn btn-primary btn-block">🔀 ПЕРЕМЕШАТЬ КАРТЫ МЕЖДУ ВЫБРАННЫМИ</button>
+          <button id="btn-apply-shuffle-selected" class="btn btn-primary btn-block">Перемешать карты</button>
         </div>
       </div>
     </div>
@@ -1453,7 +1389,7 @@
     <div id="modal-replace-card" class="modal-backdrop hidden">
       <div class="modal-card" style="max-width: 480px;">
         <div class="modal-header">
-          <h3>🎲 Заменить карту на случайную</h3>
+          <h3>Заменить карту на случайную</h3>
           <button id="btn-close-replace-modal" class="btn-icon">✕</button>
         </div>
         <div class="modal-body">
@@ -1467,7 +1403,7 @@
           <div class="form-group">
             <label>Какую категорию заменить:</label>
             <select id="select-replace-cat" class="form-input">
-              <option value="profession">💼 Профессия</option>
+              <option value="professions">💼 Профессия</option>
               <option value="health">❤️ Здоровье</option>
               <option value="biology">🧬 Биология</option>
               <option value="hobby">🎨 Хобби</option>
@@ -1481,7 +1417,7 @@
           <div class="warning-alert-box" style="background: rgba(245, 158, 11, 0.15); border: 1px solid var(--accent-amber); padding: 10px; border-radius: var(--radius-sm); margin-bottom: 16px; font-size: 12px; color: var(--text-main);">
             ⚠️ <strong>Подтверждение:</strong> При замене карта игрока уйдет в колоду, а из нее вернется случайная не занятая карта.
           </div>
-          <button id="btn-apply-replace-card" class="btn btn-warning btn-block">🎲 ПОДТВЕРДИТЬ И ЗАМЕНИТЬ КАРТУ</button>
+          <button id="btn-apply-replace-card" class="btn btn-warning btn-block">Подтвердить и заменить карту</button>
         </div>
       </div>
     </div>
@@ -1894,10 +1830,30 @@
 
           <!-- MASTER VOTING CONTROLS -->
           <div id="voting-master-panel" class="voting-master-panel hidden">
-            <button type="button" id="btn-end-voting-now" class="btn btn-danger btn-block">🏁 ПОДВЕСТИ ИТОГИ ГОЛОСОВАНИЯ</button>
+            <button type="button" id="btn-end-voting-now" class="btn btn-danger btn-block">Подвести итоги голосования</button>
             <button type="button" id="btn-cancel-voting" class="btn btn-outline">Отменить</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- 13. MODAL: AFK / INACTIVITY WARNING (15 МИНУТ БЕЗДЕЙСТВИЯ) -->
+    <div id="modal-afk-warning" class="modal-backdrop hidden" style="z-index: 99990; backdrop-filter: blur(8px); background: rgba(5, 7, 12, 0.88);">
+      <div class="modal-card afk-modal-card" style="max-width: 480px; text-align: center; border: 2px solid var(--accent-amber); box-shadow: 0 0 40px rgba(245, 158, 11, 0.35);">
+        <div style="font-size: 46px; margin-bottom: 8px;">⏰</div>
+        <h2 style="font-family: var(--font-display); color: var(--accent-amber); font-size: 22px; margin-bottom: 8px; text-transform: uppercase;">
+          Есть выжившие?
+        </h2>
+        <p style="font-size: 14px; color: var(--text-main); margin-bottom: 16px; line-height: 1.5;">
+          В бункере давно не было активности. Нажмите кнопку, чтобы подтвердить присутствие, иначе через указанное время комната перезапустится!
+        </p>
+        <div class="afk-timer-box" style="margin: 16px 0 20px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 12px;">
+          <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 4px;">До перезапуска комнаты осталось:</div>
+          <div id="afk-timer-countdown" class="afk-timer-value" style="font-size: 42px; font-weight: 900; font-family: var(--font-mono); color: var(--accent-red); letter-spacing: 2px;">03:00</div>
+        </div>
+        <button type="button" id="btn-afk-confirm" class="btn btn-primary btn-lg" style="width: 100%; font-size: 16px; font-weight: 700; padding: 12px 18px;">
+          Да, мы тут! (Продлить игру)
+        </button>
       </div>
     </div>
 
