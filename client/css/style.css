@@ -459,9 +459,9 @@ body {
 
 .lobby-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 310px 1fr;
   gap: 24px;
-  max-width: 1100px;
+  max-width: 1200px;
   margin: 0 auto;
   width: 100%;
 }
@@ -623,33 +623,96 @@ body {
 .decks-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 180px;
+  gap: 10px;
+  max-height: 380px;
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: 6px;
+}
+
+.decks-list::-webkit-scrollbar {
+  width: 6px;
+}
+.decks-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+.decks-list::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.4);
+  border-radius: 4px;
+}
+.decks-list::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-blue);
+}
+
+.deck-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(30, 41, 66, 0.45);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border-color);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.deck-item-row:hover {
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(30, 41, 66, 0.7);
+  transform: translateY(-1px);
+}
+
+.deck-item-row.is-checked {
+  border-color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.14);
+  box-shadow: 0 0 0 1px var(--accent-blue);
 }
 
 .deck-item-label {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--bg-surface);
-  border: 2px solid var(--border-color);
-  padding: 8px 14px;
-  border-radius: var(--radius-sm);
+  align-items: flex-start;
+  gap: 12px;
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  transition: border-color 0.15s;
+  flex: 1;
+  margin: 0;
 }
 
-.deck-item-label:hover {
-  border-color: var(--accent-blue);
-}
-
-.deck-item-label input {
-  margin-right: 10px;
+.deck-item-label input[type="checkbox"] {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
   accent-color: var(--accent-blue);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.deck-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.deck-item-title {
+  font-weight: 800;
+  font-size: 14.5px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.deck-item-desc {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.btn-deck-download {
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
 }
 
 .capacity-header {
@@ -2020,63 +2083,157 @@ body {
   font-weight: 700;
 }
 
+/* CONSTRUCTOR CARDS (DELINEATED GARTIC PARTY-CARD CONTAINERS) */
 .constructor-items-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
 }
 
 .constructor-item-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(18, 25, 42, 0.75);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  transition: all 0.18s ease;
+  position: relative;
 }
 
-.constructor-item-row .input-item-simple {
-  flex: 1;
+.constructor-item-row:hover {
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(22, 32, 54, 0.85);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.constructor-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.constructor-item-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badge-num {
+  background: var(--accent-blue);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 11.5px;
+  font-weight: 900;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.4);
+}
+
+.badge-cat-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.constructor-field-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.constructor-field-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  user-select: none;
 }
 
 .complex-inputs {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  flex: 1;
+  gap: 10px;
 }
 
 .complex-inputs .input-item-title {
-  font-weight: 600;
-  font-size: 13px;
+  font-weight: 800;
+  font-size: 13.5px;
   color: var(--accent-cyan);
+  background: rgba(12, 18, 34, 0.8);
+  border: 1.5px solid rgba(6, 182, 212, 0.35);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+}
+
+.complex-inputs .input-item-title:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.25);
 }
 
 .complex-inputs .input-item-desc {
-  font-size: 13px;
-  line-height: 1.4;
+  font-size: 12.5px;
+  line-height: 1.45;
   resize: vertical;
   min-height: 52px;
+  background: rgba(12, 18, 34, 0.8);
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  color: var(--text-main);
+}
+
+.simple-input-wrap {
+  width: 100%;
+}
+
+.special-inputs-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.special-action-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.special-action-row .action-label {
+  color: var(--accent-amber);
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .btn-delete-item {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
   color: var(--accent-red);
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-  display: flex;
+  font-size: 11.5px;
+  font-weight: 700;
+  transition: all 0.15s ease;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 5px;
 }
 
 .btn-delete-item:hover {
   background: var(--accent-red);
   color: #fff;
   border-color: var(--accent-red);
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
-  transform: scale(1.05);
+  box-shadow: 0 3px 8px rgba(239, 68, 68, 0.4);
+  transform: scale(1.02);
 }
 
 .btn-add-card {
@@ -4371,6 +4528,12 @@ body {
   word-break: break-word;
 }
 
+@media (max-width: 860px) {
+  .lobby-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 768px) {
   .bunker-chat-panel {
     width: calc(100vw - 20px);
@@ -4383,9 +4546,6 @@ body {
     height: 44px;
   }
   .world-cards-bar {
-    grid-template-columns: 1fr;
-  }
-  .lobby-grid {
     grid-template-columns: 1fr;
   }
 }

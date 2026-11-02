@@ -308,8 +308,8 @@ const DeckEditor = {
 
       const itemsListContainer = box.querySelector(`#items-list-${cat.key}`);
       if (Array.isArray(items)) {
-        items.forEach(item => {
-          this.appendItemRow(itemsListContainer, cat, item);
+        items.forEach((item, index) => {
+          this.appendItemRow(itemsListContainer, cat, item, index + 1);
         });
       }
     });
@@ -317,9 +317,10 @@ const DeckEditor = {
     this.updateLivePreview();
   },
 
-  appendItemRow(container, catConfig, itemData = null) {
+  appendItemRow(container, catConfig, itemData = null, itemIndex = null) {
     const row = document.createElement('div');
     row.className = 'constructor-item-row';
+    const idx = itemIndex || (container.children.length + 1);
 
     if (catConfig.type === 'complex') {
       let titleVal = '';
@@ -334,11 +335,25 @@ const DeckEditor = {
       }
 
       row.innerHTML = `
-        <div class="complex-inputs">
-          <input type="text" class="form-input input-item-title" placeholder="${catConfig.titlePlaceholder || 'Заголовок'}" value="${this.escapeHtml(titleVal)}" oninput="DeckEditor.onItemInput(this, '${catConfig.key}')">
-          <textarea class="form-input input-item-desc" rows="2" placeholder="${catConfig.descPlaceholder || 'Описание / условия'}" oninput="DeckEditor.onItemInput(this, '${catConfig.key}')">${this.escapeHtml(descVal)}</textarea>
+        <div class="constructor-item-header">
+          <div class="constructor-item-badge">
+            <span class="badge-num">#${idx}</span>
+            <span class="badge-cat-label">${catConfig.name || 'Карта'}</span>
+          </div>
+          <button type="button" class="btn-delete-item" title="Удалить карту" onclick="DeckEditor.deleteItem(this, '${catConfig.key}')">
+            <span>🗑️</span> <span>Удалить</span>
+          </button>
         </div>
-        <button type="button" class="btn-delete-item" title="Удалить карту" onclick="DeckEditor.deleteItem(this, '${catConfig.key}')">🗑️</button>
+        <div class="complex-inputs">
+          <div class="constructor-field-wrap">
+            <label class="constructor-field-label">📌 Название / Заголовок:</label>
+            <input type="text" class="form-input input-item-title" placeholder="${catConfig.titlePlaceholder || 'Заголовок'}" value="${this.escapeHtml(titleVal)}" oninput="DeckEditor.onItemInput(this, '${catConfig.key}')">
+          </div>
+          <div class="constructor-field-wrap">
+            <label class="constructor-field-label">📝 Описание / Условия / Эффект:</label>
+            <textarea class="form-input input-item-desc" rows="2" placeholder="${catConfig.descPlaceholder || 'Описание / условия'}" oninput="DeckEditor.onItemInput(this, '${catConfig.key}')">${this.escapeHtml(descVal)}</textarea>
+          </div>
+        </div>
       `;
     } else if (catConfig.type === 'special') {
       let textVal = '';
@@ -355,23 +370,44 @@ const DeckEditor = {
       `).join('');
 
       row.innerHTML = `
-        <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
-          <input type="text" class="form-input input-item-simple" placeholder="${catConfig.placeholder}" value="${this.escapeHtml(textVal)}" oninput="DeckEditor.onItemInput(this, '${catConfig.key}')">
-          <div style="display: flex; align-items: center; gap: 6px; font-size: 11px;">
-            <span style="color: var(--accent-amber); font-weight: 700;">⚡ Действие:</span>
-            <select class="form-input input-item-action" style="padding: 2px 6px; font-size: 11px; height: 26px;">
+        <div class="constructor-item-header">
+          <div class="constructor-item-badge">
+            <span class="badge-num">#${idx}</span>
+            <span class="badge-cat-label">${catConfig.name || 'Спец-карта'}</span>
+          </div>
+          <button type="button" class="btn-delete-item" title="Удалить карту" onclick="DeckEditor.deleteItem(this, '${catConfig.key}')">
+            <span>🗑️</span> <span>Удалить</span>
+          </button>
+        </div>
+        <div class="special-inputs-wrap">
+          <div class="constructor-field-wrap">
+            <label class="constructor-field-label">⚡ Текст спец-возможности:</label>
+            <input type="text" class="form-input input-item-simple" placeholder="${catConfig.placeholder}" value="${this.escapeHtml(textVal)}" oninput="DeckEditor.onItemInput(this, '${catConfig.key}')">
+          </div>
+          <div class="special-action-row">
+            <span class="action-label">⚡ Действие в игре:</span>
+            <select class="form-input input-item-action">
               ${actionsOptionsHtml}
             </select>
           </div>
         </div>
-        <button type="button" class="btn-delete-item" title="Удалить карту" onclick="DeckEditor.deleteItem(this, '${catConfig.key}')">🗑️</button>
       `;
     } else {
       let textVal = typeof itemData === 'string' ? itemData : (itemData ? (itemData.text || itemData.name || JSON.stringify(itemData)) : '');
 
       row.innerHTML = `
-        <input type="text" class="form-input input-item-simple" placeholder="${catConfig.placeholder || 'Текст карты'}" value="${this.escapeHtml(textVal)}" oninput="DeckEditor.onItemInput(this, '${catConfig.key}')">
-        <button type="button" class="btn-delete-item" title="Удалить карту" onclick="DeckEditor.deleteItem(this, '${catConfig.key}')">🗑️</button>
+        <div class="constructor-item-header">
+          <div class="constructor-item-badge">
+            <span class="badge-num">#${idx}</span>
+            <span class="badge-cat-label">${catConfig.name || 'Карта'}</span>
+          </div>
+          <button type="button" class="btn-delete-item" title="Удалить карту" onclick="DeckEditor.deleteItem(this, '${catConfig.key}')">
+            <span>🗑️</span> <span>Удалить</span>
+          </button>
+        </div>
+        <div class="simple-input-wrap">
+          <input type="text" class="form-input input-item-simple" placeholder="${catConfig.placeholder || 'Текст карты'}" value="${this.escapeHtml(textVal)}" oninput="DeckEditor.onItemInput(this, '${catConfig.key}')">
+        </div>
       `;
     }
 
@@ -385,7 +421,7 @@ const DeckEditor = {
 
     const listContainer = document.getElementById(`items-list-${catKey}`);
     if (listContainer) {
-      this.appendItemRow(listContainer, catConfig, '');
+      this.appendItemRow(listContainer, catConfig, '', listContainer.children.length + 1);
       const inputs = listContainer.querySelectorAll('input');
       if (inputs.length > 0) {
         inputs[inputs.length - 1].focus();
@@ -402,10 +438,20 @@ const DeckEditor = {
       setTimeout(() => {
         row.remove();
         this.updateCategoryCount(catKey);
+        this.updateItemIndexes(catKey);
         this.updateLivePreview();
         App.playSound('click');
       }, 150);
     }
+  },
+
+  updateItemIndexes(catKey) {
+    const listContainer = document.getElementById(`items-list-${catKey}`);
+    if (!listContainer) return;
+    const badges = listContainer.querySelectorAll('.badge-num');
+    badges.forEach((b, i) => {
+      b.textContent = `#${i + 1}`;
+    });
   },
 
   updateCategoryCount(catKey) {

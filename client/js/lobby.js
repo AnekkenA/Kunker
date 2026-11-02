@@ -88,23 +88,23 @@ const Lobby = {
     list.innerHTML = this.decks.map(deck => {
       const isChecked = currentChecked.size > 0 ? currentChecked.has(deck.id) : (deck.id === 'classic');
       const customBadge = deck.isCustom
-        ? `<span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); font-size: 10px; padding: 1px 6px; border-radius: 4px; margin-left: 6px; font-weight: 700;">ВРЕМЕННАЯ</span>`
+        ? `<span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); font-size: 11px; padding: 2px 7px; border-radius: 6px; margin-left: 6px; font-weight: 800;">ВРЕМЕННАЯ</span>`
         : '';
 
       return `
-        <div class="deck-item-row" style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 6px; border: 1px solid var(--border-color);">
-          <label class="deck-item-label" style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; flex: 1; margin: 0;">
-            <input type="checkbox" name="selected-deck" value="${deck.id}" ${isChecked ? 'checked' : ''} style="margin-top: 3px;">
-            <div>
-              <div style="font-weight: 700; font-size: 13px;">
-                ${deck.name}
+        <div class="deck-item-row ${isChecked ? 'is-checked' : ''}">
+          <label class="deck-item-label">
+            <input type="checkbox" name="selected-deck" value="${deck.id}" ${isChecked ? 'checked' : ''} onchange="this.closest('.deck-item-row').classList.toggle('is-checked', this.checked)">
+            <div class="deck-item-info">
+              <div class="deck-item-title">
+                <span>${deck.name}</span>
                 ${customBadge}
               </div>
-              <div style="font-size: 11px; color: var(--text-muted);">${deck.description || ''}</div>
+              <div class="deck-item-desc">${deck.description || 'Набор карт для бункера'}</div>
             </div>
           </label>
-          <div style="margin-left: 8px;">
-            <button type="button" class="btn btn-xs btn-outline" title="Скачать колоду на устройство (.json)" onclick="event.stopPropagation(); Lobby.downloadDeckJson('${deck.id}')" style="font-size: 11px; padding: 3px 8px; border-radius: 6px; white-space: nowrap;">
+          <div class="deck-item-actions">
+            <button type="button" class="btn btn-xs btn-outline btn-deck-download" title="Скачать тему на устройство (.json)" onclick="event.stopPropagation(); Lobby.downloadDeckJson('${deck.id}')">
               ⬇️ JSON
             </button>
           </div>
