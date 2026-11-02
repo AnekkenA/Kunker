@@ -924,12 +924,43 @@ const App = {
       });
     }
 
+    const chatHeader = document.getElementById('chat-header');
+    if (chatHeader) {
+      chatHeader.addEventListener('click', (e) => {
+        if (e.target.closest('#btn-chat-toggle-collapse')) return;
+        if (chatWidget.classList.contains('collapsed')) {
+          chatWidget.classList.remove('collapsed');
+          const unreadBadge = document.getElementById('chat-unread-badge');
+          if (unreadBadge) {
+            unreadBadge.classList.add('hidden');
+            unreadBadge.textContent = '0';
+          }
+          this.unreadChatCount = 0;
+          if (btnToggle) {
+            btnToggle.textContent = '✕';
+            btnToggle.title = 'Свернуть чат';
+          }
+          if (chatInput) setTimeout(() => chatInput.focus(), 100);
+        }
+      });
+    }
+
     if (btnToggle) {
-      btnToggle.addEventListener('click', () => {
+      btnToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
         chatWidget.classList.toggle('collapsed');
         const isCollapsed = chatWidget.classList.contains('collapsed');
-        btnToggle.textContent = isCollapsed ? '▢' : '−';
+        btnToggle.textContent = isCollapsed ? '💬' : '✕';
         btnToggle.title = isCollapsed ? 'Развернуть чат' : 'Свернуть чат';
+        if (!isCollapsed) {
+          const unreadBadge = document.getElementById('chat-unread-badge');
+          if (unreadBadge) {
+            unreadBadge.classList.add('hidden');
+            unreadBadge.textContent = '0';
+          }
+          this.unreadChatCount = 0;
+          if (chatInput) setTimeout(() => chatInput.focus(), 100);
+        }
       });
     }
 
@@ -962,6 +993,21 @@ const App = {
     const previousCount = this.lastChatCount || 0;
     const isNewMessage = messages.length > previousCount;
     this.lastChatCount = messages.length;
+
+    const chatWidget = document.getElementById('bunker-chat-widget');
+    const isCollapsed = chatWidget && chatWidget.classList.contains('collapsed');
+
+    if (isNewMessage && isCollapsed) {
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg && lastMsg.playerId !== this.playerId) {
+        this.unreadChatCount = (this.unreadChatCount || 0) + 1;
+        const unreadBadge = document.getElementById('chat-unread-badge');
+        if (unreadBadge) {
+          unreadBadge.textContent = this.unreadChatCount;
+          unreadBadge.classList.remove('hidden');
+        }
+      }
+    }
 
     const isNearBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 90;
 

@@ -8,7 +8,10 @@
   <meta http-equiv="Expires" content="0">
   <title>БУНКЕР — Настольная игра на выживание</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <link rel="stylesheet" href="css/style.css?v=4.8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=5.0">
 </head>
 <body class="theme-dark">
   <div id="app">
@@ -168,28 +171,7 @@
           <!-- RIGHT / BOTTOM: GAME SETTINGS (MASTER CONTROLS) -->
           <div class="lobby-panel settings-panel">
             <div class="panel-header">
-              <h2 id="settings-panel-title">⚙️ Параметры убежища</h2>
-            </div>
-
-            <!-- MASTER CONTROLS: ROOM ACCESS & PASSWORD -->
-            <div id="lobby-room-access-group" class="setting-group" style="background: rgba(6, 182, 212, 0.05); border: 1px solid rgba(6, 182, 212, 0.25); border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 16px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span class="setting-title" style="margin-bottom: 0; font-size: 13px;">🛡️ Доступ и защита бункера:</span>
-                <span id="lobby-room-badge-display" style="font-size: 13px; font-weight: 800; color: var(--accent-cyan); font-family: var(--font-mono); letter-spacing: 0.5px;"></span>
-              </div>
-
-              <div style="display: flex; gap: 8px; align-items: flex-end; margin-bottom: 8px;">
-                <div style="flex: 1;">
-                  <label for="input-lobby-password" style="font-size: 11.5px; color: var(--text-muted); display: block; margin-bottom: 3px;">🔒 Пароль от бункера:</label>
-                  <input type="text" id="input-lobby-password" class="form-input form-input-sm font-mono" placeholder="Без пароля" maxlength="30" style="padding: 5px 9px; font-size: 12px;">
-                </div>
-                <button type="button" id="btn-save-lobby-password" class="btn btn-xs btn-outline" style="padding: 6px 12px; font-size: 11px;">💾 Задать</button>
-              </div>
-
-              <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; user-select: none; margin-top: 6px;">
-                <input type="checkbox" id="checkbox-lock-lobby">
-                <span>🚫 <strong>Запереть шлюз</strong> (запретить вход новым игрокам)</span>
-              </label>
+              <h2 id="settings-panel-title">⚙️ Настройки бункера</h2>
             </div>
 
             <!-- MODE SELECTOR -->
@@ -210,7 +192,7 @@
                   <div class="mode-card-content">
                     <span class="mode-icon">✍️</span>
                     <span class="mode-name">С нуля (Игроки)</span>
-                    <span class="mode-desc">Каждый пишет по 5 карт на категорию</span>
+                    <span class="mode-desc">Каждый пишет карты сам</span>
                   </div>
                 </label>
               </div>
@@ -230,108 +212,139 @@
               </div>
             </div>
 
-            <!-- THREAT OPENING MODE -->
-            <div class="setting-group">
-              <label class="setting-title">Режим открытия карт Бункера и Угроз:</label>
-              <div class="mode-selector-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; display: grid;">
-                <label class="mode-card">
-                  <input type="radio" name="threat-mode" value="threshold" checked>
-                  <div class="mode-card-content" style="padding: 10px;">
-                    <span class="mode-icon">📊</span>
-                    <span class="mode-name">По открытию карт</span>
-                    <span class="mode-desc">Когда все открыли по 2, 3, 4... карты</span>
-                  </div>
-                </label>
-                <label class="mode-card">
-                  <input type="radio" name="threat-mode" value="timer">
-                  <div class="mode-card-content" style="padding: 10px;">
-                    <span class="mode-icon">⏱️</span>
-                    <span class="mode-name">Хардкор по таймеру</span>
-                    <span class="mode-desc">Новая угроза/бункер каждые 2 минуты!</span>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            <!-- THREAT / BUNKER PROBABILITY & LIMITS -->
-            <div class="setting-group">
-              <label class="setting-title">Баланс карт Угрозы и Бункера:</label>
-              <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px;">
-                <div style="flex: 1;">
-                  <label style="font-size: 11px; color: var(--text-muted); display: block;">Шанс Угрозы (%):</label>
-                  <input type="number" id="input-threat-percent" min="0" max="100" value="50" class="form-input" style="padding: 6px 10px;">
-                </div>
-                <div style="flex: 2; padding-top: 14px;">
-                  <span id="threat-percent-badge" class="badge" style="font-size: 11px; padding: 6px 10px; width: 100%; text-align: center; display: block;">50% Угрозы / 50% Бункер</span>
-                </div>
-              </div>
-              <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 6px;">
-                <div style="flex: 1;">
-                  <label style="font-size: 11px; color: var(--text-muted); display: block;">Лимит карт мира:</label>
-                  <input type="number" id="input-world-cards-limit" min="1" max="15" value="6" class="form-input" style="padding: 6px 10px;">
-                </div>
-                <div style="flex: 1;">
-                  <label style="font-size: 11px; color: var(--text-muted); display: block;">Скрыто в финале:</label>
-                  <input type="number" id="input-cards-left-closed" min="0" max="4" value="1" class="form-input" style="padding: 6px 10px;">
-                </div>
-              </div>
-              <small class="form-hint">Лимит ограничивает общее число карт угроз/бункера на столе. В финале 1 карта останется скрытой для интриги.</small>
-            </div>
-
-            <!-- CATEGORIES MANAGER (CUSTOM CATEGORIES) -->
-            <div class="setting-group">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <label class="setting-title" style="margin-bottom: 0;">Категории карт (<span id="categories-count-badge">9</span>):</label>
-                <button type="button" id="btn-toggle-cat-manager" class="btn btn-sm btn-outline">✏️ Настроить</button>
-              </div>
-              <div id="lobby-categories-preview" style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
-                <!-- Category chips injected by JS -->
-              </div>
-
-              <!-- COLLAPSIBLE CATEGORY BOX -->
-              <div id="lobby-categories-box" class="lobby-categories-box hidden" style="margin-top: 10px; background: var(--bg-surface); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
-                <div id="lobby-categories-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; margin-bottom: 10px;">
-                  <!-- Checkboxes injected by JS -->
-                </div>
-                <div style="border-top: 1px solid var(--border-color); padding-top: 8px;">
-                  <div style="font-size: 11px; font-weight: 700; margin-bottom: 6px; color: var(--accent-cyan);">+ Добавить категорию (например: Знак зодиака, Фобия):</div>
-                  <div style="display: flex; gap: 6px; margin-bottom: 6px;">
-                    <input type="text" id="input-lobby-new-cat-icon" placeholder="Эмодзи" value="🏷️" maxlength="4" class="form-input" style="width: 75px; padding: 4px 6px; font-size: 12px; text-align: center;">
-                    <input type="text" id="input-lobby-new-cat-name" placeholder="Название (Знак зодиака)" class="form-input" style="flex: 1; padding: 4px 6px; font-size: 12px;">
-                  </div>
-                  <div class="emoji-picker-container" style="margin-bottom: 6px; padding: 6px 8px;">
-                    <div class="emoji-picker-label" style="font-size: 10px; margin-bottom: 4px;">Быстрый выбор иконки:</div>
-                    <div id="lobby-category-emoji-grid" class="emoji-picker-grid" style="gap: 4px;"></div>
-                  </div>
-                  <input type="text" id="input-lobby-new-cat-cards" placeholder="Варианты через запятую (Овен, Телец, Близнецы...)" class="form-input" style="width: 100%; padding: 4px 6px; font-size: 11px; margin-bottom: 6px;">
-                  <button type="button" id="btn-add-custom-cat" class="btn btn-sm btn-primary btn-block">+ Добавить категорию в игру</button>
-                </div>
-              </div>
-            </div>
-
             <!-- BUNKER CAPACITY -->
-            <div class="setting-group">
+            <div class="setting-group" id="bunker-capacity-group">
               <div class="capacity-header">
                 <label class="setting-title" for="input-bunker-capacity">Вместимость бункера (кол-во мест):</label>
                 <span id="capacity-value" class="capacity-badge">3</span>
               </div>
               <input type="range" id="input-bunker-capacity" min="1" max="20" value="3" class="range-slider">
-              <small class="form-hint">Столько человек смогут спастись в финале</small>
+              <small class="form-hint">Столько человек смогут спастись в финале бункера</small>
+            </div>
 
-              <!-- OFFICIAL CAPACITY GUIDE TABLE -->
-              <div class="official-capacity-guide">
-                <div class="guide-title">📋 Официальные правила «Бункер 3.1» (Вместимость):</div>
-                <div class="capacity-table-grid">
-                  <div class="cap-col"><span>4–5 игр.</span> ➔ <strong>2 места</strong></div>
-                  <div class="cap-col"><span>6–7 игр.</span> ➔ <strong>3 места</strong></div>
-                  <div class="cap-col"><span>8–9 игр.</span> ➔ <strong>4 места</strong></div>
-                  <div class="cap-col"><span>10–11 игр.</span> ➔ <strong>5 мест</strong></div>
-                  <div class="cap-col"><span>12–13 игр.</span> ➔ <strong>6 мест</strong></div>
-                  <div class="cap-col"><span>14–15 игр.</span> ➔ <strong>7 мест</strong></div>
-                  <div class="cap-col"><span>16 игр.</span> ➔ <strong>8 мест</strong></div>
+            <!-- COLLAPSIBLE ADVANCED SETTINGS (GARTIC STYLE) -->
+            <div class="lobby-advanced-section">
+              <button type="button" id="btn-toggle-advanced-lobby" class="btn btn-outline btn-block btn-advanced-toggle" style="margin-bottom: 12px;">
+                <span>⚙️ Дополнительные настройки</span>
+                <span id="advanced-lobby-arrow" class="toggle-arrow">▾</span>
+              </button>
+
+              <div id="lobby-advanced-box" class="lobby-advanced-box hidden">
+                <!-- MASTER CONTROLS: ROOM ACCESS & PASSWORD -->
+                <div id="lobby-room-access-group" class="setting-group" style="background: rgba(6, 182, 212, 0.05); border: 1px solid rgba(6, 182, 212, 0.25); border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 14px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span class="setting-title" style="margin-bottom: 0; font-size: 13px;">🛡️ Защита и доступ:</span>
+                    <span id="lobby-room-badge-display" style="font-size: 13px; font-weight: 800; color: var(--accent-cyan); font-family: var(--font-mono); letter-spacing: 0.5px;"></span>
+                  </div>
+
+                  <div style="display: flex; gap: 8px; align-items: flex-end; margin-bottom: 8px;">
+                    <div style="flex: 1;">
+                      <label for="input-lobby-password" style="font-size: 11.5px; color: var(--text-muted); display: block; margin-bottom: 3px;">🔒 Пароль от бункера:</label>
+                      <input type="text" id="input-lobby-password" class="form-input form-input-sm font-mono" placeholder="Без пароля" maxlength="30" style="padding: 5px 9px; font-size: 12px;">
+                    </div>
+                    <button type="button" id="btn-save-lobby-password" class="btn btn-xs btn-outline" style="padding: 6px 12px; font-size: 11px;">💾 Задать</button>
+                  </div>
+
+                  <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; user-select: none; margin-top: 6px;">
+                    <input type="checkbox" id="checkbox-lock-lobby">
+                    <span>🚫 <strong>Запереть шлюз</strong> (запретить вход новым игрокам)</span>
+                  </label>
                 </div>
-                <div class="cap-rule-note">
-                  Формула: ровно <strong>половина</strong> игроков (округление вниз). Сервер рассчитывает значение автоматически при входе участников!
+
+                <!-- THREAT OPENING MODE -->
+                <div class="setting-group">
+                  <label class="setting-title">Режим открытия карт Бункера и Угроз:</label>
+                  <div class="mode-selector-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; display: grid;">
+                    <label class="mode-card">
+                      <input type="radio" name="threat-mode" value="threshold" checked>
+                      <div class="mode-card-content" style="padding: 10px;">
+                        <span class="mode-icon">📊</span>
+                        <span class="mode-name">По открытию карт</span>
+                        <span class="mode-desc">Когда все открыли по 2, 3, 4... карты</span>
+                      </div>
+                    </label>
+                    <label class="mode-card">
+                      <input type="radio" name="threat-mode" value="timer">
+                      <div class="mode-card-content" style="padding: 10px;">
+                        <span class="mode-icon">⏱️</span>
+                        <span class="mode-name">Хардкор по таймеру</span>
+                        <span class="mode-desc">Новая угроза/бункер каждые 2 минуты!</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- THREAT / BUNKER PROBABILITY & LIMITS -->
+                <div class="setting-group">
+                  <label class="setting-title">Баланс карт Угрозы и Бункера:</label>
+                  <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 8px;">
+                    <div style="flex: 1;">
+                      <label style="font-size: 11px; color: var(--text-muted); display: block;">Шанс Угрозы (%):</label>
+                      <input type="number" id="input-threat-percent" min="0" max="100" value="50" class="form-input" style="padding: 6px 10px;">
+                    </div>
+                    <div style="flex: 2; padding-top: 14px;">
+                      <span id="threat-percent-badge" class="badge" style="font-size: 11px; padding: 6px 10px; width: 100%; text-align: center; display: block;">50% Угрозы / 50% Бункер</span>
+                    </div>
+                  </div>
+                  <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 6px;">
+                    <div style="flex: 1;">
+                      <label style="font-size: 11px; color: var(--text-muted); display: block;">Лимит карт мира:</label>
+                      <input type="number" id="input-world-cards-limit" min="1" max="15" value="6" class="form-input" style="padding: 6px 10px;">
+                    </div>
+                    <div style="flex: 1;">
+                      <label style="font-size: 11px; color: var(--text-muted); display: block;">Скрыто в финале:</label>
+                      <input type="number" id="input-cards-left-closed" min="0" max="4" value="1" class="form-input" style="padding: 6px 10px;">
+                    </div>
+                  </div>
+                  <small class="form-hint">Лимит ограничивает общее число карт угроз/бункера на столе. В финале 1 карта останется скрытой для интриги.</small>
+                </div>
+
+                <!-- CATEGORIES MANAGER (CUSTOM CATEGORIES) -->
+                <div class="setting-group">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label class="setting-title" style="margin-bottom: 0;">Категории карт (<span id="categories-count-badge">9</span>):</label>
+                    <button type="button" id="btn-toggle-cat-manager" class="btn btn-sm btn-outline">✏️ Настроить</button>
+                  </div>
+                  <div id="lobby-categories-preview" style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+                    <!-- Category chips injected by JS -->
+                  </div>
+
+                  <!-- COLLAPSIBLE CATEGORY BOX -->
+                  <div id="lobby-categories-box" class="lobby-categories-box hidden" style="margin-top: 10px; background: var(--bg-surface); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                    <div id="lobby-categories-list" style="display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; margin-bottom: 10px;">
+                      <!-- Checkboxes injected by JS -->
+                    </div>
+                    <div style="border-top: 1px solid var(--border-color); padding-top: 8px;">
+                      <div style="font-size: 11px; font-weight: 700; margin-bottom: 6px; color: var(--accent-cyan);">+ Добавить категорию (например: Знак зодиака, Фобия):</div>
+                      <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                        <input type="text" id="input-lobby-new-cat-icon" placeholder="Эмодзи" value="🏷️" maxlength="4" class="form-input" style="width: 75px; padding: 4px 6px; font-size: 12px; text-align: center;">
+                        <input type="text" id="input-lobby-new-cat-name" placeholder="Название (Знак зодиака)" class="form-input" style="flex: 1; padding: 4px 6px; font-size: 12px;">
+                      </div>
+                      <div class="emoji-picker-container" style="margin-bottom: 6px; padding: 6px 8px;">
+                        <div class="emoji-picker-label" style="font-size: 10px; margin-bottom: 4px;">Быстрый выбор иконки:</div>
+                        <div id="lobby-category-emoji-grid" class="emoji-picker-grid" style="gap: 4px;"></div>
+                      </div>
+                      <input type="text" id="input-lobby-new-cat-cards" placeholder="Варианты через запятую (Овен, Телец, Близнецы...)" class="form-input" style="width: 100%; padding: 4px 6px; font-size: 11px; margin-bottom: 6px;">
+                      <button type="button" id="btn-add-custom-cat" class="btn btn-sm btn-primary btn-block">+ Добавить категорию в игру</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- OFFICIAL CAPACITY GUIDE TABLE -->
+                <div class="official-capacity-guide">
+                  <div class="guide-title">📋 Официальные правила «Бункер 3.1» (Вместимость):</div>
+                  <div class="capacity-table-grid">
+                    <div class="cap-col"><span>4–5 игр.</span> ➔ <strong>2 места</strong></div>
+                    <div class="cap-col"><span>6–7 игр.</span> ➔ <strong>3 места</strong></div>
+                    <div class="cap-col"><span>8–9 игр.</span> ➔ <strong>4 места</strong></div>
+                    <div class="cap-col"><span>10–11 игр.</span> ➔ <strong>5 мест</strong></div>
+                    <div class="cap-col"><span>12–13 игр.</span> ➔ <strong>6 мест</strong></div>
+                    <div class="cap-col"><span>14–15 игр.</span> ➔ <strong>7 мест</strong></div>
+                    <div class="cap-col"><span>16 игр.</span> ➔ <strong>8 мест</strong></div>
+                  </div>
+                  <div class="cap-rule-note">
+                    Формула: ровно <strong>половина</strong> игроков (округление вниз). Сервер рассчитывает значение автоматически при входе участников!
+                  </div>
                 </div>
               </div>
             </div>
@@ -340,6 +353,9 @@
             <div class="lobby-actions">
               <button id="btn-start-game" class="btn btn-success btn-lg btn-block">🚀 НАЧАТЬ ИГРУ</button>
               <button id="btn-open-deck-editor" class="btn btn-outline btn-block">🛠️ Конструктор наборов карт</button>
+              <button id="btn-lobby-new-room" class="btn btn-outline btn-block" style="margin-top: 8px;" title="Создать новую независимую комнату со своим уникальным QR-кодом">🎲 Создать новый бункер (комнату)</button>
+            </div>
+          </div>
               <button id="btn-lobby-new-room" class="btn btn-outline btn-block" style="margin-top: 8px;" title="Создать новую независимую комнату со своим уникальным QR-кодом">🎲 Создать новый бункер (комнату)</button>
             </div>
           </div>
@@ -1091,8 +1107,8 @@
         </div>
       </section>
 
-    <!-- BUNKER CHAT & LOGS WIDGET (ALWAYS OPEN & AVAILABLE IN-ROOM) -->
-    <div id="bunker-chat-widget" class="bunker-chat-panel hidden">
+    <!-- BUNKER CHAT & LOGS WIDGET (UNOBTRUSIVE GARTIC-STYLE FLOATING PILL / DOCK) -->
+    <div id="bunker-chat-widget" class="bunker-chat-panel collapsed hidden">
       <div class="chat-header" id="chat-header">
         <div class="chat-header-title">
           <span class="chat-header-icon">💬</span>
@@ -1100,7 +1116,7 @@
           <span id="chat-unread-badge" class="chat-unread-badge hidden">0</span>
         </div>
         <div class="chat-header-actions">
-          <button type="button" id="btn-chat-toggle-collapse" class="btn-chat-icon" title="Свернуть / развернуть чат">−</button>
+          <button type="button" id="btn-chat-toggle-collapse" class="btn-chat-icon" title="Свернуть / развернуть чат">✕</button>
         </div>
       </div>
 

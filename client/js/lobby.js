@@ -370,6 +370,19 @@ const Lobby = {
       App.playSound('click');
     });
 
+    // Toggle Advanced Lobby Settings
+    const btnAdvLobby = document.getElementById('btn-toggle-advanced-lobby');
+    const boxAdvLobby = document.getElementById('lobby-advanced-box');
+    const arrowAdvLobby = document.getElementById('advanced-lobby-arrow');
+    if (btnAdvLobby && boxAdvLobby) {
+      btnAdvLobby.addEventListener('click', () => {
+        boxAdvLobby.classList.toggle('hidden');
+        const isHidden = boxAdvLobby.classList.contains('hidden');
+        if (arrowAdvLobby) arrowAdvLobby.textContent = isHidden ? '▾' : '▴';
+        App.playSound('click');
+      });
+    }
+
     // Save Room Password (Master)
     const btnSavePass = document.getElementById('btn-save-lobby-password');
     if (btnSavePass) {
