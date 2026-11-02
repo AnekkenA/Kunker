@@ -657,11 +657,20 @@ const App = {
       });
     }
 
-    // Header Leave Room Button
+    // Header Leave & New Room Buttons
     const btnLeaveRoom = document.getElementById('btn-leave-room');
     if (btnLeaveRoom) {
       btnLeaveRoom.addEventListener('click', () => {
         this.leaveRoom();
+      });
+    }
+
+    const btnHeaderNewRoom = document.getElementById('btn-header-new-room');
+    if (btnHeaderNewRoom) {
+      btnHeaderNewRoom.addEventListener('click', () => {
+        if (confirm('Создать новый бункер (комнату)? Вы покинете текущий бункер.')) {
+          this.leaveRoom();
+        }
       });
     }
   },
@@ -784,6 +793,8 @@ const App = {
 
     // Header updates
     document.getElementById('btn-invite').classList.remove('hidden');
+    const btnHeaderNewRoom = document.getElementById('btn-header-new-room');
+    if (btnHeaderNewRoom) btnHeaderNewRoom.classList.remove('hidden');
     document.getElementById('user-profile').classList.remove('hidden');
     document.getElementById('user-display-name').textContent = this.playerName || 'Игрок';
 
