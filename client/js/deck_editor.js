@@ -872,11 +872,13 @@ const DeckEditor = {
 
     if (prevBack) {
       if (backUrl) {
+        prevBack.style.setProperty('--card-back-img', `url('${backUrl}')`);
         prevBack.style.backgroundImage = `url('${backUrl}')`;
-        prevBack.style.backgroundSize = 'cover';
-        prevBack.style.backgroundPosition = 'center';
+        prevBack.classList.add('has-custom-back');
       } else {
+        prevBack.style.removeProperty('--card-back-img');
         prevBack.style.backgroundImage = '';
+        prevBack.classList.remove('has-custom-back');
       }
     }
 
@@ -975,14 +977,15 @@ const DeckEditor = {
     const input = document.getElementById('edit-deck-bg');
     if (!input) return;
     const presets = {
-      bunker: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?auto=format&fit=crop&w=1600&q=80',
-      ruins: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1600&q=80',
-      space: 'https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=1600&q=80',
+      entrance: 'https://avatars.mds.yandex.net/i?id=672bc03703857f60a3ed8ffdc09d16977b6f5f81-5424841-images-thumbs&n=13',
+      hangar: 'https://avatars.mds.yandex.net/i?id=c10030d51804fb60126e5ea689ab0defbbd6003b-11938745-images-thumbs&n=13',
+      corridor: 'https://avatars.mds.yandex.net/i?id=00294e1bc8ce0cf0902c38ad30101712395c288a-5340221-images-thumbs&n=13',
+      sands: 'https://i.pinimg.com/originals/ec/1c/39/ec1c39f1a9ae71dbb2b45a31dec6dcbf.jpg?nii=t',
       none: ''
     };
     input.value = presets[type] !== undefined ? presets[type] : '';
     this.updateLivePreview();
-    const names = { bunker: 'Бункер', ruins: 'Руины', space: 'Космос', none: 'Сброс' };
+    const names = { entrance: 'Вход', hangar: 'Ангар', corridor: 'Коридор', sands: 'Пески', none: 'Сброс' };
     App.showToast(`Пресет фона стола "${names[type] || type}" установлен!`);
     App.playSound('click');
   },
@@ -991,14 +994,16 @@ const DeckEditor = {
     const input = document.getElementById('edit-deck-card-back');
     if (!input) return;
     const presets = {
-      vault: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&w=400&q=80',
-      biohazard: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=400&q=80',
-      cyber: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=400&q=80',
+      radiation: 'https://i.pinimg.com/736x/c4/f6/3c/c4f63cc26821408c52a6d607b54d2fa3.jpg',
+      association: 'https://img.freepik.com/premium-photo/nuclear-radiation-symbol-danger-hazard-caution-warning-illustration_167857-30664.jpg?semt=ais_hybrid',
+      umbrella: 'https://yt3.googleusercontent.com/ytc/AIdro_mYG-DR1xeyiJ7qdfcs6XnO9XohibzxoPo268egrDZKMw=s900-c-k-c0x00ffffff-no-rj',
+      door: 'https://i.pinimg.com/736x/ac/38/b0/ac38b01d680dde2decb12904e74021d8.jpg',
       none: ''
     };
     input.value = presets[type] !== undefined ? presets[type] : '';
     this.updateLivePreview();
-    App.showToast('Пресет рубашки карт установлен!');
+    const names = { radiation: 'Радиация', association: 'Ассоциация', umbrella: 'Амбрелла', door: 'Дверь', none: 'Сброс' };
+    App.showToast(`Пресет рубашки карт "${names[type] || type}" установлен!`);
     App.playSound('click');
   },
 
