@@ -51,6 +51,10 @@ class DeckLoader {
         id: deck.id,
         name: deck.name || id,
         description: deck.description || '',
+        backgroundImage: deck.backgroundImage || null,
+        cardBackImage: deck.cardBackImage || null,
+        cardBorderFront: deck.cardBorderFront || null,
+        cardBorderBack: deck.cardBorderBack || null,
         isBuiltin,
         isCustom: !isBuiltin,
         counts: {

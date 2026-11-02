@@ -190,6 +190,16 @@ const DeckEditor = {
     document.getElementById('edit-deck-desc').value = d.description || '';
     document.getElementById('edit-deck-bg').value = d.backgroundImage || '';
     document.getElementById('edit-deck-card-back').value = d.cardBackImage || '';
+    if (d.cardBorderFront) {
+      this.setFrontBorderColor(d.cardBorderFront);
+    } else {
+      this.setFrontBorderColor('#06b6d4');
+    }
+    if (d.cardBorderBack) {
+      this.setBackBorderColor(d.cardBorderBack);
+    } else {
+      this.setBackBorderColor('#f59e0b');
+    }
 
     // 1. Prepare Active Categories
     this.activeCategories = [];
@@ -850,6 +860,15 @@ const DeckEditor = {
     const prevAuthor = document.getElementById('prev-card-author');
     const prevBack = document.getElementById('card-preview-back');
 
+    const prevFace = document.getElementById('card-preview-face');
+    const frontBorderInput = document.getElementById('edit-deck-border-front');
+    const frontBorder = frontBorderInput ? frontBorderInput.value : '#06b6d4';
+    if (prevFace) prevFace.style.borderColor = frontBorder;
+
+    const backBorderInput = document.getElementById('edit-deck-border-back');
+    const backBorder = backBorderInput ? backBorderInput.value : '#f59e0b';
+    if (prevBack) prevBack.style.borderColor = backBorder;
+
     if (prevIcon) prevIcon.textContent = cat.icon;
     if (prevName) prevName.textContent = cat.name;
     if (prevText) prevText.textContent = parsed.cleanText || '—';
@@ -1007,6 +1026,32 @@ const DeckEditor = {
     App.playSound('click');
   },
 
+  setFrontBorderColor(color) {
+    if (!color) return;
+    const input = document.getElementById('edit-deck-border-front');
+    if (input && input.value !== color) input.value = color;
+    const valEl = document.getElementById('editor-val-front-border');
+    if (valEl) valEl.textContent = color;
+    const chips = document.querySelectorAll('#editor-front-border-chips .color-chip');
+    chips.forEach(c => {
+      c.classList.toggle('active', c.getAttribute('data-color').toLowerCase() === color.toLowerCase());
+    });
+    this.updateLivePreview();
+  },
+
+  setBackBorderColor(color) {
+    if (!color) return;
+    const input = document.getElementById('edit-deck-border-back');
+    if (input && input.value !== color) input.value = color;
+    const valEl = document.getElementById('editor-val-back-border');
+    if (valEl) valEl.textContent = color;
+    const chips = document.querySelectorAll('#editor-back-border-chips .color-chip');
+    chips.forEach(c => {
+      c.classList.toggle('active', c.getAttribute('data-color').toLowerCase() === color.toLowerCase());
+    });
+    this.updateLivePreview();
+  },
+
   // --- EXPORT & IMPORT JSON ---
   exportCurrentDeckJson() {
     try {
@@ -1080,6 +1125,11 @@ const DeckEditor = {
       type: c.type
     }));
 
+    const borderFrontInput = document.getElementById('edit-deck-border-front');
+    const borderBackInput = document.getElementById('edit-deck-border-back');
+    const cardBorderFront = borderFrontInput ? borderFrontInput.value : '#06b6d4';
+    const cardBorderBack = borderBackInput ? borderBackInput.value : '#f59e0b';
+
     const payload = {
       id,
       name,
@@ -1087,6 +1137,8 @@ const DeckEditor = {
       description: desc,
       backgroundImage: bg || null,
       cardBackImage: back || null,
+      cardBorderFront,
+      cardBorderBack,
       playerCategories: playerCats.map(c => ({
         key: c.key,
         name: c.name,
@@ -1311,6 +1363,35 @@ const DeckEditor = {
         this.updateLivePreview();
         this.checkImageStatus('', 'deck-back-status-msg');
         if (typeof App !== 'undefined') App.playSound('click');
+      });
+    }
+
+    // Border color controls in Deck Editor
+    document.querySelectorAll('#editor-front-border-chips .color-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const color = chip.getAttribute('data-color');
+        this.setFrontBorderColor(color);
+        if (typeof App !== 'undefined') App.playSound('click');
+      });
+    });
+    const editFrontBorderInput = document.getElementById('edit-deck-border-front');
+    if (editFrontBorderInput) {
+      editFrontBorderInput.addEventListener('input', (e) => {
+        this.setFrontBorderColor(e.target.value);
+      });
+    }
+
+    document.querySelectorAll('#editor-back-border-chips .color-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const color = chip.getAttribute('data-color');
+        this.setBackBorderColor(color);
+        if (typeof App !== 'undefined') App.playSound('click');
+      });
+    });
+    const editBackBorderInput = document.getElementById('edit-deck-border-back');
+    if (editBackBorderInput) {
+      editBackBorderInput.addEventListener('input', (e) => {
+        this.setBackBorderColor(e.target.value);
       });
     }
 

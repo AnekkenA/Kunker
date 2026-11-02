@@ -1139,6 +1139,12 @@ const GameBoard = {
     // 0b. Voting UI
     this.updateVotingUI(state.voting, state);
 
+    // Dynamic Card border colors (applied globally via CSS variables)
+    const frontBorder = state.cardBorderFront || '#06b6d4';
+    const backBorder = state.cardBorderBack || '#f59e0b';
+    document.documentElement.style.setProperty('--card-border-front', frontBorder);
+    document.documentElement.style.setProperty('--card-border-back', backBorder);
+
     // 0. Theme Background (applied to document.body so 100% of viewport is covered seamlessly without any black bars)
     const rawBg = state.backgroundImage || '';
     const doubleMatch = rawBg.match(/(https?:\/\/[^\s"'<>]+\.(?:jpg|jpeg|png|webp|gif|svg))([a-z0-9_.-]*(?:https?:|\.com|\/photo|\/image|\/img).*)?/i);
@@ -1401,14 +1407,16 @@ const GameBoard = {
     const tagsHtml = (typeof TagHelper !== 'undefined') ? TagHelper.renderTagsHtml(parsed.tags) : '';
     const authorHtml = card.author ? `<span class="card-author-badge" title="Автор карты">✍️ ${card.author}</span>` : '';
 
-    const backCoverStyle = (App.state && App.state.cardBackImage) ? `style="background-image: url('${App.state.cardBackImage}'); background-size: cover; background-position: center;"` : '';
+    const hasCustomBack = Boolean(App.state && App.state.cardBackImage);
+    const customBackClass = hasCustomBack ? 'has-custom-back' : '';
+    const backCoverStyle = hasCustomBack ? `style="--card-back-img: url('${App.state.cardBackImage}'); background-image: url('${App.state.cardBackImage}');"` : '';
 
     // CASE 1: Card is Revealed to Everyone (Front face displayed)
     if (isRevealed) {
       return `
         <div class="card-container cursor-pointer" onclick="GameBoard.openCardZoom('${playerId}', '${category.key}')">
           <div class="bunker-card revealed">
-            <div class="card-face card-back" ${backCoverStyle}>
+            <div class="card-face card-back ${customBackClass}" ${backCoverStyle}>
               <div class="card-back-icon">${category.icon}</div>
               <div class="card-back-text">${category.name}</div>
             </div>
@@ -1452,7 +1460,7 @@ const GameBoard = {
                 <button class="btn-reveal-self ${isSpecial ? 'btn-special-play' : ''}" onclick="event.stopPropagation(); GameBoard.handleCardClick('${playerId}', '${category.key}', '${card.action || 'custom'}', ${isSpecial});">${revealBtnText}</button>
               </div>
             </div>
-            <div class="card-face card-back" style="transform: rotateY(180deg);" ${backCoverStyle}>
+            <div class="card-face card-back ${customBackClass}" style="transform: rotateY(180deg); ${hasCustomBack ? `--card-back-img: url('${App.state.cardBackImage}'); background-image: url('${App.state.cardBackImage}');` : ''}">
               <div class="card-back-icon">${category.icon}</div>
               <div class="card-back-text">${category.name}</div>
             </div>
@@ -1467,7 +1475,7 @@ const GameBoard = {
     return `
       <div class="card-container ${isMaster ? 'cursor-pointer' : ''}" onclick="${masterClickAction}">
         <div class="bunker-card">
-          <div class="card-face card-back" ${backCoverStyle}>
+          <div class="card-face card-back ${customBackClass}" ${backCoverStyle}>
             <div class="card-back-icon">${category.icon}</div>
             <div class="card-back-text">${category.name}</div>
             <div style="font-size: 9px; color: var(--text-dim); margin-top: 4px;">

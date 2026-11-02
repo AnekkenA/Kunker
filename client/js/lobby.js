@@ -1,6 +1,14 @@
 // --- LOBBY LOGIC ---
 const Lobby = {
   decks: [],
+  visualSettings: {
+    backgroundImage: '',
+    cardBackImage: '',
+    cardBorderFront: '#06b6d4',
+    cardBorderBack: '#f59e0b'
+  },
+  hasUserCustomizedVisuals: false,
+  _syncTimer: null,
   categories: [
     { key: 'profession', name: 'Профессия', icon: '💼', isSpecial: false, enabled: true },
     { key: 'health', name: 'Здоровье', icon: '❤️', isSpecial: false, enabled: true },
@@ -94,7 +102,7 @@ const Lobby = {
       return `
         <div class="deck-item-row ${isChecked ? 'is-checked' : ''}">
           <label class="deck-item-label">
-            <input type="checkbox" name="selected-deck" value="${deck.id}" ${isChecked ? 'checked' : ''} onchange="this.closest('.deck-item-row').classList.toggle('is-checked', this.checked)">
+            <input type="checkbox" name="selected-deck" value="${deck.id}" ${isChecked ? 'checked' : ''} onchange="this.closest('.deck-item-row').classList.toggle('is-checked', this.checked); Lobby.onDeckSelectionChanged();">
             <div class="deck-item-info">
               <div class="deck-item-title">
                 <span>${deck.name}</span>
@@ -111,6 +119,207 @@ const Lobby = {
         </div>
       `;
     }).join('');
+
+    if (!this.hasUserCustomizedVisuals) {
+      this.onDeckSelectionChanged();
+    }
+  },
+
+  onDeckSelectionChanged() {
+    const checkedDecks = Array.from(document.querySelectorAll('input[name="selected-deck"]:checked')).map(cb => cb.value);
+    if (checkedDecks.length > 0 && !this.hasUserCustomizedVisuals) {
+      const primaryDeck = this.decks.find(d => d.id === checkedDecks[0]);
+      if (primaryDeck) {
+        if (primaryDeck.backgroundImage !== undefined && primaryDeck.backgroundImage !== null) {
+          this.visualSettings.backgroundImage = primaryDeck.backgroundImage;
+          const bgInput = document.getElementById('lobby-deck-bg');
+          if (bgInput) bgInput.value = primaryDeck.backgroundImage;
+        }
+        if (primaryDeck.cardBackImage !== undefined && primaryDeck.cardBackImage !== null) {
+          this.visualSettings.cardBackImage = primaryDeck.cardBackImage;
+          const backInput = document.getElementById('lobby-deck-card-back');
+          if (backInput) backInput.value = primaryDeck.cardBackImage;
+        }
+        if (primaryDeck.cardBorderFront) {
+          this.setFrontBorderColor(primaryDeck.cardBorderFront, false);
+        }
+        if (primaryDeck.cardBorderBack) {
+          this.setBackBorderColor(primaryDeck.cardBorderBack, false);
+        }
+        this.updatePreview();
+      }
+    }
+  },
+
+  setBgPreset(type) {
+    const presets = {
+      entrance: 'https://avatars.mds.yandex.net/i?id=672bc03703857f60a3ed8ffdc09d16977b6f5f81-5424841-images-thumbs&n=13',
+      hangar: 'https://avatars.mds.yandex.net/i?id=c10030d51804fb60126e5ea689ab0defbbd6003b-11938745-images-thumbs&n=13',
+      corridor: 'https://avatars.mds.yandex.net/i?id=00294e1bc8ce0cf0902c38ad30101712395c288a-5340221-images-thumbs&n=13',
+      sands: 'https://i.pinimg.com/originals/ec/1c/39/ec1c39f1a9ae71dbb2b45a31dec6dcbf.jpg?nii=t',
+      none: ''
+    };
+    const val = presets[type] !== undefined ? presets[type] : '';
+    this.visualSettings.backgroundImage = val;
+    this.hasUserCustomizedVisuals = true;
+    const bgInput = document.getElementById('lobby-deck-bg');
+    if (bgInput) bgInput.value = val;
+    this.updatePreview();
+    this.syncVisualsToServer();
+    const names = { entrance: 'Вход', hangar: 'Ангар', corridor: 'Коридор', sands: 'Пески', none: 'Сброс' };
+    App.showToast(`Пресет фона стола "${names[type] || type}" установлен!`);
+    App.playSound('click');
+  },
+
+  setBackPreset(type) {
+    const presets = {
+      radiation: 'https://i.pinimg.com/736x/c4/f6/3c/c4f63cc26821408c52a6d607b54d2fa3.jpg',
+      association: 'https://img.freepik.com/premium-photo/nuclear-radiation-symbol-danger-hazard-caution-warning-illustration_167857-30664.jpg?semt=ais_hybrid',
+      umbrella: 'https://yt3.googleusercontent.com/ytc/AIdro_mYG-DR1xeyiJ7qdfcs6XnO9XohibzxoPo268egrDZKMw=s900-c-k-c0x00ffffff-no-rj',
+      door: 'https://i.pinimg.com/736x/ac/38/b0/ac38b01d680dde2decb12904e74021d8.jpg',
+      none: ''
+    };
+    const val = presets[type] !== undefined ? presets[type] : '';
+    this.visualSettings.cardBackImage = val;
+    this.hasUserCustomizedVisuals = true;
+    const backInput = document.getElementById('lobby-deck-card-back');
+    if (backInput) backInput.value = val;
+    this.updatePreview();
+    this.syncVisualsToServer();
+    const names = { radiation: 'Радиация', association: 'Ассоциация', umbrella: 'Амбрелла', door: 'Дверь', none: 'Сброс' };
+    App.showToast(`Пресет рубашки карт "${names[type] || type}" установлен!`);
+    App.playSound('click');
+  },
+
+  setFrontBorderColor(color, markCustom = true) {
+    if (!color) return;
+    this.visualSettings.cardBorderFront = color;
+    if (markCustom) this.hasUserCustomizedVisuals = true;
+    const valEl = document.getElementById('lobby-val-front-border');
+    if (valEl) valEl.textContent = color;
+    const input = document.getElementById('lobby-input-front-border');
+    if (input && input.value !== color) input.value = color;
+
+    const chips = document.querySelectorAll('#lobby-front-border-chips .color-chip');
+    chips.forEach(c => {
+      c.classList.toggle('active', c.getAttribute('data-color').toLowerCase() === color.toLowerCase());
+    });
+
+    this.updatePreview();
+    if (markCustom) this.syncVisualsToServer();
+  },
+
+  setBackBorderColor(color, markCustom = true) {
+    if (!color) return;
+    this.visualSettings.cardBorderBack = color;
+    if (markCustom) this.hasUserCustomizedVisuals = true;
+    const valEl = document.getElementById('lobby-val-back-border');
+    if (valEl) valEl.textContent = color;
+    const input = document.getElementById('lobby-input-back-border');
+    if (input && input.value !== color) input.value = color;
+
+    const chips = document.querySelectorAll('#lobby-back-border-chips .color-chip');
+    chips.forEach(c => {
+      c.classList.toggle('active', c.getAttribute('data-color').toLowerCase() === color.toLowerCase());
+    });
+
+    this.updatePreview();
+    if (markCustom) this.syncVisualsToServer();
+  },
+
+  async uploadVisualFile(file, targetType) {
+    if (!file) return;
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const base64Data = e.target.result;
+          const res = await fetch('/api/upload_image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              data: base64Data,
+              filename: file.name
+            })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Ошибка загрузки');
+
+          if (targetType === 'bg') {
+            this.visualSettings.backgroundImage = data.url;
+            const input = document.getElementById('lobby-deck-bg');
+            if (input) input.value = data.url;
+          } else {
+            this.visualSettings.cardBackImage = data.url;
+            const input = document.getElementById('lobby-deck-card-back');
+            if (input) input.value = data.url;
+          }
+          this.hasUserCustomizedVisuals = true;
+          this.updatePreview();
+          this.syncVisualsToServer();
+          App.showToast(`✅ Изображение "${file.name}" загружено!`);
+          App.playSound('start');
+        } catch (err) {
+          App.showToast(`❌ Ошибка загрузки: ${err.message}`);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      App.showToast(`❌ Ошибка чтения файла: ${err.message}`);
+    }
+  },
+
+  updatePreview() {
+    const bgUrl = this.visualSettings.backgroundImage || '';
+    const backUrl = this.visualSettings.cardBackImage || '';
+    const frontBorder = this.visualSettings.cardBorderFront || '#06b6d4';
+    const backBorder = this.visualSettings.cardBorderBack || '#f59e0b';
+
+    // 1. Tabletop box
+    const tabletopBox = document.getElementById('lobby-preview-tabletop-box');
+    if (tabletopBox) {
+      if (bgUrl) {
+        tabletopBox.style.backgroundImage = `linear-gradient(rgba(11, 15, 23, 0.35), rgba(11, 15, 23, 0.35)), url('${bgUrl}'), radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%)`;
+        tabletopBox.style.backgroundSize = 'cover';
+        tabletopBox.style.backgroundPosition = 'center center';
+      } else {
+        tabletopBox.style.backgroundImage = '';
+      }
+    }
+
+    // 2. Front card
+    const faceEl = document.getElementById('lobby-card-preview-face');
+    if (faceEl) {
+      faceEl.style.borderColor = frontBorder;
+    }
+
+    // 3. Back card
+    const backEl = document.getElementById('lobby-card-preview-back');
+    if (backEl) {
+      backEl.style.borderColor = backBorder;
+      if (backUrl) {
+        backEl.style.setProperty('--card-back-img', `url('${backUrl}')`);
+        backEl.style.backgroundImage = `url('${backUrl}')`;
+        backEl.classList.add('has-custom-back');
+      } else {
+        backEl.style.removeProperty('--card-back-img');
+        backEl.style.backgroundImage = '';
+        backEl.classList.remove('has-custom-back');
+      }
+    }
+  },
+
+  syncVisualsToServer() {
+    if (!App.isHost) return;
+    clearTimeout(this._syncTimer);
+    this._syncTimer = setTimeout(() => {
+      App.sendAction('update_settings', {
+        backgroundImage: this.visualSettings.backgroundImage,
+        cardBackImage: this.visualSettings.cardBackImage,
+        cardBorderFront: this.visualSettings.cardBorderFront,
+        cardBorderBack: this.visualSettings.cardBorderBack
+      }).catch(err => console.warn('Sync visuals error:', err));
+    }, 300);
   },
 
   async downloadDeckJson(deckId) {
@@ -333,7 +542,11 @@ const Lobby = {
           threatPercent,
           worldCardsMaxLimit,
           cardsLeftClosed,
-          categories: activeCategories
+          categories: activeCategories,
+          backgroundImage: this.visualSettings.backgroundImage || null,
+          cardBackImage: this.visualSettings.cardBackImage || null,
+          cardBorderFront: this.visualSettings.cardBorderFront || '#06b6d4',
+          cardBorderBack: this.visualSettings.cardBorderBack || '#f59e0b'
         });
       } else {
         // UGC Mode
@@ -343,7 +556,11 @@ const Lobby = {
           threatPercent,
           worldCardsMaxLimit,
           cardsLeftClosed,
-          categories: activeCategories
+          categories: activeCategories,
+          backgroundImage: this.visualSettings.backgroundImage || null,
+          cardBackImage: this.visualSettings.cardBackImage || null,
+          cardBorderFront: this.visualSettings.cardBorderFront || '#06b6d4',
+          cardBorderBack: this.visualSettings.cardBorderBack || '#f59e0b'
         });
       }
       App.playSound('start');
@@ -412,6 +629,83 @@ const Lobby = {
           e.target.checked = !locked;
           App.showToast(`Ошибка: ${err.message}`);
         }
+      });
+    }
+
+    // Lobby Visual Controls Binding
+    // Front Border chips
+    document.querySelectorAll('#lobby-front-border-chips .color-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const color = chip.getAttribute('data-color');
+        this.setFrontBorderColor(color, true);
+        App.playSound('click');
+      });
+    });
+    const frontBorderInput = document.getElementById('lobby-input-front-border');
+    if (frontBorderInput) {
+      frontBorderInput.addEventListener('input', (e) => {
+        this.setFrontBorderColor(e.target.value, true);
+      });
+    }
+
+    // Back Border chips
+    document.querySelectorAll('#lobby-back-border-chips .color-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const color = chip.getAttribute('data-color');
+        this.setBackBorderColor(color, true);
+        App.playSound('click');
+      });
+    });
+    const backBorderInput = document.getElementById('lobby-input-back-border');
+    if (backBorderInput) {
+      backBorderInput.addEventListener('input', (e) => {
+        this.setBackBorderColor(e.target.value, true);
+      });
+    }
+
+    // Lobby Background Image input & upload
+    const lobbyBgInput = document.getElementById('lobby-deck-bg');
+    if (lobbyBgInput) {
+      lobbyBgInput.addEventListener('input', (e) => {
+        this.visualSettings.backgroundImage = e.target.value.trim();
+        this.hasUserCustomizedVisuals = true;
+        this.updatePreview();
+        this.syncVisualsToServer();
+      });
+    }
+    const btnUploadLobbyBg = document.getElementById('btn-lobby-upload-bg');
+    const inputFileLobbyBg = document.getElementById('input-file-lobby-bg');
+    if (btnUploadLobbyBg && inputFileLobbyBg) {
+      btnUploadLobbyBg.addEventListener('click', () => {
+        inputFileLobbyBg.value = '';
+        inputFileLobbyBg.click();
+      });
+      inputFileLobbyBg.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) this.uploadVisualFile(file, 'bg');
+      });
+    }
+
+    // Lobby Card Back Image input & upload
+    const lobbyBackInput = document.getElementById('lobby-deck-card-back');
+    if (lobbyBackInput) {
+      lobbyBackInput.addEventListener('input', (e) => {
+        this.visualSettings.cardBackImage = e.target.value.trim();
+        this.hasUserCustomizedVisuals = true;
+        this.updatePreview();
+        this.syncVisualsToServer();
+      });
+    }
+    const btnUploadLobbyBack = document.getElementById('btn-lobby-upload-card-back');
+    const inputFileLobbyBack = document.getElementById('input-file-lobby-card-back');
+    if (btnUploadLobbyBack && inputFileLobbyBack) {
+      btnUploadLobbyBack.addEventListener('click', () => {
+        inputFileLobbyBack.value = '';
+        inputFileLobbyBack.click();
+      });
+      inputFileLobbyBack.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) this.uploadVisualFile(file, 'back');
       });
     }
   },
@@ -496,6 +790,53 @@ const Lobby = {
     const lockCb = document.getElementById('checkbox-lock-lobby');
     if (lockCb && document.activeElement !== lockCb) {
       lockCb.checked = Boolean(state.lockedLobby);
+    }
+
+    // Master Visual Preview Box: ONLY visible to Master
+    const masterVisualBox = document.getElementById('lobby-master-visual-box');
+    if (masterVisualBox) {
+      if (isMaster) {
+        masterVisualBox.classList.remove('hidden');
+      } else {
+        masterVisualBox.classList.add('hidden');
+      }
+    }
+
+    if (isMaster) {
+      // Sync from state if user hasn't explicitly customized locally
+      if (state.cardBorderFront && !this.hasUserCustomizedVisuals) {
+        this.visualSettings.cardBorderFront = state.cardBorderFront;
+        const frontInput = document.getElementById('lobby-input-front-border');
+        if (frontInput && document.activeElement !== frontInput) frontInput.value = state.cardBorderFront;
+        const valEl = document.getElementById('lobby-val-front-border');
+        if (valEl) valEl.textContent = state.cardBorderFront;
+        const chips = document.querySelectorAll('#lobby-front-border-chips .color-chip');
+        chips.forEach(c => {
+          c.classList.toggle('active', c.getAttribute('data-color').toLowerCase() === state.cardBorderFront.toLowerCase());
+        });
+      }
+      if (state.cardBorderBack && !this.hasUserCustomizedVisuals) {
+        this.visualSettings.cardBorderBack = state.cardBorderBack;
+        const backInput = document.getElementById('lobby-input-back-border');
+        if (backInput && document.activeElement !== backInput) backInput.value = state.cardBorderBack;
+        const valEl = document.getElementById('lobby-val-back-border');
+        if (valEl) valEl.textContent = state.cardBorderBack;
+        const chips = document.querySelectorAll('#lobby-back-border-chips .color-chip');
+        chips.forEach(c => {
+          c.classList.toggle('active', c.getAttribute('data-color').toLowerCase() === state.cardBorderBack.toLowerCase());
+        });
+      }
+      if (state.backgroundImage !== undefined && !this.hasUserCustomizedVisuals) {
+        this.visualSettings.backgroundImage = state.backgroundImage || '';
+        const bgInput = document.getElementById('lobby-deck-bg');
+        if (bgInput && document.activeElement !== bgInput) bgInput.value = state.backgroundImage || '';
+      }
+      if (state.cardBackImage !== undefined && !this.hasUserCustomizedVisuals) {
+        this.visualSettings.cardBackImage = state.cardBackImage || '';
+        const backInput = document.getElementById('lobby-deck-card-back');
+        if (backInput && document.activeElement !== backInput) backInput.value = state.cardBackImage || '';
+      }
+      this.updatePreview();
     }
 
     // If viewer is not Host -> disable start button and settings

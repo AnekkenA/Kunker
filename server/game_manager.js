@@ -223,9 +223,11 @@ class SingleGame {
     this.logs = [];
     this.chatMessages = [];
 
-    // Theme Background & Card Back custom images & Author
+    // Theme Background & Card Back custom images & Author & Borders
     this.backgroundImage = null;
     this.cardBackImage = null;
+    this.cardBorderFront = '#06b6d4';
+    this.cardBorderBack = '#f59e0b';
     this.deckAuthor = 'Бункер 3.1';
 
     this.addLog('Бункер инициализирован и готов к приему выживших.');
@@ -1328,8 +1330,10 @@ class SingleGame {
     this.revealedThreatCards = [];
 
     const primaryDeck = this.selectedDecks.length > 0 ? deckLoader.getDeck(this.selectedDecks[0]) : null;
-    this.backgroundImage = options.backgroundImage || (primaryDeck && primaryDeck.backgroundImage) || null;
-    this.cardBackImage = options.cardBackImage || (primaryDeck && primaryDeck.cardBackImage) || null;
+    this.backgroundImage = (options.backgroundImage !== undefined && options.backgroundImage !== null) ? options.backgroundImage : ((primaryDeck && primaryDeck.backgroundImage) || null);
+    this.cardBackImage = (options.cardBackImage !== undefined && options.cardBackImage !== null) ? options.cardBackImage : ((primaryDeck && primaryDeck.cardBackImage) || null);
+    this.cardBorderFront = (options.cardBorderFront !== undefined && options.cardBorderFront !== null) ? options.cardBorderFront : ((primaryDeck && primaryDeck.cardBorderFront) || this.cardBorderFront || '#06b6d4');
+    this.cardBorderBack = (options.cardBorderBack !== undefined && options.cardBorderBack !== null) ? options.cardBorderBack : ((primaryDeck && primaryDeck.cardBorderBack) || this.cardBorderBack || '#f59e0b');
     this.deckAuthor = options.deckAuthor || (primaryDeck && primaryDeck.author) || (primaryDeck && primaryDeck.name) || 'Бункер 3.1';
 
     // Merge custom or specialized player categories from selected deck
@@ -1444,6 +1448,10 @@ class SingleGame {
     if (options.threatPercent !== undefined) this.threatPercent = Math.max(0, Math.min(100, parseInt(options.threatPercent, 10) || 50));
     if (options.worldCardsMaxLimit !== undefined) this.worldCardsMaxLimit = Math.max(1, parseInt(options.worldCardsMaxLimit, 10) || 6);
     if (options.cardsLeftClosed !== undefined) this.cardsLeftClosed = Math.max(0, parseInt(options.cardsLeftClosed, 10) || 1);
+    if (options.backgroundImage !== undefined) this.backgroundImage = options.backgroundImage;
+    if (options.cardBackImage !== undefined) this.cardBackImage = options.cardBackImage;
+    if (options.cardBorderFront !== undefined) this.cardBorderFront = options.cardBorderFront;
+    if (options.cardBorderBack !== undefined) this.cardBorderBack = options.cardBorderBack;
     if (Array.isArray(options.categories) && options.categories.length > 0) {
       this.categories = options.categories;
     }
@@ -1476,11 +1484,17 @@ class SingleGame {
       throw new Error('Только Мастер игры может запустить игру.');
     }
 
-    if (options && options.backgroundImage) {
+    if (options && options.backgroundImage !== undefined && options.backgroundImage !== null) {
       this.backgroundImage = options.backgroundImage;
     }
-    if (options && options.cardBackImage) {
+    if (options && options.cardBackImage !== undefined && options.cardBackImage !== null) {
       this.cardBackImage = options.cardBackImage;
+    }
+    if (options && options.cardBorderFront !== undefined && options.cardBorderFront !== null) {
+      this.cardBorderFront = options.cardBorderFront;
+    }
+    if (options && options.cardBorderBack !== undefined && options.cardBorderBack !== null) {
+      this.cardBorderBack = options.cardBorderBack;
     }
 
     const pool = {
@@ -1963,6 +1977,8 @@ class SingleGame {
       selectedDecks: this.selectedDecks,
       backgroundImage: this.backgroundImage,
       cardBackImage: this.cardBackImage,
+      cardBorderFront: this.cardBorderFront || '#06b6d4',
+      cardBorderBack: this.cardBorderBack || '#f59e0b',
       deckAuthor: this.deckAuthor,
       teamResources: this.calculateTeamResources(true),
       finalTeamResources: this.calculateTeamResources(false),

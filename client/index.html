@@ -351,6 +351,132 @@
               </div>
             </div>
 
+            <!-- MASTER VISUAL PREVIEW & CARD STYLING BOX (ONLY VISIBLE TO MASTER) -->
+            <div id="lobby-master-visual-box" class="lobby-master-visual-box hidden">
+              <div class="lobby-visual-header">
+                <div class="lobby-visual-title-row">
+                  <span class="lobby-visual-title">🎨 Реальный предпросмотр стола и карт</span>
+                  <span class="badge badge-master-only">👑 Только Мастер</span>
+                </div>
+                <small class="lobby-visual-hint">Настройте фон стола, рубашку и цветные обводки внутренней и наружной сторон карт перед началом игры.</small>
+              </div>
+
+              <!-- REALISTIC TABLETOP PREVIEW BOX IN LOBBY -->
+              <div class="preview-tabletop-box lobby-preview-tabletop" id="lobby-preview-tabletop-box">
+                <div class="preview-cards-pair">
+                  <!-- CARD FACE PREVIEW (Внутренняя сторона) -->
+                  <div class="card-preview-wrapper">
+                    <div class="preview-label">Внутренняя сторона (Лицо):</div>
+                    <div class="bunker-card-preview face-preview" id="lobby-card-preview-face">
+                      <div class="card-header">
+                        <div class="card-cat-title">
+                          <span class="card-cat-icon" id="lobby-prev-cat-icon">💼</span>
+                          <span class="card-cat-name" id="lobby-prev-cat-name">Профессия</span>
+                        </div>
+                      </div>
+                      <div class="card-content-text" id="lobby-prev-card-text">Инженер-эколог (#Инженерия[4])</div>
+                      <div class="card-tags-badges" id="lobby-prev-card-tags">
+                        <span class="card-tag-chip" style="color: #38bdf8; background: rgba(56, 189, 248, 0.15);">⚙️ Инженерия +4</span>
+                      </div>
+                      <div class="card-footer">
+                        <span class="card-author-badge" id="lobby-prev-card-author">✍️ Бункер 3.1</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- CARD BACK PREVIEW (Наружная сторона) -->
+                  <div class="card-preview-wrapper">
+                    <div class="preview-label">Наружная сторона (Рубашка):</div>
+                    <div class="bunker-card-preview back-preview" id="lobby-card-preview-back">
+                      <div class="card-back-icon" id="lobby-prev-back-icon">🛡️</div>
+                      <div class="card-back-text" id="lobby-prev-back-text">БУНКЕР 3.1</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- BORDER COLOR & THEME CONTROLS GRID -->
+              <div class="lobby-visual-controls-grid">
+                <!-- FRONT BORDER COLOR (Лицо карты) -->
+                <div class="form-group border-color-picker-box">
+                  <div class="color-picker-label-row">
+                    <label class="color-picker-title">Обводка внутренней стороны (Лицо):</label>
+                    <span id="lobby-val-front-border" class="color-hex-val">#06b6d4</span>
+                  </div>
+                  <div class="color-palette-row" id="lobby-front-border-chips">
+                    <button type="button" class="color-chip active" data-color="#06b6d4" style="background: #06b6d4;" title="Бирюзовый"></button>
+                    <button type="button" class="color-chip" data-color="#3b82f6" style="background: #3b82f6;" title="Синий"></button>
+                    <button type="button" class="color-chip" data-color="#10b981" style="background: #10b981;" title="Изумрудный"></button>
+                    <button type="button" class="color-chip" data-color="#f59e0b" style="background: #f59e0b;" title="Золотой"></button>
+                    <button type="button" class="color-chip" data-color="#ef4444" style="background: #ef4444;" title="Коралловый"></button>
+                    <button type="button" class="color-chip" data-color="#8b5cf6" style="background: #8b5cf6;" title="Фиолетовый"></button>
+                    <button type="button" class="color-chip" data-color="#f8fafc" style="background: #f8fafc;" title="Белый"></button>
+                    <label class="color-chip-custom" title="Выбрать произвольный цвет">
+                      <input type="color" id="lobby-input-front-border" value="#06b6d4">
+                      <span class="color-chip-icon">🎨</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- BACK BORDER COLOR (Рубашка) -->
+                <div class="form-group border-color-picker-box">
+                  <div class="color-picker-label-row">
+                    <label class="color-picker-title">Обводка наружной стороны (Рубашка):</label>
+                    <span id="lobby-val-back-border" class="color-hex-val">#f59e0b</span>
+                  </div>
+                  <div class="color-palette-row" id="lobby-back-border-chips">
+                    <button type="button" class="color-chip active" data-color="#f59e0b" style="background: #f59e0b;" title="Золотой"></button>
+                    <button type="button" class="color-chip" data-color="#ea580c" style="background: #ea580c;" title="Оранжевый"></button>
+                    <button type="button" class="color-chip" data-color="#ef4444" style="background: #ef4444;" title="Красный"></button>
+                    <button type="button" class="color-chip" data-color="#06b6d4" style="background: #06b6d4;" title="Бирюзовый"></button>
+                    <button type="button" class="color-chip" data-color="#3b82f6" style="background: #3b82f6;" title="Синий"></button>
+                    <button type="button" class="color-chip" data-color="#475569" style="background: #475569;" title="Стальной"></button>
+                    <button type="button" class="color-chip" data-color="#1e293b" style="background: #1e293b;" title="Тёмный"></button>
+                    <label class="color-chip-custom" title="Выбрать произвольный цвет">
+                      <input type="color" id="lobby-input-back-border" value="#f59e0b">
+                      <span class="color-chip-icon">🎨</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- TABLE BACKGROUND -->
+                <div class="form-group visual-media-group">
+                  <label class="color-picker-title">Фоновое изображение стола (URL или файл):</label>
+                  <div class="media-input-row">
+                    <input type="text" id="lobby-deck-bg" class="form-input form-input-sm" placeholder="https://... или выберите пресет">
+                    <button type="button" class="btn btn-xs btn-outline" id="btn-lobby-upload-bg" title="Загрузить изображение с устройства">📁 Загрузить</button>
+                    <input type="file" id="input-file-lobby-bg" accept="image/png,image/jpeg,image/webp" class="hidden">
+                  </div>
+                  <div class="preset-links">
+                    <span class="preset-label">Пресеты стола:</span>
+                    <button type="button" class="btn-preset-link" onclick="Lobby.setBgPreset('entrance')">Вход</button>
+                    <button type="button" class="btn-preset-link" onclick="Lobby.setBgPreset('hangar')">Ангар</button>
+                    <button type="button" class="btn-preset-link" onclick="Lobby.setBgPreset('corridor')">Коридор</button>
+                    <button type="button" class="btn-preset-link" onclick="Lobby.setBgPreset('sands')">Пески</button>
+                    <button type="button" class="btn-preset-link" onclick="Lobby.setBgPreset('none')">Сброс</button>
+                  </div>
+                </div>
+
+                <!-- CARD BACK IMAGE -->
+                <div class="form-group visual-media-group">
+                  <label class="color-picker-title">Изображение рубашки карт (URL или файл):</label>
+                  <div class="media-input-row">
+                    <input type="text" id="lobby-deck-card-back" class="form-input form-input-sm" placeholder="https://... или выберите пресет">
+                    <button type="button" class="btn btn-xs btn-outline" id="btn-lobby-upload-card-back" title="Загрузить изображение с устройства">📁 Загрузить</button>
+                    <input type="file" id="input-file-lobby-card-back" accept="image/png,image/jpeg,image/webp" class="hidden">
+                  </div>
+                  <div class="preset-links">
+                    <span class="preset-label">Пресеты рубашки:</span>
+                    <button type="button" class="btn-preset-link" onclick="Lobby.setBackPreset('radiation')">Радиация</button>
+                    <button type="button" class="btn-preset-link" onclick="Lobby.setBackPreset('association')">Ассоциация</button>
+                    <button type="button" class="btn-preset-link" onclick="Lobby.setBackPreset('umbrella')">Амбрелла</button>
+                    <button type="button" class="btn-preset-link" onclick="Lobby.setBackPreset('door')">Дверь</button>
+                    <button type="button" class="btn-preset-link" onclick="Lobby.setBackPreset('none')">Сброс</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- MASTER START ACTION -->
             <div class="lobby-actions">
               <button id="btn-start-game" class="btn btn-success btn-lg btn-block">🚀 НАЧАТЬ ИГРУ</button>
@@ -1004,6 +1130,48 @@
                 <div class="editor-theme-styling-box" style="margin-top: 14px; margin-bottom: 0;">
                   <div class="theme-style-title">🎨 Оформление игрового стола и карт:</div>
                   <div class="theme-inputs-grid">
+                    <!-- FRONT BORDER COLOR (Лицо) -->
+                    <div class="form-group border-color-picker-box">
+                      <div class="color-picker-label-row">
+                        <label class="color-picker-title">Обводка внутренней стороны (Лицо):</label>
+                        <span id="editor-val-front-border" class="color-hex-val">#06b6d4</span>
+                      </div>
+                      <div class="color-palette-row" id="editor-front-border-chips">
+                        <button type="button" class="color-chip active" data-color="#06b6d4" style="background: #06b6d4;" title="Бирюзовый"></button>
+                        <button type="button" class="color-chip" data-color="#3b82f6" style="background: #3b82f6;" title="Синий"></button>
+                        <button type="button" class="color-chip" data-color="#10b981" style="background: #10b981;" title="Изумрудный"></button>
+                        <button type="button" class="color-chip" data-color="#f59e0b" style="background: #f59e0b;" title="Золотой"></button>
+                        <button type="button" class="color-chip" data-color="#ef4444" style="background: #ef4444;" title="Коралловый"></button>
+                        <button type="button" class="color-chip" data-color="#8b5cf6" style="background: #8b5cf6;" title="Фиолетовый"></button>
+                        <button type="button" class="color-chip" data-color="#f8fafc" style="background: #f8fafc;" title="Белый"></button>
+                        <label class="color-chip-custom" title="Выбрать произвольный цвет">
+                          <input type="color" id="edit-deck-border-front" value="#06b6d4">
+                          <span class="color-chip-icon">🎨</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    <!-- BACK BORDER COLOR (Рубашка) -->
+                    <div class="form-group border-color-picker-box">
+                      <div class="color-picker-label-row">
+                        <label class="color-picker-title">Обводка наружной стороны (Рубашка):</label>
+                        <span id="editor-val-back-border" class="color-hex-val">#f59e0b</span>
+                      </div>
+                      <div class="color-palette-row" id="editor-back-border-chips">
+                        <button type="button" class="color-chip active" data-color="#f59e0b" style="background: #f59e0b;" title="Золотой"></button>
+                        <button type="button" class="color-chip" data-color="#ea580c" style="background: #ea580c;" title="Оранжевый"></button>
+                        <button type="button" class="color-chip" data-color="#ef4444" style="background: #ef4444;" title="Красный"></button>
+                        <button type="button" class="color-chip" data-color="#06b6d4" style="background: #06b6d4;" title="Бирюзовый"></button>
+                        <button type="button" class="color-chip" data-color="#3b82f6" style="background: #3b82f6;" title="Синий"></button>
+                        <button type="button" class="color-chip" data-color="#475569" style="background: #475569;" title="Стальной"></button>
+                        <button type="button" class="color-chip" data-color="#1e293b" style="background: #1e293b;" title="Тёмный"></button>
+                        <label class="color-chip-custom" title="Выбрать произвольный цвет">
+                          <input type="color" id="edit-deck-border-back" value="#f59e0b">
+                          <span class="color-chip-icon">🎨</span>
+                        </label>
+                      </div>
+                    </div>
+
                     <div class="form-group">
                       <label>Фоновое изображение стола (URL или файл):</label>
                       <div style="display: flex; gap: 6px; margin-bottom: 6px;">

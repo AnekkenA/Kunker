@@ -25,6 +25,8 @@
 
   --card-w: 148px;
   --card-h: 255px;
+  --card-border-front: #06b6d4;
+  --card-border-back: #f59e0b;
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 22px;
@@ -850,6 +852,176 @@ body {
   line-height: 1.4;
 }
 
+/* ============================================================
+   LOBBY MASTER VISUAL PREVIEW & BORDER CUSTOMIZATION
+   ============================================================ */
+.lobby-master-visual-box {
+  margin-top: 14px;
+  margin-bottom: 14px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+}
+
+.lobby-visual-header {
+  margin-bottom: 12px;
+}
+
+.lobby-visual-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.lobby-visual-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-main);
+  font-family: var(--font-display);
+  letter-spacing: 0.5px;
+}
+
+.badge-master-only {
+  background: rgba(245, 158, 11, 0.18);
+  color: var(--accent-amber);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.lobby-visual-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.lobby-preview-tabletop {
+  margin-bottom: 12px;
+  border-radius: var(--radius-sm);
+}
+
+.lobby-visual-controls-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.border-color-picker-box {
+  background: rgba(0, 0, 0, 0.25);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.visual-media-group {
+  background: rgba(0, 0, 0, 0.25);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.media-input-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  margin-bottom: 6px;
+}
+
+.color-picker-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 3px;
+}
+
+.color-picker-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 0;
+}
+
+.color-hex-val {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+
+.color-palette-row {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.color-chip {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+  padding: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
+}
+
+.color-chip:hover {
+  transform: scale(1.18);
+  border-color: #ffffff;
+}
+
+.color-chip.active {
+  transform: scale(1.22);
+  border-color: #ffffff;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.8), 0 0 2px #fff;
+}
+
+.color-chip-custom {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(255, 255, 255, 0.45);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.color-chip-custom:hover {
+  border-color: #ffffff;
+  transform: scale(1.12);
+}
+
+.color-chip-custom input[type="color"] {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  left: 0;
+  top: 0;
+}
+
+.color-chip-icon {
+  font-size: 13px;
+  pointer-events: none;
+  user-select: none;
+}
+
 .lobby-actions {
   display: flex;
   flex-direction: column;
@@ -1490,7 +1662,7 @@ body {
 /* CARD BACK (РУБАШКА) */
 .card-back {
   background: linear-gradient(145deg, #182230 0%, #0d131a 100%);
-  border: 2px solid #2b3b52;
+  border: 2px solid var(--card-border-back, #f59e0b);
   align-items: center;
   justify-content: center;
   text-align: center;
@@ -1523,7 +1695,7 @@ body {
 /* CARD FRONT (ЛИЦЕВАЯ СТОРОНА) */
 .card-front {
   background: var(--bg-surface);
-  border: 2px solid var(--border-glow);
+  border: 2px solid var(--card-border-front, var(--border-glow));
   transform: rotateY(180deg);
 }
 
@@ -2916,12 +3088,12 @@ body {
 
 .bunker-card-preview.face-preview {
   background: var(--bg-surface);
-  border: 2px solid var(--border-glow);
+  border: 2px solid var(--card-border-front, var(--border-glow));
 }
 
 .bunker-card-preview.back-preview {
   background: linear-gradient(145deg, #182230 0%, #0d131a 100%);
-  border: 2px solid #2b3b52;
+  border: 2px solid var(--card-border-back, #f59e0b);
   align-items: center;
   justify-content: center;
   text-align: center;

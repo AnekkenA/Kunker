@@ -287,6 +287,8 @@ const server = http.createServer(async (req, res) => {
               categories: payload ? payload.categories : null,
               backgroundImage: payload ? payload.backgroundImage : null,
               cardBackImage: payload ? payload.cardBackImage : null,
+              cardBorderFront: payload ? payload.cardBorderFront : null,
+              cardBorderBack: payload ? payload.cardBorderBack : null,
               deckAuthor: payload ? payload.deckAuthor : null
             });
             break;
@@ -361,7 +363,9 @@ const server = http.createServer(async (req, res) => {
           case 'start_ugc_game':
             targetGame.startUgcGame(playerId, payload ? payload.saveThemeName : null, {
               backgroundImage: payload ? payload.backgroundImage : null,
-              cardBackImage: payload ? payload.cardBackImage : null
+              cardBackImage: payload ? payload.cardBackImage : null,
+              cardBorderFront: payload ? payload.cardBorderFront : null,
+              cardBorderBack: payload ? payload.cardBorderBack : null
             });
             break;
 
@@ -467,6 +471,10 @@ const server = http.createServer(async (req, res) => {
             if (payload.decks) targetGame.selectedDecks = payload.decks;
             if (payload.password !== undefined) targetGame.password = String(payload.password).trim();
             if (payload.lockedLobby !== undefined) targetGame.lockedLobby = Boolean(payload.lockedLobby);
+            if (payload.backgroundImage !== undefined) targetGame.backgroundImage = payload.backgroundImage;
+            if (payload.cardBackImage !== undefined) targetGame.cardBackImage = payload.cardBackImage;
+            if (payload.cardBorderFront !== undefined) targetGame.cardBorderFront = payload.cardBorderFront;
+            if (payload.cardBorderBack !== undefined) targetGame.cardBorderBack = payload.cardBorderBack;
             break;
 
           default:
