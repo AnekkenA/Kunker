@@ -1181,8 +1181,10 @@ const GameBoard = {
 
     // 1. Catastrophe (Disaster)
     if (state.disaster) {
-      document.getElementById('disaster-title').textContent = state.disaster.title;
-      document.getElementById('disaster-goal').textContent = state.disaster.goal;
+      const disasterTitle = document.getElementById('disaster-title');
+      const disasterGoal = document.getElementById('disaster-goal');
+      if (disasterTitle) disasterTitle.textContent = state.disaster.title || 'Катастрофа';
+      if (disasterGoal) disasterGoal.textContent = state.disaster.goal || state.disaster.description || '';
     }
 
     // 2. Bunker Cards List
@@ -1195,12 +1197,20 @@ const GameBoard = {
       if (bunkerCards.length === 0) {
         bunkerContainer.innerHTML = '<div class="world-card-empty">Карты бункера пока закрыты</div>';
       } else {
-        bunkerContainer.innerHTML = bunkerCards.map((bc, idx) => `
-          <div class="world-item-chip bunker-chip">
-            <div class="chip-title">🛡️ ${bc.title || 'Условие бункера'}</div>
-            <div class="chip-desc">${bc.description || ''}</div>
-          </div>
-        `).join('');
+        bunkerContainer.innerHTML = bunkerCards.map((bc, idx) => {
+          const rawDesc = bc.description || '';
+          const parsed = (typeof TagHelper !== 'undefined') ? TagHelper.parse(rawDesc) : { cleanText: rawDesc, tags: [] };
+          const tagsHtml = (typeof TagHelper !== 'undefined' && parsed.tags && parsed.tags.length > 0)
+            ? `<div class="chip-tags">${TagHelper.renderTagsHtml(parsed.tags)}</div>`
+            : '';
+          return `
+            <div class="world-item-chip bunker-chip">
+              <div class="chip-title">🛡️ ${bc.title || 'Условие бункера'}</div>
+              <div class="chip-desc">${parsed.cleanText || rawDesc}</div>
+              ${tagsHtml}
+            </div>
+          `;
+        }).join('');
       }
     }
 
@@ -1214,12 +1224,20 @@ const GameBoard = {
       if (threatCards.length === 0) {
         threatsContainer.innerHTML = '<div class="world-card-empty">Активных угроз пока нет</div>';
       } else {
-        threatsContainer.innerHTML = threatCards.map((tc, idx) => `
-          <div class="world-item-chip threat-chip">
-            <div class="chip-title">⚠️ ${tc.title || 'Угроза бункера'}</div>
-            <div class="chip-desc">${tc.description || ''}</div>
-          </div>
-        `).join('');
+        threatsContainer.innerHTML = threatCards.map((tc, idx) => {
+          const rawDesc = tc.description || '';
+          const parsed = (typeof TagHelper !== 'undefined') ? TagHelper.parse(rawDesc) : { cleanText: rawDesc, tags: [] };
+          const tagsHtml = (typeof TagHelper !== 'undefined' && parsed.tags && parsed.tags.length > 0)
+            ? `<div class="chip-tags">${TagHelper.renderTagsHtml(parsed.tags)}</div>`
+            : '';
+          return `
+            <div class="world-item-chip threat-chip">
+              <div class="chip-title">⚠️ ${tc.title || 'Угроза бункера'}</div>
+              <div class="chip-desc">${parsed.cleanText || rawDesc}</div>
+              ${tagsHtml}
+            </div>
+          `;
+        }).join('');
       }
     }
 
