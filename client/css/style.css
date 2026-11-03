@@ -63,7 +63,10 @@ body {
   background-color: rgba(19, 27, 38, 0.95);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-color);
-  padding: 10px 20px;
+  padding: 8px 18px;
+  min-height: 52px;
+  height: 52px;
+  box-sizing: border-box;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -75,106 +78,143 @@ body {
 .header-left, .header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  height: 34px;
 }
 
 .logo {
   display: flex;
   align-items: center;
   gap: 8px;
+  height: 34px;
+  user-select: none;
 }
 
 .logo-icon {
-  font-size: 24px;
+  font-size: 22px;
   filter: drop-shadow(0 0 8px var(--accent-amber));
 }
 
 .logo-text {
   font-family: var(--font-display);
   font-weight: 900;
-  font-size: 20px;
+  font-size: 19px;
   letter-spacing: 2px;
   background: linear-gradient(135deg, #fbbf24 0%, #f97316 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-.room-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
+/* UNIFIED HEADER BUTTONS & BADGES (EXACT SAME HEIGHT: 34px) */
+.app-header .btn,
+.app-header .btn-icon,
+.app-header .room-code-badge,
+.app-header .role-badge,
+.app-header .timer-btn,
+.app-header .timer-active-display {
+  height: 34px !important;
+  min-height: 34px !important;
+  max-height: 34px !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  vertical-align: middle !important;
+  margin: 0 !important;
 }
 
-.badge-code {
-  font-family: var(--font-display);
-  font-weight: 700;
-  color: var(--accent-cyan);
-  letter-spacing: 1px;
+.app-header .room-code-badge {
+  background: rgba(6, 182, 212, 0.14) !important;
+  border: 1px solid rgba(6, 182, 212, 0.4) !important;
+  color: var(--accent-cyan) !important;
+  font-family: var(--font-mono) !important;
+  padding: 0 10px !important;
+  gap: 6px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease;
+}
+.app-header .room-code-badge:hover {
+  background: rgba(6, 182, 212, 0.25) !important;
+  border-color: var(--accent-cyan) !important;
 }
 
-.lock-badge {
-  font-size: 12px;
+.app-header #btn-invite,
+.app-header #btn-header-new-room,
+.app-header #btn-header-back-to-lobby {
+  padding: 0 12px !important;
+  box-shadow: 0 2px 0 var(--border-color);
+}
+.app-header #btn-invite:active,
+.app-header #btn-header-new-room:active,
+.app-header #btn-header-back-to-lobby:active {
+  box-shadow: 0 1px 0 var(--border-color);
+  transform: translateY(1px) !important;
+}
+
+.app-header .btn-icon {
+  width: 34px !important;
+  padding: 0 !important;
+  font-size: 15px !important;
+  box-shadow: 0 2px 0 var(--border-color);
+}
+.app-header .btn-icon:active {
+  box-shadow: 0 1px 0 var(--border-color);
+  transform: translateY(1px) !important;
 }
 
 .user-profile {
   display: flex;
   align-items: center;
-  gap: 8px;
-  max-width: 150px;
-  min-width: 0;
-  overflow: hidden;
+  gap: 6px;
+  height: 34px;
 }
 
 .user-name {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--text-main);
+  max-width: 85px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 90px;
   display: inline-block;
-  font-weight: 600;
+  line-height: 34px;
+  height: 34px;
 }
 
 .role-badge {
-  font-size: 11px;
-  text-transform: uppercase;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--bg-surface);
-  color: var(--text-muted);
-  border: 1px solid var(--border-color);
+  padding: 0 9px !important;
+  text-transform: uppercase !important;
+  background: var(--bg-surface) !important;
+  color: var(--text-muted) !important;
+  border: 1px solid var(--border-color) !important;
+  font-size: 11px !important;
 }
 
 .role-badge.master {
-  background: rgba(245, 158, 11, 0.2);
-  color: var(--accent-amber);
-  border-color: var(--accent-amber);
-  font-weight: 700;
+  background: rgba(245, 158, 11, 0.18) !important;
+  color: var(--accent-amber) !important;
+  border-color: var(--accent-amber) !important;
+  font-weight: 800 !important;
 }
 
-.user-name {
-  font-weight: 500;
-  font-size: 14px;
+.app-header #btn-claim-host-header {
+  padding: 0 10px !important;
+  border-color: var(--accent-amber) !important;
+  color: var(--accent-amber) !important;
+  background: rgba(245, 158, 11, 0.1) !important;
+  box-shadow: 0 2px 0 rgba(245, 158, 11, 0.3) !important;
 }
 
-.btn-icon {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  color: var(--text-main);
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.btn-icon:hover {
-  background: var(--bg-surface-hover);
-  border-color: var(--border-glow);
+.app-header #btn-leave-room {
+  padding: 0 11px !important;
+  background: var(--accent-red) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 0 var(--btn-danger-shadow) !important;
 }
 
 /* --- BUTTONS & FORMS (GARTIC PHONE TACTILE 3D AESTHETIC) --- */
@@ -4534,7 +4574,7 @@ body {
 }
 
 /* ==========================================================================
-   BUNKER CHAT & LOGS PANEL (GARTIC PHONE COMPACT FLOATING PILL)
+   BUNKER CHAT & LOGS PANEL
    ========================================================================== */
 .bunker-chat-panel {
   position: fixed;
@@ -4548,22 +4588,25 @@ body {
   background: rgba(15, 23, 42, 0.96);
   backdrop-filter: blur(16px);
   border: 2px solid var(--accent-blue);
-  border-radius: 20px;
+  border-radius: 12px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 20px rgba(59, 130, 246, 0.25);
   overflow: hidden;
-  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: none !important;
+  animation: none !important;
 }
 
-/* WHEN COLLAPSED: A SLEEK FLOATING ARCADE PILL (GARTIC STYLE) */
+/* WHEN COLLAPSED */
 .bunker-chat-panel.collapsed {
   width: auto;
   min-width: 175px;
   height: 44px;
-  border-radius: var(--radius-pill);
+  border-radius: 12px;
   cursor: pointer;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4), 0 3px 0 var(--btn-primary-shadow);
   border-color: var(--accent-blue);
   background: #151d32;
+  transition: none !important;
+  animation: none !important;
 }
 
 .bunker-chat-panel.collapsed:hover {
@@ -4861,10 +4904,14 @@ body {
     right: 10px;
     bottom: 10px;
     height: 340px;
+    border-radius: 12px;
+    transition: none !important;
   }
   .bunker-chat-panel.collapsed {
     width: auto;
     height: 44px;
+    border-radius: 12px;
+    transition: none !important;
   }
   .world-cards-bar {
     grid-template-columns: 1fr;
