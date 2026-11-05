@@ -814,10 +814,22 @@ class SingleGame {
         }
       });
       available = fallbackList.filter(c => !this.inPlayCards[categoryKey].has(c) && c !== oldText);
+
+      // If all unique cards are already held by players (e.g. 16 players with a 7-card deck),
+      // allow recycling/repeating cards so exchanging still works smoothly:
+      if (available.length === 0) {
+        available = fallbackList.filter(c => c !== oldText);
+      }
+      if (available.length === 0 && this.categoryDecks[categoryKey]) {
+        available = this.categoryDecks[categoryKey].filter(c => c !== oldText);
+      }
+      if (available.length === 0 && fallbackList.length > 0) {
+        available = fallbackList;
+      }
     }
 
     if (available.length === 0) {
-      throw new Error(`В колоде категории "${categoryKey}" больше нет свободных карт (все уникальные карты уже на руках у игроков)!`);
+      throw new Error(`В колоде категории "${categoryKey}" нет доступных карт для обмена.`);
     }
 
     const newRawItem = getRandomItem(available);
@@ -1399,14 +1411,29 @@ class SingleGame {
 
       // De-duplicate master pool
       const uniquePool = Array.from(new Set(sourceList));
-      const shuffled = shuffle(uniquePool);
+      let shuffled = shuffle(uniquePool);
+      if (shuffled.length === 0) {
+        shuffled = Array.from({ length: 30 }, (_, i) => `${cat.name} №${i + 1}`);
+      }
 
-      this.categoryDecks[cat.key] = [...shuffled];
+      // Build dealing pool: if players exceed unique cards (e.g. up to 16 players, but only 7 cards in theme),
+      // cycle and repeat cards so every player receives a valid card!
+      let dealingPool = [...shuffled];
+      while (dealingPool.length < this.players.size) {
+        dealingPool = dealingPool.concat(shuffle([...uniquePool]));
+      }
+
+      // Ensure category deck has at least 10 reserve cards for exchange/abilities
+      while (dealingPool.length < this.players.size + 10) {
+        dealingPool = dealingPool.concat(shuffle([...uniquePool]));
+      }
+
+      this.categoryDecks[cat.key] = dealingPool.slice(this.players.size);
       this.inPlayCards[cat.key] = new Set();
 
       this.players.forEach(player => {
         player.isExiled = false;
-        let cardItem = this.categoryDecks[cat.key].shift() || '—';
+        let cardItem = dealingPool.shift() || `${cat.name} (резерв)`;
         let rawText = '';
         let cardAuthor = this.deckAuthor || 'Бункер';
         let cardAction = null;
@@ -1644,13 +1671,30 @@ class SingleGame {
 
     // 3. Category Decks and dealing cards
     this.categories.forEach(cat => {
-      const shuffled = shuffle(pool[cat.key]);
-      this.categoryDecks[cat.key] = [...shuffled];
+      let poolCards = pool[cat.key] || [];
+      if (poolCards.length === 0) {
+        const fallbacks = classicDeck[cat.key] || classicDeck[cat.key + 's'] || Array.from({ length: 15 }, (_, i) => `${cat.name} №${i + 1}`);
+        poolCards = fallbacks.map(f => ({
+          text: typeof f === 'string' ? f : (f.text || JSON.stringify(f)),
+          author: 'Бункер'
+        }));
+      }
+
+      let shuffled = shuffle(poolCards);
+      let dealingPool = [...shuffled];
+      while (dealingPool.length < this.players.size) {
+        dealingPool = dealingPool.concat(shuffle([...poolCards]));
+      }
+      while (dealingPool.length < this.players.size + 10) {
+        dealingPool = dealingPool.concat(shuffle([...poolCards]));
+      }
+
+      this.categoryDecks[cat.key] = dealingPool.slice(this.players.size);
       this.inPlayCards[cat.key] = new Set();
 
       this.players.forEach(player => {
         player.isExiled = false;
-        const cardItem = this.categoryDecks[cat.key].shift() || { text: '—', author: 'Игрок' };
+        const cardItem = dealingPool.shift() || { text: `${cat.name} (резерв)`, author: 'Игрок' };
         const rawText = typeof cardItem === 'string' ? cardItem : (cardItem.text || '—');
         const cardAuthor = (typeof cardItem === 'object' && cardItem.author) ? cardItem.author : 'Игрок';
         const cardAction = (typeof cardItem === 'object' && cardItem.action) ? cardItem.action : null;
@@ -2085,7 +2129,7 @@ class RoomManager {
   constructor() {
     this.rooms = new Map();
     this.defaultRoomId = '101';
-    this.maxRooms = 4; // Strict cap of 4 rooms maximum
+    this.maxRooms = 8; // Cap of 8 simultaneous rooms maximum
     this.idleLimitMs = 30 * 60 * 1000; // 30 minutes inactivity timeout (extended so players can discuss & argue freely)
     this.onRoomCreated = null;
 
@@ -2261,10 +2305,9 @@ class RoomManager {
 }
 
 const roomManager = new RoomManager();
-const singleGameInstance = roomManager.getRoom('101');
 
 module.exports = {
-  game: singleGameInstance,
+  game: null,
   SingleGame,
   RoomManager,
   roomManager,

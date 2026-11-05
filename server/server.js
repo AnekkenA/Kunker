@@ -46,13 +46,13 @@ for (const r of roomManager.rooms.values()) {
 }
 
 // Helper to resolve the target room instance from request
-function getGameFromReq(req, parsedUrl, body = null) {
+function getGameFromReq(req, parsedUrl, body = null, createIfNotFound = false) {
   let roomId = null;
   if (body && body.roomId) roomId = body.roomId;
   if (!roomId && parsedUrl && parsedUrl.query && parsedUrl.query.room) roomId = parsedUrl.query.room;
   if (!roomId && req && req.headers && req.headers['x-room-id']) roomId = req.headers['x-room-id'];
-  const room = roomManager.getRoom(roomId);
-  if (!room.broadcastCallback) {
+  const room = roomManager.getRoom(roomId, createIfNotFound);
+  if (room && !room.broadcastCallback) {
     room.setBroadcast(() => broadcastRoom(room));
   }
   return room;
@@ -131,7 +131,11 @@ const server = http.createServer(async (req, res) => {
   // 1. API: Server-Sent Events (SSE) Realtime Stream
   if (pathname === '/api/events') {
     const playerId = parsedUrl.query.playerId;
-    const targetGame = getGameFromReq(req, parsedUrl);
+    const targetGame = getGameFromReq(req, parsedUrl, null, false);
+    if (!targetGame) {
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify({ error: 'Бункер не найден или был закрыт.' }));
+    }
 
     res.writeHead(200, {
       'Content-Type': 'text/event-stream; charset=utf-8',
@@ -223,7 +227,10 @@ const server = http.createServer(async (req, res) => {
       // Join / Enter Game
       if (pathname === '/api/join' && req.method === 'POST') {
         const body = await parseBody(req);
-        const targetGame = getGameFromReq(req, parsedUrl, body);
+        const targetGame = getGameFromReq(req, parsedUrl, body, true);
+        if (!targetGame) {
+          return sendJson(res, 400, { error: 'Не удалось подключиться к бункеру' });
+        }
         const { playerId, isHost } = targetGame.joinPlayer(body.name, body.password, body.playerId);
         targetGame.broadcast();
         return sendJson(res, 200, {
@@ -237,9 +244,15 @@ const server = http.createServer(async (req, res) => {
 
       // Game State
       if (pathname === '/api/state') {
-        const targetGame = getGameFromReq(req, parsedUrl);
+        const targetGame = getGameFromReq(req, parsedUrl, null, false);
+        if (!targetGame) {
+          return sendJson(res, 404, { error: 'Бункер не найден' });
+        }
         const playerId = parsedUrl.query.playerId;
-        return sendJson(res, 200, targetGame.toClientState(playerId));
+        const state = targetGame.toClientState(playerId);
+        state.systemLocked = licenseGuard.isLocked();
+        state.systemLockReason = licenseGuard.getLockReason();
+        return sendJson(res, 200, state);
       }
 
       // Actions
@@ -248,11 +261,22 @@ const server = http.createServer(async (req, res) => {
           return sendJson(res, 403, { error: 'СЕРВЕР ЗАБЛОКИРОВАН: требуется авторизация копии игры в консоли сервера.' });
         }
         const body = await parseBody(req);
-        const targetGame = getGameFromReq(req, parsedUrl, body);
+        const targetGame = getGameFromReq(req, parsedUrl, body, false);
+        if (!targetGame) {
+          return sendJson(res, 404, { error: 'Бункер не найден или был освобожден.' });
+        }
         const { action, playerId, payload } = body;
         targetGame.touch();
 
         switch (action) {
+          case 'close_room':
+          case 'free_room': {
+            if (targetGame.hostId && targetGame.hostId !== playerId) {
+              throw new Error('Только Мастер игры может освободить комнату.');
+            }
+            roomManager.closeRoom(targetGame.roomId, 'Бункер был освобожден Мастером игры.');
+            return sendJson(res, 200, { success: true, message: 'Бункер успешно освобожден.' });
+          }
           case 'send_chat': {
             const chatText = (payload && payload.text) ? String(payload.text) : '';
             targetGame.addChatMessage(playerId, chatText);
@@ -493,8 +517,8 @@ const server = http.createServer(async (req, res) => {
 
       // Network Info
       if (pathname === '/api/network' && req.method === 'GET') {
-        const targetGame = getGameFromReq(req, parsedUrl);
-        return sendJson(res, 200, getNetworkInfo(targetGame.roomId));
+        const targetGame = getGameFromReq(req, parsedUrl, null, false);
+        return sendJson(res, 200, getNetworkInfo(targetGame ? targetGame.roomId : '101'));
       }
 
       // Deck endpoints

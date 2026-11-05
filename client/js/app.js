@@ -121,7 +121,7 @@ const App = {
       if (res.ok) {
         const data = await res.json();
         const active = (data && typeof data.activeCount === 'number') ? data.activeCount : 0;
-        const max = (data && data.maxRooms) || 4;
+        const max = (data && data.maxRooms) || 8;
         const free = Math.max(0, max - active);
         if (free > 0) {
           badgeText.innerHTML = `<span style="color:var(--accent-green);">Свободно бункеров: ${free} из ${max}</span>`;
@@ -677,7 +677,7 @@ const App = {
       });
     }
 
-    // Header Leave & New Room Buttons
+    // Header Free Room (Master only) & New Room Buttons
     const btnLeaveRoom = document.getElementById('btn-leave-room');
     if (btnLeaveRoom) {
       btnLeaveRoom.addEventListener('click', () => {
@@ -696,10 +696,13 @@ const App = {
   },
 
   async leaveRoom() {
-    if (!confirm('Вы действительно хотите выйти из этого бункера?')) return;
+    if (!this.isHost) {
+      return;
+    }
+    if (!confirm('Вы уверены, что хотите освободить бункер?\n\nКомната будет закрыта для всех игроков, а слот на сервере сразу освободится.')) return;
     try {
       if (this.playerId) {
-        await this.sendAction('leave_room', {});
+        await this.sendAction('close_room', {});
       }
     } catch (e) {}
 
@@ -720,7 +723,7 @@ const App = {
     if (userProfile) userProfile.classList.add('hidden');
 
     this.showScreen('screen-auth');
-    this.showToast('🚪 Вы вышли из бункера.');
+    this.showToast('🚪 Бункер успешно освобожден.');
     this.updateRoomsCapacityBadge();
   },
 
@@ -814,7 +817,7 @@ const App = {
     // Header updates
     document.getElementById('btn-invite').classList.remove('hidden');
     const btnHeaderNewRoom = document.getElementById('btn-header-new-room');
-    if (btnHeaderNewRoom) btnHeaderNewRoom.classList.remove('hidden');
+    const btnLeaveRoom = document.getElementById('btn-leave-room');
     document.getElementById('user-profile').classList.remove('hidden');
     document.getElementById('user-display-name').textContent = this.playerName || 'Игрок';
 
@@ -831,10 +834,18 @@ const App = {
       roleBadge.textContent = '👑 Мастер';
       roleBadge.classList.add('master');
       if (btnClaimHeader) btnClaimHeader.classList.add('hidden');
+      if (btnLeaveRoom) {
+        btnLeaveRoom.textContent = '🚪 Освободить комнату';
+        btnLeaveRoom.title = 'Освободить и закрыть бункер для всех игроков';
+        btnLeaveRoom.classList.remove('hidden');
+      }
+      if (btnHeaderNewRoom) btnHeaderNewRoom.classList.remove('hidden');
     } else {
       roleBadge.textContent = 'Игрок';
       roleBadge.classList.remove('master');
       if (btnClaimHeader) btnClaimHeader.classList.remove('hidden');
+      if (btnLeaveRoom) btnLeaveRoom.classList.add('hidden');
+      if (btnHeaderNewRoom) btnHeaderNewRoom.classList.add('hidden');
     }
 
     // Status transition sound
